@@ -1,7 +1,7 @@
 <?php
 $servername = "localhost";
-$username = "app2skmi_skmicloud"; // Your database username
-$password = "apps2skmicloudstoragePrivate";     // Your database password
+$username = "root"; // Your database username
+$password = "";     // Your database password
 $dbname = "app2skmi_skmicloud"; // Your database name
 
 // Create connection

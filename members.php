@@ -1158,7 +1158,7 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
 
         <!-- Member List Table -->
         <h2 class="section-title">Member List</h2>
-        <div class="member-table-container">
+        <div class="">
             <table class="member-table" id="memberTable">
                 <thead>
                     <tr>
