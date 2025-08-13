@@ -184,6 +184,13 @@ if ($isAjax) {
             --metro-success: #4CAF50;
             --metro-error: #E81123; /* Windows 10 error red */
             --metro-warning: #FF8C00; /* Windows 10 warning orange */
+            
+            /* --- LOKASI EDIT UKURAN FONT SIDEBAR --- */
+            --sidebar-font-size-desktop: 0.9em; /* Ukuran font default untuk desktop */
+            --sidebar-font-size-tablet-landscape: 1.0em; /* Ukuran font untuk tablet landscape */
+            --sidebar-font-size-tablet-portrait: 0.95em; /* Ukuran font untuk tablet portrait */
+            --sidebar-font-size-mobile: 0.9em; /* Ukuran font untuk mobile */
+            /* --- AKHIR LOKASI EDIT UKURAN FONT SIDEBAR --- */
         }
         
         * {
@@ -197,7 +204,7 @@ if ($isAjax) {
             height: 100vh;
             background-color: var(--metro-bg-color);
             color: var(--metro-text-color);
-            /* Removed overflow: hidden; */
+            overflow: hidden; /* Prevent body scroll, main-content handles it */
         }
 
         /* Base Sidebar (for Desktop/Tablet Landscape) */
@@ -210,6 +217,7 @@ if ($isAjax) {
             padding: 20px 0;
             transition: width 0.3s ease-in-out, transform 0.3s ease-in-out;
             flex-shrink: 0; /* Prevent shrinking */
+            /* REMOVED: box-shadow */
         }
 
         .sidebar-header {
@@ -250,7 +258,7 @@ if ($isAjax) {
             padding: 15px 20px; /* More padding */
             color: var(--metro-sidebar-text);
             text-decoration: none;
-            font-size: 1.1em;
+            font-size: var(--sidebar-font-size-desktop); /* Menggunakan variabel untuk desktop */
             transition: background-color 0.2s ease-out, color 0.2s ease-out;
             border-left: 5px solid transparent; /* For active state */
         }
@@ -334,10 +342,9 @@ if ($isAjax) {
             flex-direction: column;
             overflow-y: auto; /* Enable scrolling for content */
             background-color: #FFFFFF; /* White background for content area */
-            border-radius: 8px;
-            margin: 20px;
-            /* DELETED: width: calc(100% - 350px); */ /* REMOVED to allow main content to naturally take up space on smaller screens */
-            /* box-shadow: 0 5px 15px rgba(0,0,0,0.1); */ /* Removed shadow */
+            border-radius: 0; /* MODIFIED: No rounded corners for full width */
+            margin: 0; /* MODIFIED: Full width */
+            /* REMOVED: box-shadow */
         }
 
         /* Header Main - Now always white */
@@ -351,8 +358,8 @@ if ($isAjax) {
             background-color: #FFFFFF; /* White header */
             padding: 15px 30px; /* Add padding for header */
             margin: -30px -30px 25px -30px; /* Adjust margin to cover full width */
-            border-radius: 8px 8px 0 0; /* Rounded top corners */
-            /*box-shadow: 0 2px 5px rgba(0,0,0,0.05); /* Subtle shadow for header */
+            border-radius: 0; /* MODIFIED: No rounded top corners for full width */
+            /* REMOVED: box-shadow */
         }
 
         .header-main h1 {
@@ -376,11 +383,11 @@ if ($isAjax) {
             color: #FFFFFF;
             padding: 25px;
             border-radius: 5px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            /* REMOVED: box-shadow */
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+            transition: transform 0.2s ease-out; /* REMOVED box-shadow from transition */
             animation: fadeIn 0.5s ease-out forwards;
             opacity: 0;
         }
@@ -391,7 +398,7 @@ if ($isAjax) {
 
         .card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+            /* REMOVED: box-shadow */
         }
 
         .card h3 {
@@ -430,7 +437,8 @@ if ($isAjax) {
             border-radius: 8px;
             padding: 20px;
             margin-bottom: 20px;
-            transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+            transition: transform 0.2s ease-out; /* REMOVED box-shadow from transition */
+            /* REMOVED: box-shadow */
         }
         .chart-container:hover {
             transform: translateY(-3px);
@@ -449,7 +457,8 @@ if ($isAjax) {
             background-color: white;
             border-radius: 8px;
             padding: 20px;
-            transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+            transition: transform 0.2s ease-out; /* REMOVED box-shadow from transition */
+            /* REMOVED: box-shadow */
         }
         .last-uploaded-files:hover {
             transform: translateY(-3px);
@@ -586,7 +595,7 @@ if ($isAjax) {
             width: 220px; /* Slightly narrower sidebar */
         }
         body.tablet-landscape .main-content {
-            margin: 15px;
+            margin: 0; /* MODIFIED: Full width */
             padding: 20px;
             overflow-x: hidden; /* Tambahan: Mencegah scrollbar horizontal */
         }
@@ -633,6 +642,9 @@ if ($isAjax) {
         body.tablet-landscape .last-uploaded-files .file-meta {
             font-size: 0.8em;
         }
+        body.tablet-landscape .sidebar-menu a {
+            font-size: var(--sidebar-font-size-tablet-landscape); /* Menggunakan variabel untuk tablet landscape */
+        }
 
         /* Class for iPad & Tablet (Portrait: min-width 768px, max-width 1024px) */
         @media (min-width: 768px) and (max-width: 1024px) and (orientation: portrait) {
@@ -643,7 +655,7 @@ if ($isAjax) {
                 height: 100%;
                 z-index: 100;
                 transform: translateX(-100%); /* Hidden by default */
-                box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+                /* REMOVED: box-shadow */
             }
             body.tablet-portrait .sidebar.show-mobile-sidebar {
                 transform: translateX(0); /* Show when active */
@@ -675,7 +687,7 @@ if ($isAjax) {
                 display: none; /* Hide "Activity Log" */
             }
             body.tablet-portrait .main-content {
-                margin: 15px;
+                margin: 0; /* MODIFIED: Full width */
                 padding: 20px;
                 overflow-x: hidden; /* Tambahan: Mencegah scrollbar horizontal */
             }
@@ -720,6 +732,9 @@ if ($isAjax) {
             body.tablet-portrait .last-uploaded-files .file-meta {
                 font-size: 0.75em;
             }
+            body.tablet-portrait .sidebar-menu a {
+                font-size: var(--sidebar-font-size-tablet-portrait); /* Menggunakan variabel untuk tablet portrait */
+            }
         }
 
         /* Class for Mobile (HP Android & iOS: max-width 767px) */
@@ -732,7 +747,7 @@ if ($isAjax) {
                 width: 200px; /* Narrower sidebar for mobile */
                 z-index: 100;
                 transform: translateX(-100%); /* Hidden by default */
-                box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+                /* REMOVED: box-shadow */
             }
             body.mobile .sidebar.show-mobile-sidebar {
                 transform: translateX(0); /* Show when active */
@@ -761,10 +776,9 @@ if ($isAjax) {
                 display: none; /* Hide "Activity Log" */
             }
             body.mobile .main-content {
-                margin: 10px;
+                margin: 0; /* MODIFIED: Full width */
                 padding: 15px;
                 overflow-x: hidden; /* Tambahan: Mencegah scrollbar horizontal */
-                /* DELETED: Removed overflow-x: hidden; */ /* Removing this to fix the root cause of the scrollbar */
             }
             body.mobile .dashboard-grid {
                 grid-template-columns: repeat(2, 1fr) !important; /* Tampilan 2x2 */
@@ -826,6 +840,9 @@ if ($isAjax) {
                 text-align: left; /* REVISED: Align meta info to the left */
                 width: 100%;
             }
+            body.mobile .sidebar-menu a {
+                font-size: var(--sidebar-font-size-mobile); /* Menggunakan variabel untuk mobile */
+            }
         }
 
         /* Overlay for mobile sidebar */
@@ -851,6 +868,7 @@ if ($isAjax) {
         </div>
         <ul class="sidebar-menu">
             <li><a href="index.php"><i class="fas fa-folder"></i> My Drive</a></li>
+            <li><a href="priority_files.php"><i class="fas fa-star"></i> Priority File</a></li> <!-- NEW: Priority File Link -->
             <li><a href="summary.php" class="active"><i class="fas fa-chart-line"></i> Summary</a></li>
             <li><a href="members.php"><i class="fas fa-users"></i> Members</a></li>
             <li><a href="profile.php"><i class="fas fa-user"></i> Profile</a></li>

@@ -10,20 +10,21 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $currentUserId = $_SESSION['user_id'];
+$membersPerPage = 6; // Number of members to display per page in the main table
 
 // Function to fetch all dashboard data
 function getDashboardData($conn, $currentUserId) {
+    global $membersPerPage;
     $data = [];
 
     // Total Active Users
-    $stmt = $conn->prepare("SELECT COUNT(id) AS total_users FROM users");
+    $stmt = $conn->prepare("SELECT COUNT(id) AS total_users FROM users WHERE is_member = 1");
     $stmt->execute();
     $result = $stmt->get_result();
     $data['totalUsers'] = $result->fetch_assoc()['total_users'];
     $stmt->close();
 
     // Total Public Files
-    // MODIFIED: Removed WHERE f.folder_id IS NULL to count all files
     $stmt = $conn->prepare("SELECT COUNT(id) AS total_public_files FROM files");
     $stmt->execute();
     $result = $stmt->get_result();
@@ -51,7 +52,6 @@ function getDashboardData($conn, $currentUserId) {
     // Check if storage is full
     $data['isStorageFull'] = isStorageFull($conn, $totalStorageBytes);
 
-
     // Weekly Activity (last 7 days)
     $stmt = $conn->prepare("SELECT COUNT(id) AS weekly_activities FROM activities WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 7 DAY)");
     $stmt->execute();
@@ -59,9 +59,11 @@ function getDashboardData($conn, $currentUserId) {
     $data['weeklyActivities'] = $result->fetch_assoc()['weekly_activities'];
     $stmt->close();
 
-    // Member List
+    // Member List (Paginated - Initial Load)
     $members = [];
-    $stmt = $conn->prepare("SELECT id, username, email, full_name, last_active, last_login FROM users WHERE is_member = 1 ORDER BY username ASC");
+    $offset = 0;
+    $stmt = $conn->prepare("SELECT id, username, email, full_name, last_active, last_login FROM users WHERE is_member = 1 ORDER BY username ASC LIMIT ? OFFSET ?");
+    $stmt->bind_param("ii", $membersPerPage, $offset);
     $stmt->execute();
     $result = $stmt->get_result();
 
@@ -99,7 +101,6 @@ function getDashboardData($conn, $currentUserId) {
         SELECT u.username, COUNT(f.id) AS public_files_count
         FROM users u
         JOIN files f ON u.id = f.user_id
-        -- MODIFIED: Removed WHERE f.folder_id IS NULL to count all files
         GROUP BY u.username
         ORDER BY public_files_count DESC
         LIMIT 5
@@ -161,7 +162,6 @@ function getDashboardData($conn, $currentUserId) {
     $currentUserProfile['total_files'] = $profileData['total_files'];
     $stmt->close();
 
-    // MODIFIED: Removed WHERE folder_id IS NULL to count all files for current user
     $stmt = $conn->prepare("SELECT COUNT(id) AS public_files FROM files WHERE user_id = ?");
     $stmt->bind_param("i", $currentUserId);
     $stmt->execute();
@@ -182,6 +182,33 @@ function getDashboardData($conn, $currentUserId) {
     return $data;
 }
 
+// Function to get paginated members data
+function getPaginatedMembers($conn, $page, $membersPerPage) {
+    $offset = ($page - 1) * $membersPerPage;
+    $members = [];
+
+    $stmt = $conn->prepare("SELECT id, username, email, full_name, last_active, last_login FROM users ORDER BY username ASC LIMIT ? OFFSET ?");
+    $stmt->bind_param("ii", $membersPerPage, $offset);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    while ($row = $result->fetch_assoc()) {
+        $isOnline = (strtotime($row['last_active']) > strtotime('-15 minutes'));
+
+        $members[] = [
+            'id' => $row['id'],
+            'username' => $row['username'],
+            'full_name' => $row['full_name'],
+            'email' => $row['email'],
+            'last_active' => $row['last_active'],
+            'last_login' => $row['last_login'],
+            'is_online' => $isOnline
+        ];
+    }
+    $stmt->close();
+    return $members;
+}
+
 // Handle AJAX request for dashboard data
 if (isset($_GET['action']) && $_GET['action'] === 'get_dashboard_data') {
     header('Content-Type: application/json');
@@ -189,6 +216,127 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_dashboard_data') {
     $conn->close();
     exit();
 }
+
+// Handle AJAX request for paginated members
+if (isset($_GET['action']) && $_GET['action'] === 'get_members') {
+    header('Content-Type: application/json');
+    $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+    $totalMembersCount = 0;
+    $stmt = $conn->prepare("SELECT COUNT(id) AS total_members FROM users");
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $totalMembersCount = $result->fetch_assoc()['total_members'];
+    $stmt->close();
+
+    $membersData = getPaginatedMembers($conn, $page, $membersPerPage);
+
+    echo json_encode([
+        'success' => true,
+        'members' => $membersData,
+        'totalMembers' => $totalMembersCount,
+        'membersPerPage' => $membersPerPage,
+        'totalPages' => ceil($totalMembersCount / $membersPerPage)
+    ]);
+    $conn->close();
+    exit();
+}
+
+// Handle AJAX request for paginated member details (Recent Files and Activities)
+if (isset($_GET['action']) && $_GET['action'] === 'get_member_details_paginated') {
+    header('Content-Type: application/json');
+
+    $memberId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+    $filesPage = isset($_GET['files_page']) ? (int)$_GET['files_page'] : 1;
+    $activitiesPage = isset($_GET['activities_page']) ? (int)$_GET['activities_page'] : 1;
+    $itemsPerPage = 5; // 5 items per page for recent files and activities
+
+    if ($memberId === 0) {
+        echo json_encode(['success' => false, 'message' => 'Invalid member ID.']);
+        exit();
+    }
+
+    $memberDetails = [];
+
+    // Fetch member username
+    $stmt = $conn->prepare("SELECT username FROM users WHERE id = ?");
+    $stmt->bind_param("i", $memberId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $user = $result->fetch_assoc();
+    $stmt->close();
+
+    if (!$user) {
+        echo json_encode(['success' => false, 'message' => 'Member not found.']);
+        exit();
+    }
+
+    $memberDetails['username'] = $user['username'];
+
+    // Fetch total files for this member (not just public)
+    $stmt = $conn->prepare("SELECT COUNT(id) AS total_files FROM files WHERE user_id = ?");
+    $stmt->bind_param("i", $memberId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $memberDetails['total_files'] = $result->fetch_assoc()['total_files'];
+    $stmt->close();
+
+    // Fetch total public files for this member
+    $stmt = $conn->prepare("SELECT COUNT(id) AS total_public_files FROM files WHERE user_id = ? AND folder_id IS NULL");
+    $stmt->bind_param("i", $memberId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $memberDetails['total_public_files'] = $result->fetch_assoc()['total_public_files'];
+    $stmt->close();
+
+    // Fetch paginated recent files
+    $filesOffset = ($filesPage - 1) * $itemsPerPage;
+    $recentFiles = [];
+    $stmt = $conn->prepare("SELECT file_name, file_size, file_type FROM files WHERE user_id = ? ORDER BY uploaded_at DESC LIMIT ? OFFSET ?");
+    $stmt->bind_param("iii", $memberId, $itemsPerPage, $filesOffset);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $recentFiles[] = $row;
+    }
+    $memberDetails['recent_files'] = $recentFiles;
+    $stmt->close();
+
+    // Count total files for pagination
+    $stmt = $conn->prepare("SELECT COUNT(id) AS total_count FROM files WHERE user_id = ?");
+    $stmt->bind_param("i", $memberId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $totalFilesCount = $result->fetch_assoc()['total_count'];
+    $memberDetails['total_files_pages'] = ceil($totalFilesCount / $itemsPerPage);
+    $stmt->close();
+
+    // Fetch paginated recent activities
+    $activitiesOffset = ($activitiesPage - 1) * $itemsPerPage;
+    $recentActivities = [];
+    $stmt = $conn->prepare("SELECT activity_type, description, timestamp FROM activities WHERE user_id = ? ORDER BY timestamp DESC LIMIT ? OFFSET ?");
+    $stmt->bind_param("iii", $memberId, $itemsPerPage, $activitiesOffset);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $recentActivities[] = $row;
+    }
+    $memberDetails['recent_activities'] = $recentActivities;
+    $stmt->close();
+
+    // Count total activities for pagination
+    $stmt = $conn->prepare("SELECT COUNT(id) AS total_count FROM activities WHERE user_id = ?");
+    $stmt->bind_param("i", $memberId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $totalActivitiesCount = $result->fetch_assoc()['total_count'];
+    $memberDetails['total_activities_pages'] = ceil($totalActivitiesCount / $itemsPerPage);
+    $stmt->close();
+
+    echo json_encode(['success' => true, 'member' => $memberDetails]);
+    $conn->close();
+    exit();
+}
+
 
 // Initial data load for the first page render
 $dashboardData = getDashboardData($conn, $currentUserId);
@@ -208,6 +356,15 @@ $topMembersPublicFiles = $dashboardData['topMembersPublicFiles'];
 $dailyActivities = $dashboardData['dailyActivities'];
 $recentActivities = $dashboardData['recentActivities'];
 $currentUserProfile = $dashboardData['currentUserProfile'];
+
+// Get total member count for pagination
+$totalMembersCount = 0;
+$stmt = $conn->prepare("SELECT COUNT(id) AS total_members FROM users");
+$stmt->execute();
+$result = $stmt->get_result();
+$totalMembersCount = $result->fetch_assoc()['total_members'];
+$stmt->close();
+$totalPages = ceil($totalMembersCount / $membersPerPage);
 
 ?>
 
@@ -234,6 +391,13 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
             --metro-success: #4CAF50;
             --metro-error: #E81123; /* Windows 10 error red */
             --metro-warning: #FF8C00; /* Windows 10 warning orange */
+
+            /* --- LOKASI EDIT UKURAN FONT SIDEBAR --- */
+            --sidebar-font-size-desktop: 0.9em; /* Ukuran font default untuk desktop */
+            --sidebar-font-size-tablet-landscape: 1.0em; /* Ukuran font untuk tablet landscape */
+            --sidebar-font-size-tablet-portrait: 0.95em; /* Ukuran font untuk tablet portrait */
+            --sidebar-font-size-mobile: 0.9em; /* Ukuran font untuk mobile */
+            /* --- AKHIR LOKASI EDIT UKURAN FONT SIDEBAR --- */
         }
 
         * {
@@ -300,7 +464,7 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
             padding: 15px 20px; /* More padding */
             color: var(--metro-sidebar-text);
             text-decoration: none;
-            font-size: 1.1em;
+            font-size: var(--sidebar-font-size-desktop); /* Menggunakan variabel untuk desktop */
             transition: background-color 0.2s ease-out, color 0.2s ease-out;
             border-left: 5px solid transparent; /* For active state */
         }
@@ -384,8 +548,8 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
             flex-direction: column;
             overflow-y: auto; /* Enable scrolling for content */
             background-color: #FFFFFF; /* White background for content area */
-            border-radius: 8px;
-            margin: 20px;
+            border-radius: 0; /* MODIFIED: No rounded corners for full width */
+            margin: 0; /* MODIFIED: Full width */
             /* box-shadow: 0 5px 15px rgba(0,0,0,0.1); */ /* Removed shadow */
         }
 
@@ -400,8 +564,8 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
             background-color: #FFFFFF; /* White header */
             padding: 15px 30px; /* Add padding for header */
             margin: -30px -30px 25px -30px; /* Adjust margin to cover full width */
-            border-radius: 8px 8px 0 0; /* Rounded top corners */
-            /*box-shadow: 0 2px 5px rgba(0,0,0,0.05); /* Subtle shadow for header */
+            border-radius: 0; /* MODIFIED: No rounded top corners for full width */
+            /*box-shadow: 0 2px 5px rgba(0,0,0,0.05); */
         }
 
         .header-main h1 {
@@ -425,7 +589,7 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
             color: #FFFFFF;
             padding: 25px;
             border-radius: 5px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            /*box-shadow: 0 4px 12px rgba(0,0,0,0.15);*/
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -486,7 +650,8 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
             animation-delay: 0.5s;
         }
 
-        .member-table-container {
+        /* MODIFIED: Renamed .member-table-container to .table-container */
+        .table-container {
             background-color: #FFFFFF;
             border-radius: 8px;
             /* Removed box-shadow to eliminate shadow */
@@ -551,6 +716,46 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
         .member-table a:hover {
             text-decoration: underline;
             color: var(--metro-dark-blue);
+        }
+
+        /* Pagination Controls */
+        .pagination-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            animation: fadeIn 0.6s ease-out forwards;
+            opacity: 0;
+            animation-delay: 0.7s;
+        }
+
+        .pagination-controls button {
+            background-color: var(--metro-bg-color);
+            color: var(--metro-text-color);
+            border: 1px solid var(--metro-light-gray);
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s ease-out, color 0.2s ease-out;
+            font-size: 0.9em;
+        }
+
+        .pagination-controls button:hover:not(.active) {
+            background-color: var(--metro-light-gray);
+        }
+
+        .pagination-controls button.active {
+            background-color: var(--metro-blue);
+            color: #FFFFFF;
+            border-color: var(--metro-blue);
+            pointer-events: none; /* Disable click on active button */
+        }
+        
+        .pagination-controls button:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
         }
 
         /* Charts Section */
@@ -798,13 +1003,13 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
                 width: 220px; /* Slightly narrower sidebar */
             }
             body.tablet-landscape .main-content {
-                margin: 15px;
+                margin: 0; /* MODIFIED: Full width */
                 padding: 20px;
                 overflow-x: hidden; /* Prevent horizontal scrollbar */
             }
             body.tablet-landscape .header-main {
                 padding: 10px 20px;
-                margin: -20px -20px 20px -20px;
+                margin: 0; /* MODIFIED: Full width */
             }
             body.tablet-landscape .header-main h1 {
                 font-size: 2em;
@@ -847,6 +1052,13 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
             body.tablet-landscape .mini-profile p {
                 font-size: 0.9em;
             }
+            body.tablet-landscape .pagination-controls button {
+                padding: 6px 10px;
+                font-size: 0.8em;
+            }
+            body.tablet-landscape .sidebar-menu a {
+                font-size: var(--sidebar-font-size-tablet-landscape); /* Menggunakan variabel untuk tablet landscape */
+            }
         }
 
         /* Class for iPad & Tablet (Portrait: min-width 768px, max-width 1024px) */
@@ -858,7 +1070,7 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
                 height: 100%;
                 z-index: 100;
                 transform: translateX(-100%); /* Hidden by default */
-                box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+                /*box-shadow: 2px 0 10px rgba(0,0,0,0.2);*/
             }
             body.tablet-portrait .sidebar.show-mobile-sidebar {
                 transform: translateX(0); /* Show when active */
@@ -876,7 +1088,7 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
             body.tablet-portrait .header-main {
                 justify-content: space-between; /* Align items */
                 padding: 10px 20px;
-                margin: -20px -20px 20px -20px;
+                margin: 0; /* MODIFIED: Full width */
             }
             body.tablet-portrait .header-main h1 {
                 font-size: 2em;
@@ -890,7 +1102,7 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
                 display: none; /* Hide "Members Dashboard" */
             }
             body.tablet-portrait .main-content {
-                margin: 15px;
+                margin: 0; /* MODIFIED: Full width */
                 padding: 20px;
                 overflow-x: hidden; /* Prevent horizontal scrollbar */
             }
@@ -932,6 +1144,13 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
             body.tablet-portrait .mini-profile p {
                 font-size: 0.85em;
             }
+            body.tablet-portrait .pagination-controls button {
+                padding: 6px 10px;
+                font-size: 0.8em;
+            }
+            body.tablet-portrait .sidebar-menu a {
+                font-size: var(--sidebar-font-size-tablet-portrait); /* Menggunakan variabel untuk tablet portrait */
+            }
         }
 
         /* Class for Mobile (HP Android & iOS: max-width 767px) */
@@ -944,7 +1163,7 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
                 width: 200px; /* Narrower sidebar for mobile */
                 z-index: 100;
                 transform: translateX(-100%); /* Hidden by default */
-                box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+                /*box-shadow: 2px 0 10px rgba(0,0,0,0.2);*/
             }
             body.mobile .sidebar.show-mobile-sidebar {
                 transform: translateX(0); /* Show when active */
@@ -962,7 +1181,7 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
             body.mobile .header-main {
                 justify-content: space-between; /* Align items */
                 padding: 10px 15px;
-                margin: -15px -15px 15px -15px; /* Adjusted margins for mobile */
+                margin: 0; /* MODIFIED: Full width */
             }
             body.mobile .header-main h1 {
                 font-size: 1.8em;
@@ -973,7 +1192,7 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
                 display: none; /* Hide "Members Dashboard" */
             }
             body.mobile .main-content {
-                margin: 10px;
+                margin: 0; /* MODIFIED: Full width */
                 padding: 15px;
                 overflow-x: hidden; /* Prevent horizontal scrollbar */
             }
@@ -1004,7 +1223,7 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
                 margin-bottom: 10px;
                 border-radius: 5px;
                 background-color: #FFFFFF;
-                box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+                /*box-shadow: 0 2px 5px rgba(0,0,0,0.05);*/
                 position: relative;
             }
             body.mobile .member-table td {
@@ -1085,6 +1304,13 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
             body.mobile .mini-profile p {
                 font-size: 0.8em;
             }
+            body.mobile .pagination-controls button {
+                padding: 4px 8px;
+                font-size: 0.7em;
+            }
+            body.mobile .sidebar-menu a {
+                font-size: var(--sidebar-font-size-mobile); /* Menggunakan variabel untuk mobile */
+            }
         }
 
         /* Overlay for mobile sidebar */
@@ -1101,6 +1327,38 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
         .overlay.show {
             display: block;
         }
+
+        /* Styles for pagination within modal */
+        .modal-pagination-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+            margin-top: 15px;
+            font-size: 0.85em;
+        }
+        .modal-pagination-controls button {
+            background-color: var(--metro-bg-color);
+            color: var(--metro-text-color);
+            border: 1px solid var(--metro-light-gray);
+            padding: 5px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: background-color 0.2s ease-out, color 0.2s ease-out;
+        }
+        .modal-pagination-controls button:hover:not(.active) {
+            background-color: var(--metro-light-gray);
+        }
+        .modal-pagination-controls button.active {
+            background-color: var(--metro-blue);
+            color: #FFFFFF;
+            border-color: var(--metro-blue);
+            pointer-events: none;
+        }
+        .modal-pagination-controls button:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
     </style>
 </head>
 <body>
@@ -1110,6 +1368,7 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
         </div>
         <ul class="sidebar-menu">
             <li><a href="index.php"><i class="fas fa-folder"></i> My Drive</a></li>
+            <li><a href="priority_files.php"><i class="fas fa-star"></i> Priority File</a></li> <!-- NEW: Priority File Link -->
             <li><a href="summary.php"><i class="fas fa-chart-line"></i> Summary</a></li>
             <li><a href="members.php" class="active"><i class="fas fa-users"></i> Members</a></li>
             <li><a href="profile.php"><i class="fas fa-user"></i> Profile</a></li>
@@ -1135,7 +1394,6 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
             <h1 class="members-title">Members Dashboard</h1>
         </div>
 
-        <!-- Summary Statistics Cards -->
         <div class="dashboard-grid">
             <div class="card" id="totalMembersCard">
                 <h3>Total Members</h3>
@@ -1156,9 +1414,9 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
             </div>
         </div>
 
-        <!-- Member List Table -->
         <h2 class="section-title">Member List</h2>
         <div class="">
+        <!--<div class="table-container">-->
             <table class="member-table" id="memberTable">
                 <thead>
                     <tr>
@@ -1195,8 +1453,16 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
                 </tbody>
             </table>
         </div>
+        <div class="pagination-controls" id="paginationControls">
+            <button id="prevPageBtn" disabled>&laquo; Previous</button>
+            <div id="pageNumbers">
+                <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                    <button class="page-number-btn <?= ($i == 1) ? 'active' : '' ?>" data-page="<?= $i ?>"><?= $i ?></button>
+                <?php endfor; ?>
+            </div>
+            <button id="nextPageBtn" <?= ($totalPages <= 1) ? 'disabled' : '' ?>>Next &raquo;</button>
+        </div>
 
-        <!-- Charts Section -->
         <h2 class="section-title">Activity Overview</h2>
         <div class="charts-section">
             <div class="chart-card">
@@ -1213,10 +1479,8 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
             </div>
         </div>
 
-        <!-- Recent Activities and Mini Profile Section -->
         <h2 class="section-title">User Activity & Profile</h2>
         <div class="bottom-section">
-            <!-- Recent Activities -->
             <div class="recent-activities" id="recentActivitiesSection">
                 <h4>Recent Activities</h4>
                 <ul>
@@ -1245,7 +1509,6 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
                 </ul>
             </div>
 
-            <!-- Mini Profile for Current User -->
             <div class="mini-profile" id="miniProfileSection">
                 <h4>My Mini Profile</h4>
                 <p><strong>Name:</strong> <?php echo htmlspecialchars($currentUserProfile['username']); ?></p>
@@ -1258,18 +1521,37 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
 
     </div>
 
-    <!-- Member Detail Modal (Hidden by default) -->
     <div id="memberDetailModal" class="modal">
         <div class="modal-content">
             <span class="close-button">&times;</span>
             <h2 id="memberDetailName"></h2>
             <div id="memberDetailContent">
-                <!-- Content will be loaded here via AJAX -->
+                <p><strong>Total Files:</strong> <span id="memberTotalFiles"></span></p>
+                <p><strong>Total Files (Public):</strong> <span id="memberTotalPublicFiles"></span></p>
+
+                <h4>Recent Files:</h4>
+                <ul id="recentFilesList">
+                    <!-- Recent files will be loaded here -->
+                </ul>
+                <div class="modal-pagination-controls" id="recentFilesPagination">
+                    <button id="prevFilesPageBtn">&laquo; Previous</button>
+                    <span id="currentFilesPage">1</span> / <span id="totalFilesPages">1</span>
+                    <button id="nextFilesPageBtn">Next &raquo;</button>
+                </div>
+
+                <h4>Recent Activities:</h4>
+                <ul id="recentActivitiesList">
+                    <!-- Recent activities will be loaded here -->
+                </ul>
+                <div class="modal-pagination-controls" id="recentActivitiesPagination">
+                    <button id="prevActivitiesPageBtn">&laquo; Previous</button>
+                    <span id="currentActivitiesPage">1</span> / <span id="totalActivitiesPages">1</span>
+                    <button id="nextActivitiesPageBtn">Next &raquo;</button>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Overlay for mobile sidebar -->
     <div class="overlay" id="mobileOverlay"></div>
 
     <script>
@@ -1277,6 +1559,16 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
         let activityChartInstance;
         let membersChartInstance;
         let dailyChartInstance;
+        let currentPage = 1;
+        const membersPerPage = <?php echo $membersPerPage; ?>;
+        const totalMembers = <?php echo $totalMembersCount; ?>;
+        const totalPages = <?php echo $totalPages; ?>;
+
+        // Variables for member detail modal pagination
+        let currentMemberId = 0;
+        let currentFilesPage = 1;
+        let currentActivitiesPage = 1;
+        const itemsPerPageModal = 5; // 5 items per page for recent files/activities
 
         // Function to open modal
         function openModal(modalElement) {
@@ -1312,39 +1604,61 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
 
         // Function to show member detail
         async function showMemberDetail(memberId) {
+            currentMemberId = memberId; // Set the global member ID
+            currentFilesPage = 1; // Reset to first page for files
+            currentActivitiesPage = 1; // Reset to first page for activities
+
             const memberDetailModal = document.getElementById('memberDetailModal');
             const memberDetailName = document.getElementById('memberDetailName');
-            const memberDetailContent = document.getElementById('memberDetailContent');
+            const memberTotalFiles = document.getElementById('memberTotalFiles');
+            const memberTotalPublicFiles = document.getElementById('memberTotalPublicFiles');
+            const recentFilesList = document.getElementById('recentFilesList');
+            const recentActivitiesList = document.getElementById('recentActivitiesList');
 
             memberDetailName.textContent = 'Loading...';
-            memberDetailContent.innerHTML = '<p>Loading member details...</p>';
+            memberTotalFiles.textContent = '...';
+            memberTotalPublicFiles.textContent = '...';
+            recentFilesList.innerHTML = '<p>Loading recent files...</p>';
+            recentActivitiesList.innerHTML = '<p>Loading recent activities...</p>';
             openModal(memberDetailModal);
 
+            // Load initial data for both paginated sections
+            await fetchMemberDetailsPaginated(memberId, currentFilesPage, currentActivitiesPage);
+        }
+
+        // Function to fetch paginated member details
+        async function fetchMemberDetailsPaginated(memberId, filesPage, activitiesPage) {
+            const memberDetailName = document.getElementById('memberDetailName');
+            const memberTotalFiles = document.getElementById('memberTotalFiles');
+            const memberTotalPublicFiles = document.getElementById('memberTotalPublicFiles');
+            const recentFilesList = document.getElementById('recentFilesList');
+            const recentActivitiesList = document.getElementById('recentActivitiesList');
+
             try {
-                const response = await fetch('get_member_details.php?id=' + memberId);
+                const response = await fetch(`members.php?action=get_member_details_paginated&id=${memberId}&files_page=${filesPage}&activities_page=${activitiesPage}`);
                 const data = await response.json();
 
                 if (data.success) {
-                    memberDetailName.textContent = htmlspecialchars(data.member.username) + "'s Profile";
-                    let contentHtml = `
-                        <p><strong>Total Files:</strong> ${data.member.total_files}</p>
-                        <p><strong>Total Files (Public):</strong> ${data.member.public_files}</p>
-                        <h4>Recent Files:</h4>
-                        <ul>
-                    `;
-                    if (data.member.recent_public_files.length > 0) {
-                        data.member.recent_public_files.forEach(file => {
-                            contentHtml += `<li><i class="fas ${getFileIconClass(file.file_name)}"></i> ${htmlspecialchars(file.file_name)} (${formatBytes(file.file_size)})</li>`;
+                    const member = data.member;
+                    memberDetailName.textContent = htmlspecialchars(member.username) + "'s Profile";
+                    memberTotalFiles.textContent = member.total_files;
+                    memberTotalPublicFiles.textContent = member.total_public_files;
+
+                    // Render Recent Files
+                    recentFilesList.innerHTML = '';
+                    if (member.recent_files.length > 0) {
+                        member.recent_files.forEach(file => {
+                            recentFilesList.innerHTML += `<li><i class="fas ${getFileIconClass(file.file_name)}"></i> ${htmlspecialchars(file.file_name)} (${formatBytes(file.file_size)})</li>`;
                         });
                     } else {
-                        contentHtml += `<li>No recent files.</li>`;
+                        recentFilesList.innerHTML = `<li>No recent files.</li>`;
                     }
-                    contentHtml += `</ul>
-                        <h4>Recent Activities:</h4>
-                        <ul>
-                    `;
-                    if (data.member.recent_activities.length > 0) {
-                        data.member.recent_activities.forEach(activity => {
+                    updateFilesPagination(filesPage, member.total_files_pages);
+
+                    // Render Recent Activities
+                    recentActivitiesList.innerHTML = '';
+                    if (member.recent_activities.length > 0) {
+                        member.recent_activities.forEach(activity => {
                             let icon = 'fas fa-info-circle';
                             switch (activity.activity_type) {
                                 case 'upload_file': icon = 'fas fa-upload'; break;
@@ -1357,25 +1671,80 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
                                 case 'download': icon = 'fas fa-download'; break;
                                 case 'login': icon = 'fas fa-sign-in-alt'; break;
                                 case 'share_link': icon = 'fas fa-share-alt'; break;
-                                default: icon = 'fas fa-info-circle'; break; // Default icon for unknown activity types
+                                default: icon = 'fas fa-info-circle'; break;
                             }
-                            contentHtml += `<li><i class="${icon}"></i> ${htmlspecialchars(activity.description)} <span class="timestamp">${time_elapsed_string(activity.timestamp)} ago</span></li>`;
+                            recentActivitiesList.innerHTML += `<li><i class="${icon}"></i> ${htmlspecialchars(activity.description)} <span class="timestamp">${time_elapsed_string(activity.timestamp)} ago</span></li>`;
                         });
                     } else {
-                        contentHtml += `<li>No recent activities.</li>`;
+                        recentActivitiesList.innerHTML = `<li>No recent activities.</li>`;
                     }
-                    contentHtml += `</ul>`;
-                    memberDetailContent.innerHTML = contentHtml;
+                    updateActivitiesPagination(activitiesPage, member.total_activities_pages);
+
                 } else {
                     memberDetailName.textContent = 'Error';
-                    memberDetailContent.innerHTML = `<p>${data.message}</p>`;
+                    memberTotalFiles.textContent = 'N/A';
+                    memberTotalPublicFiles.textContent = 'N/A';
+                    recentFilesList.innerHTML = `<p>${data.message}</p>`;
+                    recentActivitiesList.innerHTML = `<p>${data.message}</p>`;
+                    updateFilesPagination(1, 1); // Reset pagination on error
+                    updateActivitiesPagination(1, 1); // Reset pagination on error
                 }
             } catch (error) {
                 console.error('Error fetching member details:', error);
                 memberDetailName.textContent = 'Error';
-                memberDetailContent.innerHTML = '<p>Failed to load member details.</p>';
+                memberTotalFiles.textContent = 'N/A';
+                memberTotalPublicFiles.textContent = 'N/A';
+                recentFilesList.innerHTML = '<p>Failed to load recent files.</p>';
+                recentActivitiesList.innerHTML = '<p>Failed to load recent activities.</p>';
+                updateFilesPagination(1, 1); // Reset pagination on error
+                updateActivitiesPagination(1, 1); // Reset pagination on error
             }
         }
+
+        // Pagination controls for Recent Files
+        document.getElementById('prevFilesPageBtn').addEventListener('click', () => {
+            if (currentFilesPage > 1) {
+                currentFilesPage--;
+                fetchMemberDetailsPaginated(currentMemberId, currentFilesPage, currentActivitiesPage);
+            }
+        });
+        document.getElementById('nextFilesPageBtn').addEventListener('click', () => {
+            const totalPages = parseInt(document.getElementById('totalFilesPages').textContent);
+            if (currentFilesPage < totalPages) {
+                currentFilesPage++;
+                fetchMemberDetailsPaginated(currentMemberId, currentFilesPage, currentActivitiesPage);
+            }
+        });
+
+        // Pagination controls for Recent Activities
+        document.getElementById('prevActivitiesPageBtn').addEventListener('click', () => {
+            if (currentActivitiesPage > 1) {
+                currentActivitiesPage--;
+                fetchMemberDetailsPaginated(currentMemberId, currentFilesPage, currentActivitiesPage);
+            }
+        });
+        document.getElementById('nextActivitiesPageBtn').addEventListener('click', () => {
+            const totalPages = parseInt(document.getElementById('totalActivitiesPages').textContent);
+            if (currentActivitiesPage < totalPages) {
+                currentActivitiesPage++;
+                fetchMemberDetailsPaginated(currentMemberId, currentFilesPage, currentActivitiesPage);
+            }
+        });
+
+        function updateFilesPagination(currentPage, totalPages) {
+            document.getElementById('currentFilesPage').textContent = currentPage;
+            document.getElementById('totalFilesPages').textContent = totalPages;
+            document.getElementById('prevFilesPageBtn').disabled = currentPage === 1;
+            document.getElementById('nextFilesPageBtn').disabled = currentPage === totalPages;
+        }
+
+        function updateActivitiesPagination(currentPage, totalPages) {
+            document.getElementById('currentActivitiesPage').textContent = currentPage;
+            document.getElementById('totalActivitiesPages').textContent = totalPages;
+            document.getElementById('prevActivitiesPageBtn').disabled = currentPage === 1;
+            document.getElementById('nextActivitiesPageBtn').disabled = currentPage === totalPages;
+        }
+
 
         // Helper function for HTML escaping
         function htmlspecialchars(str) {
@@ -1470,36 +1839,6 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
                 }
             }
 
-
-            // Update Member List Table
-            const memberTableBody = document.querySelector('#memberTable tbody');
-            memberTableBody.innerHTML = ''; // Clear existing rows
-            if (data.members.length > 0) {
-                data.members.forEach((member, index) => {
-                    const row = `
-                        <tr data-member-id="${member.id}">
-                            <td>${index + 1}</td>
-                            <td>${htmlspecialchars(member.full_name)}</td>
-                            <td>${htmlspecialchars(member.username)}</td>
-                            <td>${htmlspecialchars(member.email)}</td>
-                            <td>
-                                ${member.last_login ? new Date(member.last_login.replace(/-/g, '/')).toLocaleString() : 'Never logged in'}
-                            </td>
-                            <td>
-                                <span class="status-indicator ${member.is_online ? 'online' : 'offline'}"></span>
-                                ${member.is_online ? 'Online' : 'Offline'}
-                            </td>
-                        </tr>
-                    `;
-                    memberTableBody.innerHTML += row;
-                });
-            } else {
-                memberTableBody.innerHTML = `<tr><td colspan="6" class="text-center">No members found</td></tr>`;
-            }
-
-            // Re-attach event listeners for member table rows
-            attachMemberRowClickListeners();
-
             // Update Charts
             updateCharts(data.activityDistribution, data.topMembersPublicFiles, data.dailyActivities);
 
@@ -1543,6 +1882,88 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
             miniProfileSection.querySelector('p:nth-child(5)').innerHTML = `<strong>Storage Used:</strong> ${data.currentUserProfile.storage_used}`;
             miniProfileSection.querySelector('p:nth-child(6)').innerHTML = `<strong>Weekly Activities:</strong> ${data.currentUserProfile.weekly_activities}`;
         }
+        
+        // --- PAGINATION FUNCTIONS ---
+        async function fetchMembers(page) {
+            try {
+                const response = await fetch(`members.php?action=get_members&page=${page}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                if (data.success) {
+                    currentPage = page;
+                    renderMemberTable(data.members);
+                    updatePaginationControls();
+                }
+            } catch (error) {
+                console.error("Could not fetch members data:", error);
+            }
+        }
+        
+        function renderMemberTable(members) {
+            const memberTableBody = document.querySelector('#memberTable tbody');
+            memberTableBody.innerHTML = ''; // Clear existing rows
+            if (members.length > 0) {
+                const startNum = (currentPage - 1) * membersPerPage;
+                members.forEach((member, index) => {
+                    const row = `
+                        <tr data-member-id="${member.id}">
+                            <td>${startNum + index + 1}</td>
+                            <td>${htmlspecialchars(member.full_name)}</td>
+                            <td>${htmlspecialchars(member.username)}</td>
+                            <td>${htmlspecialchars(member.email)}</td>
+                            <td>
+                                ${member.last_login ? new Date(member.last_login.replace(/-/g, '/')).toLocaleString() : 'Never logged in'}
+                            </td>
+                            <td>
+                                <span class="status-indicator ${member.is_online ? 'online' : 'offline'}"></span>
+                                ${member.is_online ? 'Online' : 'Offline'}
+                            </td>
+                        </tr>
+                    `;
+                    memberTableBody.innerHTML += row;
+                });
+            } else {
+                memberTableBody.innerHTML = `<tr><td colspan="6" class="text-center">No members found</td></tr>`;
+            }
+            attachMemberRowClickListeners();
+        }
+        
+        function setupPagination() {
+            const paginationContainer = document.getElementById('pageNumbers');
+            paginationContainer.innerHTML = ''; // Clear existing page buttons
+            for (let i = 1; i <= totalPages; i++) {
+                const button = document.createElement('button');
+                button.className = 'page-number-btn';
+                button.textContent = i;
+                button.dataset.page = i;
+                if (i === currentPage) {
+                    button.classList.add('active');
+                }
+                button.addEventListener('click', () => {
+                    fetchMembers(i);
+                });
+                paginationContainer.appendChild(button);
+            }
+        }
+        
+        function updatePaginationControls() {
+            const prevBtn = document.getElementById('prevPageBtn');
+            const nextBtn = document.getElementById('nextPageBtn');
+            
+            prevBtn.disabled = currentPage === 1;
+            nextBtn.disabled = currentPage === totalPages;
+            
+            document.querySelectorAll('.page-number-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (parseInt(btn.dataset.page) === currentPage) {
+                    btn.classList.add('active');
+                }
+            });
+        }
+        
+        // --- END PAGINATION FUNCTIONS ---
 
         // Function to update Chart.js instances
         function updateCharts(activityDistribution, topMembersPublicFiles, dailyActivities) {
@@ -1632,9 +2053,6 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
                                     font: {
                                         family: 'Segoe UI'
                                     }
-                                },
-                                grid: {
-                                    color: 'var(--metro-light-gray)'
                                 }
                             },
                             x: {
@@ -1643,9 +2061,6 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
                                     font: {
                                         family: 'Segoe UI'
                                     }
-                                },
-                                grid: {
-                                    display: false
                                 }
                             }
                         }
@@ -1695,9 +2110,6 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
                                     font: {
                                         family: 'Segoe UI'
                                     }
-                                },
-                                grid: {
-                                    color: 'var(--metro-light-gray)'
                                 }
                             },
                             x: {
@@ -1706,9 +2118,6 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
                                     font: {
                                         family: 'Segoe UI'
                                     }
-                                },
-                                grid: {
-                                    display: false
                                 }
                             }
                         }
@@ -1750,7 +2159,6 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
             const body = document.body;
             const sidebar = document.querySelector('.sidebar');
             const mobileOverlay = document.getElementById('mobileOverlay');
-            const membersTitle = document.querySelector('.members-title'); // Get the title element
 
             // Remove all previous device classes
             body.classList.remove('mobile', 'tablet-portrait', 'tablet-landscape', 'desktop');
@@ -1758,25 +2166,21 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
             if (width <= 767) {
                 body.classList.add('mobile');
                 sidebar.classList.add('mobile-hidden'); // Ensure sidebar is hidden by default
-                membersTitle.style.display = 'none'; // Hide title on mobile
             } else if (width >= 768 && width <= 1024) {
                 if (window.matchMedia("(orientation: portrait)").matches) {
                     body.classList.add('tablet-portrait');
                     sidebar.classList.add('mobile-hidden'); // Ensure sidebar is hidden by default
-                    membersTitle.style.display = 'none'; // Hide title on tablet portrait
                 } else {
                     body.classList.add('tablet-landscape');
                     sidebar.classList.remove('mobile-hidden'); // Show sidebar
                     sidebar.classList.remove('show-mobile-sidebar'); // Ensure mobile sidebar is closed
                     mobileOverlay.classList.remove('show'); // Hide overlay
-                    membersTitle.style.display = 'block'; // Show title on tablet landscape
                 }
             } else {
                 body.classList.add('desktop');
                 sidebar.classList.remove('mobile-hidden'); // Show sidebar
                 sidebar.classList.remove('show-mobile-sidebar'); // Ensure mobile sidebar is closed
                 mobileOverlay.classList.remove('show'); // Hide overlay
-                membersTitle.style.display = 'block'; // Show title on desktop
             }
         }
 
@@ -1788,6 +2192,25 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
                 <?php echo json_encode($topMembersPublicFiles); ?>,
                 <?php echo json_encode($dailyActivities); ?>
             );
+
+            // PAGINATION SETUP
+            renderMemberTable(<?php echo json_encode($members); ?>);
+            setupPagination();
+            updatePaginationControls();
+
+            // Pagination button event listeners
+            document.getElementById('prevPageBtn').addEventListener('click', () => {
+                if (currentPage > 1) {
+                    fetchMembers(currentPage - 1);
+                }
+            });
+
+            document.getElementById('nextPageBtn').addEventListener('click', () => {
+                if (currentPage < totalPages) {
+                    fetchMembers(currentPage + 1);
+                }
+            });
+
 
             // Attach click listeners to member table rows
             attachMemberRowClickListeners();

@@ -583,6 +583,7 @@ $current_account_status = $initial_data['current_account_status'];
 <head>
     <meta charset="UTF-8">
     <title>Profile - SKMI Cloud Storage</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -600,6 +601,17 @@ $current_account_status = $initial_data['current_account_status'];
             --metro-success: #4CAF50;
             --metro-error: #E81123; /* Windows 10 error red */
             --metro-warning: #FF8C00; /* Windows 10 warning orange */
+
+            /* --- LOKASI EDIT UKURAN FONT SIDEBAR --- */
+            --sidebar-font-size-desktop: 0.9em; /* Ukuran font default untuk desktop */
+            --sidebar-font-size-tablet-landscape: 1.0em; /* Ukuran font untuk tablet landscape */
+            --sidebar-font-size-tablet-portrait: 0.95em; /* Ukuran font untuk tablet portrait */
+            --sidebar-font-size-mobile: 0.9em; /* Ukuran font untuk mobile */
+            /* --- AKHIR LOKASI EDIT UKURAN FONT SIDEBAR --- */
+        }
+
+        * {
+            box-sizing: border-box;
         }
 
         body {
@@ -612,16 +624,17 @@ $current_account_status = $initial_data['current_account_status'];
             overflow: hidden; /* Prevent body scroll, main-content handles it */
         }
 
-        /* Sidebar */
+        /* Base Sidebar (for Desktop/Tablet Landscape) */
         .sidebar {
-            width: 250px; /* Fixed width for consistent sidebar size */
+            width: 250px; /* Wider sidebar for Metro feel */
             background-color: var(--metro-sidebar-bg);
             color: var(--metro-sidebar-text);
             display: flex;
             flex-direction: column;
             padding: 20px 0;
-            /* Removed box-shadow */
-            transition: width 0.3s ease-in-out;
+            transition: width 0.3s ease-in-out, transform 0.3s ease-in-out;
+            flex-shrink: 0; /* Prevent shrinking */
+            /* box-shadow: none; */ /* Removed box-shadow */
         }
 
         .sidebar-header {
@@ -662,7 +675,7 @@ $current_account_status = $initial_data['current_account_status'];
             padding: 15px 20px; /* More padding */
             color: var(--metro-sidebar-text);
             text-decoration: none;
-            font-size: 1.1em;
+            font-size: var(--sidebar-font-size-desktop); /* Menggunakan variabel untuk desktop */
             transition: background-color 0.2s ease-out, color 0.2s ease-out;
             border-left: 5px solid transparent; /* For active state */
         }
@@ -745,11 +758,10 @@ $current_account_status = $initial_data['current_account_status'];
             display: flex;
             flex-direction: column;
             overflow-y: auto; /* Enable scrolling for content */
-            background-color:rgb(255, 255, 255); /* White background for content area */
-            border-radius: 8px;
-            margin: 20px;
-            width: calc(100% - 350px);
-            /* Removed box-shadow */
+            background-color: #FFFFFF; /* White background for content area */
+            border-radius: 0px;
+            margin: 0; /* MODIFIED: Full width */
+            /* box-shadow: none; */ /* Removed box-shadow */
         }
 
         /* Dashboard Header */
@@ -760,13 +772,11 @@ $current_account_status = $initial_data['current_account_status'];
             margin-bottom: 25px; /* Adjusted margin-bottom */
             padding-bottom: 15px;
             border-bottom: 1px solid var(--metro-light-gray);
-            /* Sticky header styles */
-            position: sticky;
-            top: -30px; /* Adjust based on padding-top of main-content */
-            background-color: #FFFFFF; /* White background to cover content below */
-            z-index: 100; /* Ensure it stays on top */
-            padding-top: 30px; /* Add padding to compensate for sticky top */
-            margin-top: -30px; /* Negative margin to pull it up */
+            background-color: #FFFFFF; /* White header */
+            padding: 15px 30px; /* Add padding for header */
+            margin: -30px -30px 25px -30px; /* Adjust margin to cover full width */
+            border-radius: 0; /* MODIFIED: No rounded top corners for full width */
+            /* box-shadow: none; */ /* Removed box-shadow */
         }
 
         .dashboard-header h1 {
@@ -793,7 +803,7 @@ $current_account_status = $initial_data['current_account_status'];
             border-radius: 50%;
             object-fit: cover;
             border: 2px solid var(--metro-light-gray); /* Changed to metro-light-gray */
-            /* Removed box-shadow */
+            /* box-shadow: none; */ /* Removed box-shadow */
         }
 
         /* Dashboard Grid Layout */
@@ -806,14 +816,14 @@ $current_account_status = $initial_data['current_account_status'];
         .card {
             background-color: white;
             border-radius: 8px; /* Softer rounded corners, consistent with index.php */
-            /* Removed box-shadow */
+            /* box-shadow: none; */ /* Removed box-shadow */
             padding: 30px;
             overflow: hidden; /* For image in profile card */
             transition: transform 0.2s ease-out; /* Removed box-shadow from transition */
         }
         .card:hover { /* Added hover effect */
             transform: translateY(-3px);
-            /* Removed box-shadow */
+            /* box-shadow: none; */ /* Removed box-shadow */
         }
 
         /* My Profile Card */
@@ -850,7 +860,7 @@ $current_account_status = $initial_data['current_account_status'];
             border-radius: 50%;
             object-fit: cover;
             border: 5px solid #fff; /* White border around profile picture */
-            /* Removed box-shadow */
+            /* box-shadow: none; */ /* Removed box-shadow */
         }
 
         .profile-card .edit-profile-picture-overlay {
@@ -1079,7 +1089,7 @@ $current_account_status = $initial_data['current_account_status'];
         }
         .calendar-filter input[type="date"]:focus { /* Consistent focus */
             border-color: var(--metro-blue);
-            /* Removed box-shadow */
+            /* box-shadow: none; */ /* Removed box-shadow */
             outline: none;
             background-color: #FFFFFF;
         }
@@ -1093,7 +1103,7 @@ $current_account_status = $initial_data['current_account_status'];
             cursor: pointer;
             font-size: 1.1em; /* Consistent font-size */
             transition: background-color 0.2s ease-out, transform 0.1s ease-out; /* Consistent transition */
-            /* Removed box-shadow */
+            /* box-shadow: none; */ /* Removed box-shadow */
         }
 
         .calendar-filter button:hover {
@@ -1102,7 +1112,7 @@ $current_account_status = $initial_data['current_account_status'];
         }
         .calendar-filter button:active {
             transform: translateY(0); /* Consistent active */
-            /* Removed box-shadow */
+            /* box-shadow: none; */ /* Removed box-shadow */
         }
 
         #filterResult {
@@ -1146,7 +1156,7 @@ $current_account_status = $initial_data['current_account_status'];
         }
         .add-email-card .email-input-group input[type="email"]:focus { /* Consistent focus */
             border-color: var(--metro-blue);
-            /* Removed box-shadow */
+            /* box-shadow: none; */ /* Removed box-shadow */
             outline: none;
             background-color: #FFFFFF;
         }
@@ -1160,7 +1170,7 @@ $current_account_status = $initial_data['current_account_status'];
             cursor: pointer;
             font-size: 1.1em; /* Consistent font-size */
             transition: background-color 0.2s ease-out, transform 0.1s ease-out; /* Consistent transition */
-            /* Removed box-shadow */
+            /* box-shadow: none; */ /* Removed box-shadow */
         }
 
         .add-email-card .email-input-group button:hover {
@@ -1169,7 +1179,7 @@ $current_account_status = $initial_data['current_account_status'];
         }
         .add-email-card .email-input-group button:active {
             transform: translateY(0); /* Consistent active */
-            /* Removed box-shadow */
+            /* box-shadow: none; */ /* Removed box-shadow */
         }
 
         .add-email-card .email-list-container {
@@ -1221,7 +1231,7 @@ $current_account_status = $initial_data['current_account_status'];
             color: white;
             font-weight: bold;
             z-index: 1001;
-            /* Removed box-shadow */
+            /* box-shadow: none; */ /* Removed box-shadow */
             display: none;
             opacity: 0;
             transform: translateY(-20px);
@@ -1246,14 +1256,14 @@ $current_account_status = $initial_data['current_account_status'];
         .profile-section {
             background-color: white;
             border-radius: 8px; /* Consistent border-radius */
-            /* Removed box-shadow */
+            /* box-shadow: none; */ /* Removed box-shadow */
             padding: 30px;
             margin-top: 25px; /* Spacing between cards */
             transition: transform 0.2s ease-out; /* Removed box-shadow from transition */
         }
         .profile-section:hover { /* Added hover effect */
             transform: translateY(-3px);
-            /* Removed box-shadow */
+            /* box-shadow: none; */ /* Removed box-shadow */
         }
 
         .profile-section h2 {
@@ -1303,7 +1313,7 @@ $current_account_status = $initial_data['current_account_status'];
         .form-group input[type="password"]:focus,
         .form-group input[type="date"]:focus { /* Consistent focus */
             border-color: var(--metro-blue);
-            /* Removed box-shadow */
+            /* box-shadow: none; */ /* Removed box-shadow */
             outline: none;
             background-color: #FFFFFF;
         }
@@ -1323,7 +1333,7 @@ $current_account_status = $initial_data['current_account_status'];
             cursor: pointer;
             font-size: 1.1em; /* Consistent font-size */
             transition: background-color 0.2s ease-out, transform 0.1s ease-out; /* Consistent transition */
-            /* Removed box-shadow */
+            /* box-shadow: none; */ /* Removed box-shadow */
             margin-top: 10px;
         }
 
@@ -1333,7 +1343,7 @@ $current_account_status = $initial_data['current_account_status'];
         }
         .profile-button:active {
             transform: translateY(0); /* Consistent active */
-            /* Removed box-shadow */
+            /* box-shadow: none; */ /* Removed box-shadow */
         }
 
         .delete-button {
@@ -1391,7 +1401,7 @@ $current_account_status = $initial_data['current_account_status'];
             background-color: #FFFFFF; /* Consistent background */
             padding: 30px;
             border-radius: 5px; /* Consistent border-radius */
-            /* Removed box-shadow */
+            /* box-shadow: none; */ /* Removed box-shadow */
             width: 90%;
             max-width: 550px; /* Consistent max-width */
             position: relative;
@@ -1413,7 +1423,7 @@ $current_account_status = $initial_data['current_account_status'];
             font-size: 30px; /* Consistent font-size */
             font-weight: normal; /* Consistent font-weight */
             cursor: pointer;
-            transition: color 0.2s ease-out; /* Consistent transition */
+            transition: color 0.2s ease-out;
         }
 
         .close-button:hover,
@@ -1458,7 +1468,7 @@ $current_account_status = $initial_data['current_account_status'];
         .modal input[type="password"]:focus,
         .modal input[type="date"]:focus { /* Consistent focus */
             border-color: var(--metro-blue);
-            /* Removed box-shadow */
+            /* box-shadow: none; */ /* Removed box-shadow */
             outline: none;
             background-color: #FFFFFF;
         }
@@ -1477,7 +1487,7 @@ $current_account_status = $initial_data['current_account_status'];
             cursor: pointer;
             font-size: 1.1em; /* Consistent font-size */
             transition: background-color 0.2s ease-out, transform 0.1s ease-out; /* Consistent transition */
-            /* Removed box-shadow */
+            /* box-shadow: none; */ /* Removed box-shadow */
         }
 
         .modal button:hover {
@@ -1486,7 +1496,7 @@ $current_account_status = $initial_data['current_account_status'];
         }
         .modal button:active {
             transform: translateY(0); /* Consistent active */
-            /* Removed box-shadow */
+            /* box-shadow: none; */ /* Removed box-shadow */
         }
 
         /* Windows 7-like Animations */
@@ -1521,17 +1531,423 @@ $current_account_status = $initial_data['current_account_status'];
             outline: none;
         }
         button:focus {
-            /* Removed box-shadow */
+            /* box-shadow: none; */ /* Removed box-shadow */
+        }
+
+        /* ========================================================================== */
+        /* Responsive Classes for iPad, Tablet, HP (Android & iOS) */
+        /* ========================================================================== */
+
+        /* Default for Desktop/Windows */
+        .sidebar-toggle-btn {
+            display: none; /* Hidden on desktop */
+        }
+        .sidebar.mobile-hidden {
+            display: flex; /* Always visible on desktop */
+            transform: translateX(0);
+        }
+        .dashboard-header .profile-title { /* Specific class for this page's title */
+            display: block; /* "My Profile Dashboard" visible on desktop */
+        }
+
+        /* Custom Scrollbar for Webkit browsers (Chrome, Safari) */
+        ::-webkit-scrollbar {
+            width: 8px; /* Width of the scrollbar */
+            height: 8px; /* Height of horizontal scrollbar */
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--metro-light-gray); /* Color of the track */
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--metro-medium-gray); /* Color of the scroll thumb */
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--metro-dark-gray); /* Color of the scroll thumb on hover */
+        }
+
+        /* Class for iPad & Tablet (Landscape: min-width 768px, max-width 1024px) */
+        @media (min-width: 768px) and (max-width: 1024px) {
+            body.tablet-landscape .sidebar {
+                width: 220px; /* Slightly narrower sidebar */
+            }
+            body.tablet-landscape .main-content {
+                margin: 0; /* MODIFIED: Full width */
+                padding: 20px;
+                overflow-x: hidden; /* Prevent horizontal scrollbar */
+            }
+            body.tablet-landscape .dashboard-header {
+                padding: 10px 20px;
+                margin: -20px -20px 20px -20px;
+                border-radius: 0; /* Sudut siku-siku */
+            }
+            body.tablet-landscape .dashboard-header h1 {
+                font-size: 2em;
+            }
+            body.tablet-landscape .dashboard-grid {
+                grid-template-columns: 1fr; /* Stack columns vertically */
+                gap: 20px;
+            }
+            body.tablet-landscape .profile-card {
+                padding: 20px;
+            }
+            body.tablet-landscape .profile-card h3 {
+                font-size: 1.5em;
+            }
+            /* Keep profile-info-grid as 2 columns on tablet landscape */
+            body.tablet-landscape .profile-info-grid {
+                grid-template-columns: 1fr 1fr; /* Tetap 2 kolom */
+                padding: 15px;
+            }
+            body.tablet-landscape .profile-info-item.full-width {
+                grid-column: span 2; /* Tetap span 2 kolom */
+            }
+            body.tablet-landscape .profile-stats {
+                padding: 15px;
+            }
+            body.tablet-landscape .profile-stats-item strong {
+                font-size: 1.2em;
+            }
+            body.tablet-landscape .profile-actions-buttons .profile-button {
+                padding: 6px 12px;
+                font-size: 0.8em;
+                min-width: 100px;
+            }
+            body.tablet-landscape .activity-card .card-header h2,
+            body.tablet-landscape .add-email-card .card-header h2 {
+                font-size: 1.5em;
+            }
+            body.tablet-landscape .calendar-filter input[type="date"],
+            body.tablet-landscape .add-email-card .email-input-group input[type="email"] {
+                padding: 10px;
+                font-size: 0.9em;
+            }
+            body.tablet-landscape .calendar-filter button,
+            body.tablet-landscape .add-email-card .email-input-group button {
+                padding: 10px 20px;
+                font-size: 1em;
+            }
+            body.tablet-landscape .activity-card .chart-container {
+                height: 200px;
+            }
+            body.tablet-landscape .activity-card #activityList {
+                max-height: 150px;
+            }
+            body.tablet-landscape .add-email-card .email-list-container {
+                max-height: 150px;
+            }
+            body.tablet-landscape .modal-content {
+                padding: 25px;
+            }
+            body.tablet-landscape .modal h2 {
+                font-size: 1.8em;
+            }
+            body.tablet-landscape .modal label {
+                font-size: 0.95em;
+            }
+            body.tablet-landscape .modal input[type="text"],
+            body.tablet-landscape .modal input[type="password"],
+            body.tablet-landscape .modal input[type="date"],
+            body.tablet-landscape .modal input[type="file"] {
+                padding: 10px;
+                font-size: 0.9em;
+            }
+            body.tablet-landscape .modal button {
+                padding: 10px 20px;
+                font-size: 1em;
+            }
+            body.tablet-landscape .sidebar-menu a {
+                font-size: var(--sidebar-font-size-tablet-landscape); /* Menggunakan variabel untuk tablet landscape */
+            }
+        }
+
+        /* Class for iPad & Tablet (Portrait: min-width 768px, max-width 1024px) */
+        @media (min-width: 768px) and (max-width: 1024px) and (orientation: portrait) {
+            body.tablet-portrait .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100%;
+                z-index: 100;
+                transform: translateX(-100%); /* Hidden by default */
+                /* box-shadow: none; */ /* Removed box-shadow */
+            }
+            body.tablet-portrait .sidebar.show-mobile-sidebar {
+                transform: translateX(0); /* Show when active */
+            }
+            body.tablet-portrait .sidebar-toggle-btn {
+                display: block; /* Show toggle button */
+                background: none;
+                border: none;
+                font-size: 1.8em;
+                color: var(--metro-text-color);
+                cursor: pointer;
+                margin-left: 10px; /* Space from logo */
+                order: 0; /* Place on the left */
+            }
+            body.tablet-portrait .dashboard-header {
+                justify-content: space-between; /* Align items */
+                padding: 10px 20px;
+                margin: -20px -20px 20px -20px;
+                border-radius: 0; /* Sudut siku-siku */
+            }
+            body.tablet-portrait .dashboard-header h1 {
+                font-size: 2em;
+                flex-grow: 1; /* Allow title to take space */
+                text-align: center; /* Center title */
+                white-space: nowrap; /* Prevent text from wrapping */
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            body.tablet-portrait .dashboard-header .profile-title {
+                display: none; /* Hide "My Profile Dashboard" */
+            }
+            body.tablet-portrait .main-content {
+                margin: 0; /* MODIFIED: Full width */
+                padding: 20px;
+                overflow-x: hidden; /* Prevent horizontal scrollbar */
+            }
+            body.tablet-portrait .dashboard-grid {
+                grid-template-columns: 1fr; /* Force vertical stacking */
+                gap: 20px;
+            }
+            body.tablet-portrait .profile-card {
+                padding: 18px;
+            }
+            body.tablet-portrait .profile-card h3 {
+                font-size: 1.4em;
+            }
+            /* Keep profile-info-grid as 2 columns on tablet portrait */
+            body.tablet-portrait .profile-info-grid {
+                grid-template-columns: 1fr 1fr; /* Tetap 2 kolom */
+                padding: 12px;
+            }
+            body.tablet-portrait .profile-info-item.full-width {
+                grid-column: span 2; /* Tetap span 2 kolom */
+            }
+            body.tablet-portrait .profile-stats {
+                padding: 12px;
+            }
+            body.tablet-portrait .profile-stats-item strong {
+                font-size: 1.1em;
+            }
+            body.tablet-portrait .profile-actions-buttons .profile-button {
+                padding: 5px 10px;
+                font-size: 0.75em;
+                min-width: 90px;
+            }
+            body.tablet-portrait .activity-card .card-header h2,
+            body.tablet-portrait .add-email-card .card-header h2 {
+                font-size: 1.4em;
+            }
+            body.tablet-portrait .calendar-filter input[type="date"],
+            body.tablet-portrait .add-email-card .email-input-group input[type="email"] {
+                padding: 8px;
+                font-size: 0.85em;
+            }
+            body.tablet-portrait .calendar-filter button,
+            body.tablet-portrait .add-email-card .email-input-group button {
+                padding: 8px 15px;
+                font-size: 0.9em;
+            }
+            body.tablet-portrait .activity-card .chart-container {
+                height: 180px;
+            }
+            body.tablet-portrait .activity-card #activityList {
+                max-height: 120px;
+            }
+            body.tablet-portrait .add-email-card .email-list-container {
+                max-height: 120px;
+            }
+            body.tablet-portrait .modal-content {
+                padding: 20px;
+            }
+            body.tablet-portrait .modal h2 {
+                font-size: 1.6em;
+            }
+            body.tablet-portrait .modal label {
+                font-size: 0.9em;
+            }
+            body.tablet-portrait .modal input[type="text"],
+            body.tablet-portrait .modal input[type="password"],
+            body.tablet-portrait .modal input[type="date"],
+            body.tablet-portrait .modal input[type="file"] {
+                padding: 8px;
+                font-size: 0.85em;
+            }
+            body.tablet-portrait .modal button {
+                padding: 8px 15px;
+                font-size: 0.9em;
+            }
+            body.tablet-portrait .sidebar-menu a {
+                font-size: var(--sidebar-font-size-tablet-portrait); /* Menggunakan variabel untuk tablet portrait */
+            }
+        }
+
+        /* Class for Mobile (HP Android & iOS: max-width 767px) */
+        @media (max-width: 767px) {
+            body.mobile .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100%;
+                width: 200px; /* Narrower sidebar for mobile */
+                z-index: 100;
+                transform: translateX(-100%); /* Hidden by default */
+                /* box-shadow: none; */ /* Removed box-shadow */
+            }
+            body.mobile .sidebar.show-mobile-sidebar {
+                transform: translateX(0); /* Show when active */
+            }
+            body.mobile .sidebar-toggle-btn {
+                display: block; /* Show toggle button */
+                background: none;
+                border: none;
+                font-size: 1.5em;
+                color: var(--metro-text-color);
+                cursor: pointer;
+                margin-left: 10px; /* Space from logo */
+                order: 0; /* Place on the left */
+            }
+            body.mobile .dashboard-header {
+                justify-content: space-between; /* Align items */
+                padding: 10px 15px;
+                margin: -15px -15px 15px -15px; /* Adjusted margins for mobile */
+                border-radius: 0; /* Sudut siku-siku */
+            }
+            body.mobile .dashboard-header h1 {
+                font-size: 1.8em;
+                flex-grow: 1; /* Allow title to take space */
+                text-align: center; /* Center title */
+            }
+            body.mobile .dashboard-header .profile-title {
+                display: none; /* Hide "My Profile Dashboard" */
+            }
+            body.mobile .main-content {
+                margin: 0; /* MODIFIED: Full width */
+                padding: 15px;
+                overflow-x: hidden; /* Prevent horizontal scrollbar */
+            }
+            body.mobile .dashboard-grid {
+                grid-template-columns: 1fr !important; /* Force vertical stacking */
+                gap: 15px;
+            }
+            body.mobile .card {
+                padding: 15px;
+            }
+            body.mobile .profile-card h3 {
+                font-size: 1.2em;
+            }
+            /* Keep profile-info-grid as 2 columns on mobile */
+            body.mobile .profile-info-grid {
+                grid-template-columns: 1fr 1fr; /* Tetap 2 kolom */
+                padding: 10px;
+            }
+            body.mobile .profile-info-item strong {
+                font-size: 0.8em;
+            }
+            body.mobile .profile-info-item span {
+                font-size: 0.9em;
+            }
+            body.mobile .profile-stats {
+                padding: 10px;
+            }
+            body.mobile .profile-stats-item strong {
+                font-size: 1em;
+            }
+            body.mobile .profile-actions-buttons .profile-button {
+                padding: 4px 8px;
+                font-size: 0.7em;
+                min-width: 80px;
+            }
+            body.mobile .activity-card .card-header h2,
+            body.mobile .add-email-card .card-header h2 {
+                font-size: 1.2em;
+            }
+            body.mobile .calendar-filter {
+                flex-direction: column;
+                gap: 10px;
+            }
+            body.mobile .calendar-filter .form-group {
+                min-width: unset;
+                width: 100%;
+            }
+            body.mobile .calendar-filter input[type="date"],
+            body.mobile .add-email-card .email-input-group input[type="email"] {
+                padding: 6px;
+                font-size: 0.8em;
+            }
+            body.mobile .calendar-filter button,
+            body.mobile .add-email-card .email-input-group button {
+                padding: 6px 12px;
+                font-size: 0.8em;
+            }
+            body.mobile .add-email-card .email-input-group {
+                flex-direction: column;
+            }
+            body.mobile .activity-card .chart-container {
+                height: 150px;
+            }
+            body.mobile .activity-card #activityList {
+                max-height: 100px;
+            }
+            body.mobile .add-email-card .email-list-container {
+                max-height: 100px;
+            }
+            body.mobile .modal-content {
+                width: 95%;
+                padding: 15px;
+            }
+            body.mobile .modal h2 {
+                font-size: 1.4em;
+            }
+            body.mobile .modal label {
+                font-size: 0.85em;
+            }
+            body.mobile .modal input[type="text"],
+            body.mobile .modal input[type="password"],
+            body.mobile .modal input[type="date"],
+            body.mobile .modal input[type="file"] {
+                padding: 6px;
+                font-size: 0.8em;
+            }
+            body.mobile .modal button {
+                padding: 6px 12px;
+                font-size: 0.9em;
+            }
+            body.mobile .sidebar-menu a {
+                font-size: var(--sidebar-font-size-mobile); /* Menggunakan variabel untuk mobile */
+            }
+        }
+
+        /* Overlay for mobile sidebar */
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 99;
+        }
+        .overlay.show {
+            display: block;
         }
     </style>
 </head>
 <body>
-    <div class="sidebar">
+    <div class="sidebar mobile-hidden">
         <div class="sidebar-header">
             <img src="img/logo.png" alt="Dafino Logo">
         </div>
         <ul class="sidebar-menu">
             <li><a href="index.php"><i class="fas fa-folder"></i> My Drive</a></li>
+            <li><a href="priority_files.php"><i class="fas fa-star"></i> Priority File</a></li> <!-- NEW: Priority File Link -->
             <li><a href="summary.php"><i class="fas fa-chart-line"></i> Summary</a></li>
             <li><a href="members.php"><i class="fas fa-users"></i> Members</a></li>
             <li><a href="profile.php" class="active"><i class="fas fa-user"></i> Profile</a></li>
@@ -1553,7 +1969,8 @@ $current_account_status = $initial_data['current_account_status'];
 
     <div class="main-content">
         <div class="dashboard-header">
-            <h1 id="dashboardHeaderTitle">My Profile Dashboard</h1>
+            <button class="sidebar-toggle-btn" id="sidebarToggleBtn"><i class="fas fa-bars"></i></button>
+            <h1 class="profile-title">My Profile Dashboard</h1>
             <div class="user-info">
                 <span id="userInfoGreeting">Hello <?php echo htmlspecialchars($user['full_name'] ?? $user['username']); ?></span>
                 <img id="userInfoAvatar" src="<?php echo htmlspecialchars($user['profile_picture'] ?? 'img/photo_profile.png'); ?>" alt="User Avatar">
@@ -1767,6 +2184,9 @@ $current_account_status = $initial_data['current_account_status'];
             </form>
         </div>
     </div>
+
+    <!-- Overlay for mobile sidebar -->
+    <div class="overlay" id="mobileOverlay"></div>
 
     <script>
         // Global variable for Chart.js instance
@@ -2045,6 +2465,48 @@ $current_account_status = $initial_data['current_account_status'];
             return n < 10 ? '0' + n : n;
         }
 
+        // --- Responsive Class Handling ---
+        function applyDeviceClass() {
+            const width = window.innerWidth;
+            const body = document.body;
+            const sidebar = document.querySelector('.sidebar');
+            const mobileOverlay = document.getElementById('mobileOverlay');
+            const profileTitle = document.querySelector('.profile-title'); // Get the title element
+            const userInfo = document.querySelector('.user-info'); // Get user-info element
+
+            // Remove all previous device classes
+            body.classList.remove('mobile', 'tablet-portrait', 'tablet-landscape', 'desktop');
+
+            if (width <= 767) {
+                body.classList.add('mobile');
+                sidebar.classList.add('mobile-hidden'); // Ensure sidebar is hidden by default
+                profileTitle.style.display = 'none'; // Hide title on mobile
+                userInfo.style.display = 'none'; // Hide user info on mobile
+            } else if (width >= 768 && width <= 1024) {
+                if (window.matchMedia("(orientation: portrait)").matches) {
+                    body.classList.add('tablet-portrait');
+                    sidebar.classList.add('mobile-hidden'); // Ensure sidebar is hidden by default
+                    profileTitle.style.display = 'none'; // Hide title on tablet portrait
+                    userInfo.style.display = 'none'; // Hide user info on tablet portrait
+                } else {
+                    body.classList.add('tablet-landscape');
+                    sidebar.classList.remove('mobile-hidden'); // Show sidebar
+                    sidebar.classList.remove('show-mobile-sidebar'); // Ensure mobile sidebar is closed
+                    mobileOverlay.classList.remove('show'); // Hide overlay
+                    profileTitle.style.display = 'block'; // Show title on tablet landscape
+                    userInfo.style.display = 'flex'; // Show user info on tablet landscape
+                }
+            } else {
+                body.classList.add('desktop');
+                sidebar.classList.remove('mobile-hidden'); // Show sidebar
+                sidebar.classList.remove('show-mobile-sidebar'); // Ensure mobile sidebar is closed
+                mobileOverlay.classList.remove('show'); // Hide overlay
+                profileTitle.style.display = 'block'; // Show title on desktop
+                userInfo.style.display = 'flex'; // Show user info on desktop
+            }
+        }
+
+
         document.addEventListener('DOMContentLoaded', function() {
             // Initial UI update with data from PHP (server-side rendered)
             // This ensures the page is not blank while AJAX loads
@@ -2070,6 +2532,11 @@ $current_account_status = $initial_data['current_account_status'];
             const addEmailForm = document.getElementById('addEmailForm');
             const additionalEmailsList = document.getElementById('additionalEmailsList');
             const deleteProfilePictureBtn = document.getElementById('deleteProfilePictureBtn');
+
+            // Mobile sidebar elements
+            const sidebar = document.querySelector('.sidebar');
+            const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
+            const mobileOverlay = document.getElementById('mobileOverlay');
 
             // Notification display from initial PHP load
             <?php if (!empty($notification_message)): ?>
@@ -2102,6 +2569,11 @@ $current_account_status = $initial_data['current_account_status'];
                 }
                 if (event.target == editProfileModal) {
                     editProfileModal.classList.remove('show');
+                }
+                // Close mobile sidebar if overlay is clicked
+                if (event.target == mobileOverlay && sidebar.classList.contains('show-mobile-sidebar')) {
+                    sidebar.classList.remove('show-mobile-sidebar');
+                    mobileOverlay.classList.remove('show');
                 }
             });
 
@@ -2344,6 +2816,17 @@ $current_account_status = $initial_data['current_account_status'];
                     });
                 }
             };
+
+            // Initial application of device class
+            applyDeviceClass();
+            window.addEventListener('resize', applyDeviceClass);
+            window.addEventListener('orientationchange', applyDeviceClass);
+
+            // --- Mobile Sidebar Toggle ---
+            sidebarToggleBtn.addEventListener('click', () => {
+                sidebar.classList.toggle('show-mobile-sidebar');
+                mobileOverlay.classList.toggle('show');
+            });
 
             // Refresh data periodically (e.g., every 30 seconds)
             setInterval(fetchProfileData, 30000);

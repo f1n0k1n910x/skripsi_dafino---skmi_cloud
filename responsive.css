@@ -1,0 +1,406 @@
+/* responsive.css */
+
+/* Default for Desktop (larger screens) */
+.sidebar {
+    width: 250px;
+    transform: translateX(0);
+    position: relative;
+}
+
+.sidebar-toggle-btn {
+    display: none; /* Hide toggle button on desktop */
+}
+
+.header-main h1.desktop-only {
+    display: block; /* Show "My Drive" on desktop */
+}
+
+.search-bar.mobile-tablet-search {
+    display: flex; /* Keep search bar in header for desktop */
+    order: 2; /* Order it after h1 */
+}
+
+/* Hide search bar below header on desktop */
+.main-content > .search-bar {
+    display: none;
+}
+
+/* Tablet (iPad, smaller laptops) - Max width 1024px */
+@media (max-width: 1024px) {
+    body {
+        flex-direction: column; /* Stack sidebar and main content */
+    }
+
+    .sidebar {
+        position: fixed; /* Fixed position for slide-out */
+        top: 0;
+        left: 0;
+        height: 100%;
+        transform: translateX(-250px); /* Hide sidebar by default */
+        box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+        z-index: 200; /* Ensure it's above everything when open */
+    }
+
+    .sidebar.active {
+        transform: translateX(0); /* Show sidebar when active */
+    }
+
+    .sidebar-toggle-btn {
+        display: block; /* Show toggle button */
+        background: none;
+        border: none;
+        font-size: 1.8em;
+        color: var(--metro-dark-gray);
+        cursor: pointer;
+        margin-right: 15px;
+        transition: color 0.2s ease-out;
+    }
+
+    .sidebar-toggle-btn:hover {
+        color: var(--metro-blue);
+    }
+
+    .header-main {
+        margin: 0; /* Remove negative margin for mobile/tablet header */
+        border-radius: 0;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        padding: 15px 20px; /* Adjust padding */
+    }
+
+    .header-main h1.desktop-only {
+        display: none; /* Hide "My Drive" on tablet/mobile */
+    }
+
+    .search-bar.mobile-tablet-search {
+        order: 3; /* Adjust order if needed */
+        flex-grow: 1; /* Allow search bar to take available space */
+        margin-left: auto; /* Push to the right */
+        max-width: 250px; /* Limit width */
+    }
+
+    .search-bar.mobile-tablet-search input {
+        width: 100%; /* Make input fill its container */
+    }
+
+    .main-content {
+        margin: 0; /* Remove margin for full width */
+        border-radius: 0;
+        padding: 20px; /* Adjust padding */
+        flex-grow: 1;
+        width: 100%; /* Ensure full width */
+    }
+
+    /* Overlay when sidebar is open */
+    .main-content.sidebar-open::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+        z-index: 150;
+    }
+
+    /* Toolbar adjustments for smaller screens */
+    .toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .toolbar-left, .toolbar-right {
+        width: 100%;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: flex-start;
+    }
+
+    .toolbar-left button, .toolbar-right button {
+        flex-grow: 1; /* Allow buttons to grow */
+        margin-right: 0; /* Remove extra margin */
+    }
+
+    .view-toggle {
+        width: 100%;
+        justify-content: center; /* Center view toggle buttons */
+    }
+
+    /* File table adjustments */
+    .file-table th, .file-table td {
+        padding: 10px 15px;
+        font-size: 0.9em;
+    }
+
+    .file-table th:nth-child(4), /* Size */
+    .file-table td:nth-child(4),
+    .file-table th:nth-child(5), /* Last Modified */
+    .file-table td:nth-child(5) {
+        display: none; /* Hide size and last modified columns on smaller screens */
+    }
+
+    /* Grid view adjustments */
+    .file-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); /* Smaller grid items */
+        gap: 15px;
+        padding: 10px;
+    }
+
+    .grid-thumbnail {
+        height: 100px; /* Smaller thumbnails */
+    }
+
+    .grid-item .file-icon {
+        font-size: 2.5em;
+    }
+
+    .grid-thumbnail i {
+        font-size: 3.5em;
+    }
+
+    .file-name {
+        font-size: 0.9em;
+    }
+
+    .file-size {
+        font-size: 0.75em;
+    }
+
+    /* Modals adjustments */
+    .modal-content {
+        width: 95%;
+        padding: 20px;
+    }
+
+    .modal h2 {
+        font-size: 1.8em;
+    }
+
+    .modal input[type="text"],
+    .modal input[type="file"] {
+        width: calc(100% - 24px); /* Adjust for padding */
+        padding: 10px;
+    }
+
+    .notification {
+        top: 10px;
+        right: 10px;
+        padding: 10px 15px;
+        font-size: 0.9em;
+    }
+}
+
+/* Mobile (HP) - Max width 767px */
+@media (max-width: 767px) {
+    .sidebar {
+        width: 200px; /* Even narrower sidebar for phones */
+        transform: translateX(-200px);
+    }
+
+    .sidebar.active {
+        transform: translateX(0);
+    }
+
+    .sidebar-header img {
+        width: 120px; /* Smaller logo */
+    }
+
+    .sidebar-menu a {
+        padding: 12px 15px;
+        font-size: 1em;
+    }
+
+    .sidebar-menu a i {
+        font-size: 1.2em;
+        margin-right: 10px;
+    }
+
+    .storage-info {
+        padding: 15px;
+    }
+
+    .header-main {
+        padding: 10px 15px;
+    }
+
+    .sidebar-toggle-btn {
+        font-size: 1.5em;
+    }
+
+    .search-bar.mobile-tablet-search {
+        max-width: none; /* Allow search bar to take full width */
+    }
+
+    .toolbar-left button, .toolbar-right button {
+        padding: 8px 15px;
+        font-size: 0.9em;
+    }
+
+    .file-table th, .file-table td {
+        padding: 8px 10px;
+        font-size: 0.85em;
+    }
+
+    .file-table th:nth-child(3), /* Type */
+    .file-table td:nth-child(3) {
+        display: none; /* Hide type column on very small screens */
+    }
+
+    .file-icon {
+        font-size: 1.1em;
+        margin-right: 8px;
+        width: 20px;
+    }
+
+    .file-name-cell {
+        max-width: 200px; /* Further limit name width */
+    }
+
+    .file-checkbox {
+        transform: scale(1.0);
+        margin-right: 5px;
+    }
+
+    .file-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); /* Even smaller grid items */
+        gap: 10px;
+        padding: 5px;
+    }
+
+    .grid-thumbnail {
+        height: 80px;
+    }
+
+    .grid-item .file-icon {
+        font-size: 2em;
+    }
+
+    .grid-thumbnail i {
+        font-size: 3em;
+    }
+
+    .file-name {
+        font-size: 0.8em;
+    }
+
+    .file-size {
+        font-size: 0.7em;
+    }
+
+    .action-buttons button {
+        padding: 5px 8px;
+        font-size: 0.7em;
+    }
+
+    .modal-content {
+        padding: 15px;
+    }
+
+    .modal h2 {
+        font-size: 1.5em;
+    }
+
+    .modal label {
+        font-size: 1em;
+    }
+
+    .modal input[type="text"],
+    .modal input[type="file"] {
+        padding: 8px;
+        font-size: 0.9em;
+    }
+
+    .modal button[type="submit"] {
+        padding: 10px 20px;
+        font-size: 1em;
+    }
+
+    .upload-item .file-icon {
+        font-size: 2em;
+        margin-right: 10px;
+        width: 35px;
+    }
+
+    .upload-item-info strong {
+        font-size: 0.9em;
+    }
+
+    .upload-status-icon {
+        font-size: 1.2em;
+        margin-left: 10px;
+        width: 25px;
+    }
+
+    .upload-action-button {
+        font-size: 1.2em;
+        margin-left: 10px;
+    }
+
+    #shareLinkModal input[type="text"] {
+        width: calc(100% - 90px); /* Adjust for smaller copy button */
+        font-size: 0.9em;
+    }
+    #shareLinkModal button {
+        padding: 8px 12px;
+        font-size: 0.8em;
+    }
+}
+
+/* Specific classes for device types (optional, for minor tweaks) */
+.device-desktop .sidebar-toggle-btn,
+.device-desktop .mobile-tablet-search {
+    display: none;
+}
+
+.device-mobile .desktop-only,
+.device-ipad .desktop-only {
+    display: none;
+}
+
+.device-mobile .sidebar,
+.device-ipad .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    transform: translateX(-100%); /* Hidden by default */
+    z-index: 200;
+}
+
+.device-mobile .sidebar.active,
+.device-ipad .sidebar.active {
+    transform: translateX(0);
+}
+
+.device-mobile .sidebar-toggle-btn,
+.device-ipad .sidebar-toggle-btn {
+    display: block;
+}
+
+.device-mobile .main-content,
+.device-ipad .main-content {
+    margin: 0; /* Remove desktop margins */
+    border-radius: 0;
+}
+
+/* Overlay for mobile/tablet when sidebar is open */
+.main-content.sidebar-open {
+    position: relative; /* Needed for ::before pseudo-element */
+    overflow: hidden; /* Prevent scrolling of main content when sidebar is open */
+}
+
+.main-content.sidebar-open::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    z-index: 150; /* Below sidebar, above main content */
+}
+

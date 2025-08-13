@@ -117,6 +117,9 @@ function getFileData($conn, $fileId, $user_id) {
     // For code files, read content
     if ($fileCategory === 'code' && file_exists($data['fullFilePath'])) {
         $data['fileContent'] = file_get_contents($data['fullFilePath']);
+    } elseif ($fileCategory === 'archive' && ($data['fileType'] === 'zip' || $data['fileType'] === 'tar')) {
+        // For archive files, generate the HTML content for the table
+        $data['fileContent'] = readArchiveContent($data['fullFilePath'], $data['fileType']);
     } else {
         $data['fileContent'] = null;
     }
@@ -162,13 +165,73 @@ $uploadedAt = $initial_data['uploadedAt'];
 $fileCategory = $initial_data['fileCategory'];
 $breadcrumbs = $initial_data['breadcrumbs'];
 $currentFolderId = $initial_data['currentFolderId'];
-$fileContent = $initial_data['fileContent']; // Content for code files
+$fileContent = $initial_data['fileContent']; // Content for code files and now archive files
 
 // Fungsi untuk membaca file teks (dari kode yang Anda berikan)
 function readTextFile($path) {
     $content = file_get_contents($path);
     return htmlspecialchars($content); // Hindari XSS
 }
+
+// NEW: Fungsi untuk membaca isi arsip (ZIP dan TAR)
+function readArchiveContent($filePath, $fileType) {
+    $output = '';
+    $output .= "<div class='archive-viewer'>";
+    $output .= "<h3>Contents of: " . htmlspecialchars(basename($filePath)) . "</h3>";
+    $output .= "<div class='archive-table-container'>"; // Added for responsive table
+    $output .= "<table class='archive-table'>";
+    $output .= "<thead><tr><th>Name</th><th>Size</th><th>Modified</th></tr></thead>";
+    $output .= "<tbody>";
+
+    if ($fileType === 'zip') {
+        if (class_exists('ZipArchive')) {
+            $zip = new ZipArchive;
+            if ($zip->open($filePath) === TRUE) {
+                for ($i = 0; $i < $zip->numFiles; $i++) {
+                    $stat = $zip->statIndex($i);
+                    $output .= "<tr>";
+                    $output .= "<td data-label='Name'>" . htmlspecialchars($stat['name']) . "</td>";
+                    $output .= "<td data-label='Size'>" . formatBytes($stat['size']) . "</td>";
+                    $output .= "<td data-label='Modified'>" . date("Y-m-d H:i:s", $stat['mtime']) . "</td>";
+                    $output .= "</tr>";
+                }
+                $zip->close();
+            } else {
+                $output .= "<tr><td colspan='3'>Failed to open ZIP file.</td></tr>";
+            }
+        } else {
+            $output .= "<tr><td colspan='3'>PHP ZipArchive extension is not enabled.</td></tr>";
+        }
+    } elseif ($fileType === 'tar') {
+        if (class_exists('PharData')) {
+            try {
+                $tar = new PharData($filePath);
+                foreach (new RecursiveIteratorIterator($tar) as $file) {
+                    // Get relative path within the archive
+                    $relativePath = str_replace($tar->getPathname() . '/', '', $file->getPathname());
+                    $output .= "<tr>";
+                    $output .= "<td data-label='Name'>" . htmlspecialchars($relativePath) . "</td>";
+                    $output .= "<td data-label='Size'>" . formatBytes($file->getSize()) . "</td>";
+                    $output .= "<td data-label='Modified'>" . date("Y-m-d H:i:s", $file->getMTime()) . "</td>";
+                    $output .= "</tr>";
+                }
+            } catch (Exception $e) {
+                $output .= "<tr><td colspan='3'>Failed to open TAR file: " . htmlspecialchars($e->getMessage()) . "</td></tr>";
+            }
+        } else {
+            $output .= "<tr><td colspan='3'>PHP Phar extension is not enabled or PharData class not found.</td></tr>";
+        }
+    } else {
+        $output .= "<tr><td colspan='3'>Unsupported archive format. Only .zip and .tar are supported for preview.</td></tr>";
+    }
+
+    $output .= "</tbody>";
+    $output .= "</table>";
+    $output .= "</div>"; // Close archive-table-container
+    $output .= "</div>";
+    return $output;
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -214,7 +277,6 @@ function readTextFile($path) {
             top: 0;
             z-index: 1000;
             background-color: #fff;
-            /* Removed box-shadow */
             padding: 15px 30px;
             display: flex;
             justify-content: space-between;
@@ -267,11 +329,13 @@ function readTextFile($path) {
             color: var(--metro-blue);
         }
 
+        /* Base Main Container Styles (Desktop) */
         .main-container {
-            display: flex;
             flex-grow: 1;
             overflow: hidden;
             padding: 20px;
+            display: flex;
+            background-color: var(--metro-bg-color); /* Ensure background is consistent */
         }
 
         .preview-pane {
@@ -279,7 +343,6 @@ function readTextFile($path) {
             background-color: #fff;
             margin-right: 20px;
             border-radius: 8px;
-            /* Removed box-shadow */
             padding: 20px;
             overflow-y: auto;
             position: relative;
@@ -290,7 +353,6 @@ function readTextFile($path) {
             flex: 1;
             background-color: #fff;
             border-radius: 8px;
-            /* Removed box-shadow */
             padding: 20px;
             animation: slideInRight 0.5s ease-out;
         }
@@ -364,7 +426,6 @@ function readTextFile($path) {
             max-height: 70vh;
             object-fit: contain;
             border-radius: 5px;
-            /* Removed box-shadow */
             transform-origin: center center; /* Added for zoom */
             transition: transform 0.1s ease-out; /* Added for smooth zoom */
         }
@@ -373,7 +434,6 @@ function readTextFile($path) {
             width: 100%;
             max-width: 800px;
             border-radius: 5px;
-            /* Removed box-shadow */
             transform-origin: center center; /* Added for zoom */
             transition: transform 0.1s ease-out; /* Added for smooth zoom */
         }
@@ -389,7 +449,6 @@ function readTextFile($path) {
             box-sizing: border-box;
             max-height: 70vh;
             overflow-y: auto;
-            /* Removed box-shadow */
             transform-origin: top left; /* Added for zoom */
             transition: transform 0.1s ease-out; /* Added for smooth zoom */
         }
@@ -430,13 +489,11 @@ function readTextFile($path) {
             font-weight: 600;
             transition: background-color 0.2s ease-out, transform 0.2s ease-out;
             margin-top: 20px;
-            /* Removed box-shadow */
         }
 
         .download-button:hover {
             background-color: var(--metro-dark-blue);
             transform: translateY(-2px);
-            /* Removed box-shadow */
         }
 
         .download-button i {
@@ -502,7 +559,6 @@ function readTextFile($path) {
             display: flex;
             justify-content: center;
             align-items: center;
-            /* Removed box-shadow */
             transition: background-color 0.2s ease-out, transform 0.2s ease-out;
         }
 
@@ -528,6 +584,272 @@ function readTextFile($path) {
             padding: 1rem;
             text-align: left; /* Align text to left */
         }
+
+        /* NEW: Styles for Archive Viewer */
+        .archive-viewer {
+            width: 100%;
+            max-height: 70vh;
+            overflow-y: auto;
+            background-color: #f9f9f9;
+            border: 1px solid var(--metro-light-gray);
+            border-radius: 5px;
+            padding: 15px;
+            text-align: left;
+        }
+
+        .archive-viewer h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: var(--metro-text-color);
+            font-size: 1.3em;
+            border-bottom: 1px solid var(--metro-medium-gray);
+            padding-bottom: 10px;
+        }
+
+        .archive-table-container { /* Added for responsive table */
+            overflow-x: auto; /* Enable horizontal scrolling for the table */
+            -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+        }
+
+        .archive-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+            min-width: 400px; /* Ensure table doesn't get too narrow on small screens */
+        }
+
+        .archive-table th, .archive-table td {
+            border: 1px solid var(--metro-light-gray);
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        .archive-table th {
+            background-color: var(--metro-bg-color);
+            color: var(--metro-dark-gray);
+            font-weight: 600;
+        }
+
+        .archive-table tbody tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+
+        .archive-table tbody tr:hover {
+            background-color: var(--metro-light-gray);
+        }
+
+        /* Responsive table for small screens */
+        @media (max-width: 767px) {
+            .archive-table thead {
+                display: none; /* Hide table headers on small screens */
+            }
+
+            .archive-table, .archive-table tbody, .archive-table tr, .archive-table td {
+                display: block; /* Make table elements behave like block elements */
+                width: 100%; /* Full width */
+            }
+
+            .archive-table tr {
+                margin-bottom: 15px; /* Space between rows */
+                border: 1px solid var(--metro-light-gray);
+                border-radius: 5px;
+                overflow: hidden; /* Ensure border-radius applies */
+            }
+
+            .archive-table td {
+                text-align: right; /* Align content to the right */
+                padding-left: 50%; /* Make space for the data-label */
+                position: relative;
+                border: none; /* Remove individual cell borders */
+                border-bottom: 1px solid var(--metro-light-gray); /* Add bottom border for separation */
+            }
+
+            .archive-table td:last-child {
+                border-bottom: none; /* No bottom border for the last cell in a row */
+            }
+
+            .archive-table td::before {
+                content: attr(data-label); /* Display the data-label as a pseudo-element */
+                position: absolute;
+                left: 10px;
+                width: calc(50% - 20px); /* Adjust width for label */
+                padding-right: 10px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                font-weight: 600;
+                color: var(--metro-dark-gray);
+                text-align: left; /* Align label to the left */
+            }
+        }
+
+
+        /* ========================================================================== */
+        /* Responsive Classes for iPad, Tablet, HP (Android & iOS) */
+        /* ========================================================================== */
+
+        /* Default for Desktop */
+        body.desktop .main-container {
+            padding: 20px;
+            flex-direction: row;
+        }
+        body.desktop .preview-pane {
+            margin-right: 20px;
+        }
+        body.desktop .file-info-pane {
+            display: block; /* Show info pane */
+        }
+
+        /* Tablet Landscape (min-width 768px, max-width 1024px, landscape) */
+        @media (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
+            body.tablet-landscape .main-container {
+                padding: 15px;
+                flex-direction: row;
+            }
+            body.tablet-landscape .preview-pane {
+                margin-right: 15px;
+                padding: 15px;
+            }
+            body.tablet-landscape .file-info-pane {
+                padding: 15px;
+                display: block; /* Show info pane */
+            }
+            body.tablet-landscape .header-sticky {
+                padding: 10px 20px;
+            }
+        }
+
+        /* Tablet Portrait (min-width 768px, max-width 1024px, portrait) */
+        @media (min-width: 768px) and (max-width: 1024px) and (orientation: portrait) {
+            body.tablet-portrait .main-container {
+                padding: 15px;
+                flex-direction: column; /* Stack panes vertically */
+            }
+            body.tablet-portrait .preview-pane {
+                margin-right: 0;
+                margin-bottom: 15px; /* Space between stacked panes */
+                padding: 15px;
+                flex: none; /* Remove flex grow */
+                width: auto; /* Auto width */
+            }
+            body.tablet-portrait .file-info-pane {
+                padding: 15px;
+                flex: none; /* Remove flex grow */
+                width: auto; /* Auto width */
+                display: block; /* Show info pane */
+            }
+            body.tablet-portrait .header-sticky {
+                padding: 10px 20px;
+            }
+        }
+
+        /* Mobile (max-width 767px) */
+        @media (max-width: 767px) {
+            body.mobile .main-container {
+                padding: 10px;
+                flex-direction: column; /* Stack panes vertically */
+            }
+            body.mobile .preview-pane {
+                margin-right: 0;
+                margin-bottom: 10px; /* Space between stacked panes */
+                padding: 10px;
+                flex: none; /* Remove flex grow */
+                width: auto; /* Auto width */
+            }
+            body.mobile .file-info-pane {
+                padding: 10px;
+                flex: none; /* Remove flex grow */
+                width: auto; /* Auto width */
+                display: block; /* Show info pane */
+            }
+            body.mobile .header-sticky {
+                padding: 10px 15px;
+            }
+            body.mobile .header-sticky h1 {
+                margin-right: 5px; /* Reduce margin for icon */
+                font-size: 1.3em; /* Smaller font size for header */
+            }
+            body.mobile .header-sticky h1 i {
+                margin-right: 8px;
+            }
+            body.mobile .profile-container .username {
+                font-size: 0.8em; /* Smaller username font */
+            }
+            body.mobile .profile-container .profile-image {
+                width: 30px; /* Smaller profile image */
+                height: 30px;
+            }
+            body.mobile .breadcrumbs {
+                font-size: 0.75em; /* Smaller breadcrumbs font */
+            }
+            body.mobile .back-button {
+                font-size: 0.9em; /* Smaller back button font */
+                margin-bottom: 15px;
+            }
+            body.mobile .preview-content {
+                padding: 10px;
+                min-height: 250px; /* Smaller min-height for mobile */
+            }
+            body.mobile .zoom-controls {
+                top: 10px;
+                right: 10px;
+                gap: 5px;
+            }
+            body.mobile .zoom-button {
+                width: 30px;
+                height: 30px;
+                font-size: 0.9em;
+            }
+            body.mobile .file-info-pane h3 {
+                font-size: 1em; /* Smaller info pane header */
+            }
+            body.mobile .file-info-item strong {
+                font-size: 0.8em;
+            }
+            body.mobile .file-info-item span {
+                font-size: 0.9em;
+            }
+            body.mobile .download-button {
+                padding: 8px 16px;
+                font-size: 0.85em;
+            }
+            body.mobile .general-file-info {
+                padding: 15px;
+            }
+            body.mobile .general-file-info .icon {
+                font-size: 36px;
+            }
+            body.mobile .general-file-info p {
+                font-size: 0.9em;
+            }
+            body.mobile .pdf-viewer {
+                height: 40vh; /* Adjust PDF viewer height */
+            }
+            body.mobile .viewer-container {
+                max-height: 40vh;
+            }
+            body.mobile .archive-viewer {
+                max-height: 40vh;
+                padding: 10px;
+            }
+            body.mobile .archive-viewer h3 {
+                font-size: 1em;
+                margin-bottom: 10px;
+            }
+            body.mobile .archive-table th, body.mobile .archive-table td {
+                padding: 6px 8px;
+                font-size: 0.8em;
+            }
+        }
+
+        /* Specific class for iPad (regardless of orientation, if needed for specific overrides) */
+        /* This can be used if iPad needs different behavior than generic tablet or mobile */
+        @media only screen and (min-device-width: 768px) and (max-device-width: 1024px) {
+            body.device-ipad .main-container {
+                /* iPad specific adjustments if needed */
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -570,9 +892,10 @@ function readTextFile($path) {
             <?php
             // NEW: Add 'cad' to zoomable categories
             $zoomableCategories = ['image', 'document', 'video', 'code', 'cad'];
-            $isZoomable = in_array($fileCategory, $zoomableCategories);
+            // Archive files are not directly zoomable in the same way, so exclude them
+            $isZoomable = in_array($fileCategory, $zoomableCategories) && $fileCategory !== 'archive';
 
-            if ($isZoomable && $fileCategory !== 'archive') {
+            if ($isZoomable) { // Only show zoom controls if the file type is zoomable
                 echo '<div class="zoom-controls">';
                 echo '<button class="zoom-button" id="zoomOutBtn"><i class="fas fa-minus"></i></button>';
                 echo '<button class="zoom-button" id="zoomInBtn"><i class="fas fa-plus"></i></button>';
@@ -597,14 +920,20 @@ function readTextFile($path) {
             <?php elseif ($fileCategory === 'code'): ?>
                 <pre id="previewElement"><code class="language-<?php echo htmlspecialchars($fileType); ?>"><?php echo htmlspecialchars($fileContent); ?></code></pre>
             <?php elseif ($fileCategory === 'archive'): ?>
-                <div class="general-file-info">
-                    <i class="fas fa-archive icon"></i>
-                    <p>Previewing the contents of the archive file <strong><?php echo strtoupper($fileType); ?></strong> is not supported.</p>
-                    <p>Please download the file to view its contents.</p>
-                    <a href="download.php?file=<?php echo urlencode($filePath); ?>&new_filename=<?php echo urlencode($fileName); ?>" download="<?php echo htmlspecialchars($fileName); ?>" class="download-button" id="downloadButton1">
-                        <i class="fas fa-download"></i> Download File
-                    </a>
-                </div>
+                <?php if ($fileType === 'zip' || $fileType === 'tar'): ?>
+                    <div id="previewElement" class="archive-preview-container">
+                        <?php echo $fileContent; // $fileContent now contains the HTML table ?>
+                    </div>
+                <?php else: ?>
+                    <div class="general-file-info">
+                        <i class="fas fa-archive icon"></i>
+                        <p>Previewing the contents of the archive file <strong><?php echo strtoupper($fileType); ?></strong> is not supported.</p>
+                        <p>Please download the file to view its contents.</p>
+                        <a href="download.php?file=<?php echo urlencode($filePath); ?>&new_filename=<?php echo urlencode($fileName); ?>" download="<?php echo htmlspecialchars($fileName); ?>" class="download-button" id="downloadButton1">
+                            <i class="fas fa-download"></i> Download File
+                        </a>
+                    </div>
+                <?php endif; ?>
             <?php
             // START: Kode pratinjau tambahan dari Anda
             // Ini akan menangani pratinjau untuk file teks dan memberikan pesan untuk dokumen kantor
@@ -704,10 +1033,11 @@ function readTextFile($path) {
     function applyZoom() {
         const previewElement = document.getElementById('previewElement');
         if (previewElement) {
+            // Check if the element is an image, video, audio, or iframe (PDF viewer)
             if (previewElement.tagName === 'IMG' || previewElement.tagName === 'VIDEO' || previewElement.tagName === 'AUDIO' || previewElement.tagName === 'IFRAME') {
                 previewElement.style.transform = `scale(${currentZoom})`;
             } else if (previewElement.tagName === 'PRE') {
-                // For PRE tags, adjust font size for zoom
+                // For PRE tags (code/text files), adjust font size for zoom
                 const codeElement = previewElement.querySelector('code');
                 if (codeElement) {
                     codeElement.style.fontSize = `${0.9 * currentZoom}em`;
@@ -716,6 +1046,8 @@ function readTextFile($path) {
                     previewElement.style.fontSize = `${1.0 * currentZoom}em`; // Assuming base font size is 1em
                 }
             }
+            // Archive viewer is a div, not directly zoomable by scale, but its content could be
+            // For now, we don't apply direct scale to archive-viewer.
         }
     }
 
@@ -774,10 +1106,11 @@ function readTextFile($path) {
         const zoomableCategories = ['image', 'document', 'video', 'code', 'cad'];
         // Tambahkan tipe file teks Anda ke daftar yang dapat di-zoom jika diinginkan
         const zoomableFileTypes = ['txt', 'md', 'log', 'csv', 'tex'];
-        const isZoomable = zoomableCategories.includes(data.fileCategory) || zoomableFileTypes.includes(data.fileType);
+        // Archive files are not directly zoomable in the same way, so exclude them
+        const isZoomable = (zoomableCategories.includes(data.fileCategory) || zoomableFileTypes.includes(data.fileType)) && data.fileCategory !== 'archive';
 
 
-        if (isZoomable && data.fileCategory !== 'archive') {
+        if (isZoomable) { // Only show zoom controls if the file type is zoomable
             previewHtml += `
                 <div class="zoom-controls">
                     <button class="zoom-button" id="zoomOutBtn"><i class="fas fa-minus"></i></button>
@@ -813,24 +1146,28 @@ function readTextFile($path) {
                 }, 0);
             }
         } else if (data.fileCategory === 'archive') {
-            previewHtml += `
-                <div class="general-file-info">
-                    <i class="fas fa-archive icon"></i>
-                    <p>Previewing the contents of the archive file <strong>${data.fileType.toUpperCase()}</strong> is not supported.</p>
-                    <p>Please download the file to view its contents.</p>
-                    <a href="download.php?file=${encodeURIComponent(data.filePath)}&new_filename=${encodeURIComponent(data.fileName)}" download="${htmlspecialchars(data.fileName)}" class="download-button" id="downloadButton1">
-                        <i class="fas fa-download"></i> Download File
-                    </a>
-                </div>
-            `;
+            if (data.fileType === 'zip' || data.fileType === 'tar') {
+                // For archive files, the fileContent now contains the HTML table
+                previewHtml += `
+                    <div id="previewElement" class="archive-preview-container">
+                        ${data.fileContent}
+                    </div>
+                `;
+            } else {
+                previewHtml += `
+                    <div class="general-file-info">
+                        <i class="fas fa-archive icon"></i>
+                        <p>Previewing the contents of the archive file <strong>${data.fileType.toUpperCase()}</strong> is not supported.</p>
+                        <p>Please download the file to view its contents.</p>
+                        <a href="download.php?file=${encodeURIComponent(data.filePath)}&new_filename=${encodeURIComponent(data.fileName)}" download="${htmlspecialchars(data.fileName)}" class="download-button" id="downloadButton1">
+                            <i class="fas fa-download"></i> Download File
+                        </a>
+                    </div>
+                `;
+            }
         }
         // START: Logika pratinjau tambahan dari Anda untuk AJAX
         else if (['txt', 'md', 'log', 'csv', 'tex'].includes(data.fileType)) {
-            // Untuk file teks, kita perlu mengambil kontennya lagi karena getFileData hanya mengambilnya untuk 'code'
-            // Atau, jika Anda ingin getFileData selalu mengambil konten untuk semua file teks, Anda bisa memodifikasi getFileData.
-            // Untuk saat ini, kita asumsikan data.fileContent mungkin kosong untuk non-code text files, jadi kita akan menampilkannya apa adanya.
-            // Jika Anda ingin membaca ulang file di sisi klien, Anda perlu endpoint terpisah atau memodifikasi getFileData.
-            // Untuk demonstrasi, kita akan menampilkan data.fileContent jika ada, atau pesan default.
             previewHtml += `
                 <div class="viewer-container">
                     <pre id="previewElement">${htmlspecialchars(data.fileContent || 'Tidak dapat memuat konten teks.')}</pre>
@@ -877,7 +1214,7 @@ function readTextFile($path) {
         previewContentDiv.innerHTML = previewHtml;
 
         // Re-attach zoom event listeners if zoom controls are present
-        if (isZoomable && data.fileCategory !== 'archive') {
+        if (isZoomable) { // Only attach if zoomable
             document.getElementById('zoomInBtn').addEventListener('click', function() {
                 if (currentZoom < maxZoom) {
                     currentZoom += zoomStep;
@@ -941,7 +1278,45 @@ function readTextFile($path) {
         }
     }
 
+    // Device detection & body class toggling
+    function setDeviceClass() {
+        const ua = navigator.userAgent || '';
+        const isIPad = /iPad/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const w = window.innerWidth;
+        document.body.classList.remove('mobile', 'tablet-portrait', 'tablet-landscape', 'desktop', 'device-ipad'); // Clear all
+
+        if (isIPad) {
+            document.body.classList.add('device-ipad');
+            // For iPad, also apply tablet-landscape or tablet-portrait based on orientation
+            if (window.matchMedia("(orientation: portrait)").matches) {
+                document.body.classList.add('tablet-portrait');
+            } else {
+                document.body.classList.add('tablet-landscape');
+            }
+        } else if (w <= 767) {
+            document.body.classList.add('mobile');
+        } else if (w >= 768 && w <= 1024) {
+            if (window.matchMedia("(orientation: portrait)").matches) {
+                document.body.classList.add('tablet-portrait');
+            } else {
+                document.body.classList.add('tablet-landscape');
+            }
+        } else {
+            document.body.classList.add('desktop');
+        }
+    }
+
+    // Debounce function to limit how often setDeviceClass is called on resize
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(setDeviceClass, 150);
+    });
+    window.addEventListener('orientationchange', setDeviceClass); // Listen for orientation changes
+
     document.addEventListener('DOMContentLoaded', function() {
+        setDeviceClass(); // Initial call to set device class on load
+
         // Initial UI update with data from PHP (server-side rendered)
         // The PHP code already populates the initial HTML, so we just need to ensure
         // event listeners for zoom are attached if applicable.
@@ -950,10 +1325,11 @@ function readTextFile($path) {
         // NEW: Add 'cad' to zoomable categories for initial load
         const zoomableCategories = ['image', 'document', 'video', 'code', 'cad'];
         const zoomableFileTypes = ['txt', 'md', 'log', 'csv', 'tex']; // Tipe file teks yang bisa di-zoom
-        const isZoomableInitial = zoomableCategories.includes(initialFileCategory) || zoomableFileTypes.includes(initialFileType);
+        // Archive files are not directly zoomable in the same way, so exclude them
+        const isZoomableInitial = (zoomableCategories.includes(initialFileCategory) || zoomableFileTypes.includes(initialFileType)) && initialFileCategory !== 'archive';
 
 
-        if (isZoomableInitial && initialFileCategory !== 'archive') {
+        if (isZoomableInitial) { // Only attach if zoomable
             document.getElementById('zoomInBtn').addEventListener('click', function() {
                 if (currentZoom < maxZoom) {
                     currentZoom += zoomStep;
@@ -983,4 +1359,3 @@ function readTextFile($path) {
 
 </body>
 </html>
-<?php $conn->close(); ?>

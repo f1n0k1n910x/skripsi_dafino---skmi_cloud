@@ -221,6 +221,13 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             --metro-success: #4CAF50;
             --metro-error: #E81123; /* Windows 10 error red */
             --metro-warning: #FF8C00; /* Windows 10 warning orange */
+
+            /* --- LOKASI EDIT UKURAN FONT SIDEBAR --- */
+            --sidebar-font-size-desktop: 0.9em; /* Ukuran font default untuk desktop */
+            --sidebar-font-size-tablet-landscape: 1.0em; /* Ukuran font untuk tablet landscape */
+            --sidebar-font-size-tablet-portrait: 0.95em; /* Ukuran font untuk tablet portrait */
+            --sidebar-font-size-mobile: 0.9em; /* Ukuran font untuk mobile */
+            /* --- AKHIR LOKASI EDIT UKURAN FONT SIDEBAR --- */
         }
 
         body {
@@ -283,7 +290,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             padding: 15px 20px; /* More padding */
             color: var(--metro-sidebar-text);
             text-decoration: none;
-            font-size: 1.1em;
+            font-size: var(--sidebar-font-size-desktop); /* Menggunakan variabel untuk desktop */
             transition: background-color 0.2s ease-out, color 0.2s ease-out;
             border-left: 5px solid transparent; /* For active state */
         }
@@ -368,7 +375,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             overflow-y: auto; /* Enable scrolling for content */
             background-color: #FFFFFF; /* White background for content area */
             border-radius: 8px;
-            margin: 20px;
+            margin: 0; /* MODIFIED: Full width */
             /* box-shadow: 0 5px 15px rgba(0,0,0,0.1); */ /* Removed shadow */
         }
 
@@ -383,8 +390,8 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             background-color: #FFFFFF; /* White header */
             padding: 15px 30px; /* Add padding for header */
             margin: -30px -30px 25px -30px; /* Adjust margin to cover full width */
-            border-radius: 8px 8px 0 0; /* Rounded top corners */
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05); /* Subtle shadow for header */
+            border-radius: 0; /* MODIFIED: No rounded top corners for full width */
+            /*box-shadow: 0 2px 5px rgba(0,0,0,0.05); /* Subtle shadow for header */
         }
 
         .header-main h1 {
@@ -453,7 +460,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             border-radius: 3px; /* Sharper corners */
             cursor: pointer;
             font-size: 1em;
-            transition: background-color 0.2s ease-out, transform 0.1s ease-out;
+            transition: background-color 0.2s ease-out, transform 0.1s ease-in-out;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             white-space: nowrap; /* Prevent text wrapping */
         }
@@ -535,7 +542,9 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             border-radius: 8px;
             /* box-shadow: 0 2px 10px rgba(0,0,0,0.05); */ /* Removed as main-content has shadow */
             padding: 0; /* Removed padding as table handles it */
-            overflow-x: auto; /* Allow horizontal scrolling for wide tables */
+            overflow: auto; /* Allow horizontal scrolling for wide tables */
+            -webkit-overflow-scrolling: touch; /* momentum scrolling on iOS */
+            touch-action: pan-y; /* allow vertical scrolling by default */
         }
 
         /* List View */
@@ -623,20 +632,29 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
 
         /* Context Menu Styles */
         .context-menu {
-            display: none;
-            position: absolute;
-            background-color: #FFFFFF;
+            position: fixed;
+            z-index: 12000; /* Higher z-index for context menu */
+            background: #FFFFFF;
             border: 1px solid var(--metro-medium-gray);
             box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-            z-index: 1000;
             border-radius: 5px;
             overflow: hidden;
             min-width: 180px;
+            display: none; /* Hidden by default */
             animation: fadeInScale 0.2s ease-out forwards;
             transform-origin: top left;
         }
+        .context-menu.visible {
+            display: block;
+        }
 
-        .context-menu a {
+        .context-menu ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .context-menu li {
             color: var(--metro-text-color);
             padding: 10px 15px;
             text-decoration: none;
@@ -644,15 +662,16 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             align-items: center;
             font-size: 0.95em;
             transition: background-color 0.2s ease-out, color 0.2s ease-out;
+            cursor: pointer;
         }
 
-        .context-menu a i {
+        .context-menu li i {
             margin-right: 10px;
             width: 20px;
             text-align: center;
         }
 
-        .context-menu a:hover {
+        .context-menu li:hover {
             background-color: var(--metro-blue);
             color: #FFFFFF;
         }
@@ -670,6 +689,9 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); /* Adjusted minmax for better preview */
             gap: 25px; /* Increased gap */
             padding: 20px;
+            overflow: auto; /* Allow horizontal scrolling for wide tables */
+            -webkit-overflow-scrolling: touch; /* momentum scrolling on iOS */
+            touch-action: pan-y; /* allow vertical scrolling by default */
         }
 
         .grid-item {
@@ -685,6 +707,9 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
             position: relative;
             overflow: hidden; /* Ensure content stays within bounds */
+            user-select: none; /* Prevent text selection on long press */
+            cursor: pointer; /* Indicate clickable */
+            tabindex="0"; /* For keyboard navigation */
         }
 
         .grid-item:hover {
@@ -806,7 +831,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             border-radius: 3px;
             cursor: pointer;
             font-size: 0.8em; /* Reduced font size */
-            transition: background-color 0.2s ease-out, transform 0.1s ease-out;
+            transition: background-color 0.2s ease-out, transform 0.1s ease-in-out;
         }
 
         .action-buttons button:hover {
@@ -826,6 +851,35 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
         .action-buttons button.extract-button:hover {
             background-color: #ff3399; /* Custom hover color */
             color: #FFFFFF; /* Text color on hover */
+        }
+
+        /* Item More Button (three dots) */
+        .item-more {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: none;
+            border: none;
+            font-size: 1.2em;
+            color: var(--metro-dark-gray);
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 50%;
+            transition: background-color 0.2s ease-out, color 0.2s ease-out;
+            z-index: 10; /* Ensure it's above other elements */
+        }
+        .item-more:hover {
+            background-color: rgba(0,0,0,0.1);
+            color: var(--metro-text-color);
+        }
+        .file-table .item-more {
+            position: static; /* Reset position for table view */
+            margin-left: auto; /* Push to right in table cell */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px; /* Fixed width for alignment */
+            height: 30px; /* Fixed height for alignment */
         }
 
 
@@ -938,7 +992,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             border-radius: 3px;
             cursor: pointer;
             font-size: 1.1em;
-            transition: background-color 0.2s ease-out, transform 0.1s ease-out;
+            transition: background-color 0.2s ease-out, transform 0.1s ease-in-out;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
 
@@ -1166,7 +1220,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             border-radius: 3px;
             cursor: pointer;
             font-size: 1.2em; /* Slightly larger icon */
-            transition: background-color 0.2s ease-out, transform 0.1s ease-out;
+            transition: background-color 0.2s ease-out, transform 0.1s ease-in-out;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1204,7 +1258,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             border: none;
             border-radius: 3px;
             cursor: pointer;
-            transition: background-color 0.2s ease-out, transform 0.1s ease-out;
+            transition: background-color 0.2s ease-out, transform 0.1s ease-in-out;
         }
         #shareLinkModal button:hover {
             background-color: var(--metro-dark-blue);
@@ -1311,12 +1365,12 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 width: 220px; /* Slightly narrower sidebar */
             }
             body.tablet-landscape .main-content {
-                margin: 15px;
+                margin: 0; /* MODIFIED: Full width */
                 padding: 20px;
             }
             body.tablet-landscape .header-main {
                 padding: 10px 20px;
-                margin: -20px -20px 20px -20px;
+                margin: 0; /* MODIFIED: Full width */
             }
             body.tablet-landscape .header-main h1 {
                 font-size: 2em;
@@ -1352,6 +1406,29 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             body.tablet-landscape .toolbar-filter-buttons { 
                 display: none;
             }
+            /* MODIFIED: Ukuran pop-up disamakan dengan pop-up Edit Profile */
+            body.tablet-landscape .modal-content {
+                max-width: 550px; /* Consistent with profile.php */
+                padding: 30px; /* Consistent with profile.php */
+            }
+            body.tablet-landscape .modal h2 {
+                font-size: 2em; /* Consistent with profile.php */
+            }
+            body.tablet-landscape .modal label {
+                font-size: 1.05em; /* Consistent with profile.php */
+            }
+            body.tablet-landscape .modal input[type="text"],
+            body.tablet-landscape .modal input[type="file"] {
+                padding: 12px; /* Consistent with profile.php */
+                font-size: 1em; /* Consistent with profile.php */
+            }
+            body.tablet-landscape .modal button[type="submit"] {
+                padding: 12px 25px; /* Consistent with profile.php */
+                font-size: 1.1em; /* Consistent with profile.php */
+            }
+            body.tablet-landscape .sidebar-menu a {
+                font-size: var(--sidebar-font-size-tablet-landscape); /* Menggunakan variabel untuk tablet landscape */
+            }
         }
 
         /* Class for iPad & Tablet (Portrait: min-width 768px, max-width 1024px) */
@@ -1363,7 +1440,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 height: 100%;
                 z-index: 100;
                 transform: translateX(-100%); /* Hidden by default */
-                box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+                /*box-shadow: 2px 0 10px rgba(0,0,0,0.2);*/
             }
             body.tablet-portrait .sidebar.show-mobile-sidebar {
                 transform: translateX(0); /* Show when active */
@@ -1381,7 +1458,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             body.tablet-portrait .header-main {
                 justify-content: space-between; /* Align items */
                 padding: 10px 20px;
-                margin: -20px -20px 20px -20px;
+                margin: 0; /* MODIFIED: Full width */
             }
             body.tablet-portrait .header-main h1 {
                 font-size: 2em;
@@ -1400,7 +1477,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 width: calc(100% - 40px);
             }
             body.tablet-portrait .main-content {
-                margin: 15px;
+                margin: 0; /* MODIFIED: Full width */
                 padding: 20px;
             }
             body.tablet-portrait .toolbar {
@@ -1422,8 +1499,8 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             }
             /* MODIFIED: Show toolbar-filter-buttons for tablet portrait */
             body.tablet-portrait .toolbar-filter-buttons { 
-                display: flex;
-                flex-wrap: wrap; /* Allow buttons to wrap */
+                display: grid; /* Changed to grid for better control */
+                grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); /* Responsive grid columns */
                 gap: 10px; /* Space between buttons */
                 justify-content: center; /* Center buttons */
                 margin-top: 15px; /* Space from toolbar */
@@ -1454,6 +1531,34 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
                 gap: 15px;
             }
+            /* MODIFIED: Ukuran pop-up disamakan dengan pop-up Edit Profile */
+            body.tablet-portrait .modal-content {
+                max-width: 550px; /* Consistent with profile.php */
+                padding: 30px; /* Consistent with profile.php */
+            }
+            body.tablet-portrait .modal h2 {
+                font-size: 2em; /* Consistent with profile.php */
+            }
+            body.tablet-portrait .modal label {
+                font-size: 1.05em; /* Consistent with profile.php */
+            }
+            body.tablet-portrait .modal input[type="text"],
+            body.tablet-portrait .modal input[type="file"] {
+                padding: 12px; /* Consistent with profile.php */
+                font-size: 1em; /* Consistent with profile.php */
+            }
+            body.tablet-portrait .modal button[type="submit"] {
+                padding: 12px 25px; /* Consistent with profile.php */
+                font-size: 1.1em; /* Consistent with profile.php */
+            }
+            /* MODIFIED: Scrollbar for File Type Filter dropdown */
+            body.tablet-portrait .dropdown-content.file-type-filter-dropdown-content {
+                max-height: 200px; /* Max height for 6 items + padding */
+                overflow-y: auto;
+            }
+            body.tablet-portrait .sidebar-menu a {
+                font-size: var(--sidebar-font-size-tablet-portrait); /* Menggunakan variabel untuk tablet portrait */
+            }
         }
 
         /* Class for Mobile (HP Android & iOS: max-width 767px) */
@@ -1466,7 +1571,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 width: 200px; /* Narrower sidebar for mobile */
                 z-index: 100;
                 transform: translateX(-100%); /* Hidden by default */
-                box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+                /*box-shadow: 2px 0 10px rgba(0,0,0,0.2);*/
             }
             body.mobile .sidebar.show-mobile-sidebar {
                 transform: translateX(0); /* Show when active */
@@ -1484,7 +1589,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             body.mobile .header-main {
                 justify-content: space-between; /* Align items */
                 padding: 10px 15px;
-                margin: -20px -20px 20px -20px;
+                margin: 0; /* MODIFIED: Full width */
             }
             body.mobile .header-main h1 {
                 font-size: 1.8em;
@@ -1503,7 +1608,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 width: calc(100% - 30px);
             }
             body.mobile .main-content {
-                margin: 10px;
+                margin: 0; /* MODIFIED: Full width */
                 padding: 15px;
                 overflow-x: hidden; /* Remove horizontal scrollbar */
             }
@@ -1524,7 +1629,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 margin-bottom: 10px;
                 border-radius: 5px;
                 background-color: #FFFFFF;
-                box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+                /*box-shadow: 0 2px 5px rgba(0,0,0,0.05);*/
                 position: relative; /* For checkbox positioning */
             }
             body.mobile .file-table td {
@@ -1625,23 +1730,23 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             }
             /* MODIFIED: Adjust modal content for mobile */
             body.mobile .modal-content {
-                width: 95%;
-                padding: 20px;
+                max-width: 550px; /* Consistent with profile.php */
+                padding: 30px; /* Consistent with profile.php */
             }
             body.mobile .modal h2 {
-                font-size: 1.8em;
+                font-size: 2em; /* Consistent with profile.php */
             }
             body.mobile .modal label {
-                font-size: 0.95em;
+                font-size: 1.05em; /* Consistent with profile.php */
             }
             body.mobile .modal input[type="text"],
             body.mobile .modal input[type="file"] {
-                padding: 10px;
-                font-size: 0.9em;
+                padding: 12px; /* Consistent with profile.php */
+                font-size: 1em; /* Consistent with profile.php */
             }
             body.mobile .modal button[type="submit"] {
-                padding: 10px 20px;
-                font-size: 1em;
+                padding: 12px 25px; /* Consistent with profile.php */
+                font-size: 1.1em; /* Consistent with profile.php */
             }
             body.mobile .upload-item .file-icon {
                 font-size: 2em;
@@ -1668,8 +1773,8 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             }
             /* MODIFIED: Show toolbar-filter-buttons for mobile */
             body.mobile .toolbar-filter-buttons { 
-                display: flex;
-                flex-wrap: wrap; /* Allow buttons to wrap */
+                display: grid; /* Changed to grid for better control */
+                grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); /* Responsive grid columns */
                 gap: 8px; /* Space between buttons */
                 justify-content: center; /* Center buttons */
                 margin-top: 10px; /* Space from toolbar */
@@ -1684,6 +1789,14 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             body.mobile .toolbar .dropdown-container,
             body.mobile .toolbar .view-toggle { 
                 display: none;
+            }
+            /* MODIFIED: Scrollbar for File Type Filter dropdown */
+            body.mobile .dropdown-content.file-type-filter-dropdown-content {
+                max-height: 200px; /* Max height for 6 items + padding */
+                overflow-y: auto;
+            }
+            body.mobile .sidebar-menu a {
+                font-size: var(--sidebar-font-size-mobile); /* Menggunakan variabel untuk mobile */
             }
         }
 
@@ -1702,6 +1815,15 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             display: block;
         }
 
+        /* MODIFIED: Remove border-bottom from dropdown content links */
+        .dropdown-content a {
+            border-bottom: none !important;
+        }
+        /* MODIFIED: Remove border-bottom from context menu list items */
+        .context-menu li {
+            border-bottom: none !important;
+        }
+
     </style>
 </head>
 <body>
@@ -1711,6 +1833,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
         </div>
         <ul class="sidebar-menu">
             <li><a href="index.php" class="active"><i class="fas fa-folder"></i> My Drive</a></li>
+            <li><a href="priority_files.php"><i class="fas fa-star"></i> Priority File</a></li> <!-- NEW: Priority File Link -->
             <li><a href="summary.php"><i class="fas fa-chart-line"></i> Summary</a></li>
             <li><a href="members.php"><i class="fas fa-users"></i> Members</a></li> <!-- NEW: Members Link -->
             <li><a href="profile.php"><i class="fas fa-user"></i> Profile</a></li>
@@ -1810,7 +1933,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
         <div class="toolbar-filter-buttons">
             <!-- Archive Button with Dropdown -->
             <div class="dropdown-container archive-dropdown-container">
-                <button id="archiveSelectedBtnHeader" class="filter-button"><i class="fas fa-archive"></i></button>
+                <button id="archiveSelectedBtnHeader" class="filter-button" style="background-color: var(--metro-warning);"><i class="fas fa-archive"></i></button>
                 <div class="dropdown-content archive-dropdown-content">
                     <a href="#" data-format="zip">.zip (PHP Native)</a>
                 </div>
@@ -1879,26 +2002,26 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                             <th>Type</th>
                             <th>Size</th>
                             <th>Last Modified</th>
-                            <!-- Removed Actions column header -->
+                            <th>Actions</th> <!-- Added Actions column header -->
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($folders) && empty($files) && !empty($searchQuery)): ?>
                             <tr>
-                                <td colspan="5" style="text-align: center; padding: 20px;">No files or folders found matching "<?php echo htmlspecialchars($searchQuery); ?>"</td>
+                                <td colspan="6" style="text-align: center; padding: 20px;">No files or folders found matching "<?php echo htmlspecialchars($searchQuery); ?>"</td>
                             </tr>
                         <?php elseif (empty($folders) && empty($files) && empty($searchQuery)): ?>
                             <tr>
-                                <td colspan="5" style="text-align: center; padding: 20px;">No files or folders found in this directory.</td>
+                                <td colspan="6" style="text-align: center; padding: 20px;">No files or folders found in this directory.</td>
                             </tr>
                         <?php endif; ?>
 
                         <?php foreach ($folders as $folder): ?>
-                            <tr class="context-menu-trigger" data-id="<?php echo $folder['id']; ?>" data-type="folder" data-name="<?php echo htmlspecialchars($folder['folder_name']); ?>" data-path="<?php echo htmlspecialchars($baseUploadDir . getFolderPath($conn, $folder['id'])); ?>">
+                            <tr class="file-item" data-id="<?php echo $folder['id']; ?>" data-type="folder" data-name="<?php echo htmlspecialchars($folder['folder_name']); ?>" data-path="<?php echo htmlspecialchars($baseUploadDir . getFolderPath($conn, $folder['id'])); ?>" tabindex="0">
                                 <td><input type="checkbox" class="file-checkbox" data-id="<?php echo $folder['id']; ?>" data-type="folder"></td>
                                 <td class="file-name-cell">
                                     <i class="fas fa-folder file-icon folder"></i>
-                                    <a href="index.php?folder=<?php echo $folder['id']; ?>"><?php echo htmlspecialchars($folder['folder_name']); ?></a>
+                                    <a href="index.php?folder=<?php echo $folder['id']; ?>" class="file-link-clickable" onclick="event.stopPropagation();"><?php echo htmlspecialchars($folder['folder_name']); ?></a>
                                 </td>
                                 <td>Folder</td>
                                 <td>
@@ -1917,19 +2040,25 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                                         echo date('Y-m-d H:i', strtotime($displayDate));
                                     ?>
                                 </td>
+                                <td>
+                                    <button class="item-more" aria-haspopup="true" aria-label="More">⋮</button>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
 
                         <?php foreach ($files as $file): ?>
-                            <tr class="context-menu-trigger" data-id="<?php echo $file['id']; ?>" data-type="file" data-name="<?php echo htmlspecialchars($file['file_name']); ?>" data-path="<?php echo htmlspecialchars($file['file_path']); ?>" data-file-type="<?php echo strtolower($file['file_type']); ?>">
+                            <tr class="file-item" data-id="<?php echo $file['id']; ?>" data-type="file" data-name="<?php echo htmlspecialchars($file['file_name']); ?>" data-path="<?php echo htmlspecialchars($file['file_path']); ?>" data-file-type="<?php echo strtolower($file['file_type']); ?>" tabindex="0">
                                 <td><input type="checkbox" class="file-checkbox" data-id="<?php echo $file['id']; ?>" data-type="file"></td>
                                 <td class="file-name-cell">
                                     <i class="fas <?php echo getFontAwesomeIconClass($file['file_name']); ?> file-icon <?php echo getFileColorClassPhp($file['file_name']); ?>"></i>
-                                    <a href="view.php?file_id=<?php echo $file['id']; ?>"><?php echo htmlspecialchars($file['file_name']); ?></a>
+                                    <a href="view.php?file_id=<?php echo $file['id']; ?>" class="file-link-clickable" onclick="event.stopPropagation();"><?php echo htmlspecialchars($file['file_name']); ?></a>
                                     </td>
                                 <td><?php echo strtoupper($file['file_type']); ?></td>
                                 <td><?php echo formatBytes($file['file_size']); ?></td>
                                 <td><?php echo date('Y-m-d H:i', strtotime($file['uploaded_at'])); ?></td>
+                                <td>
+                                    <button class="item-more" aria-haspopup="true" aria-label="More">⋮</button>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -1945,13 +2074,13 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                     <?php endif; ?>
 
                     <?php foreach ($folders as $folder): ?>
-                        <div class="grid-item context-menu-trigger" data-id="<?php echo $folder['id']; ?>" data-type="folder" data-name="<?php echo htmlspecialchars($folder['folder_name']); ?>" data-path="<?php echo htmlspecialchars($baseUploadDir . getFolderPath($conn, $folder['id'])); ?>">
+                        <div class="grid-item file-item" data-id="<?php echo $folder['id']; ?>" data-type="folder" data-name="<?php echo htmlspecialchars($folder['folder_name']); ?>" data-path="<?php echo htmlspecialchars($baseUploadDir . getFolderPath($conn, $folder['id'])); ?>" tabindex="0">
                             <input type="checkbox" class="file-checkbox" data-id="<?php echo $folder['id']; ?>" data-type="folder">
                             <div class="grid-thumbnail">
                                 <i class="fas fa-folder file-icon folder"></i>
                                 <span class="file-type-label">Folder</span>
                             </div>
-                            <a href="index.php?folder=<?php echo $folder['id']; ?>" class="file-name"><?php echo htmlspecialchars($folder['folder_name']); ?></a>
+                            <a href="index.php?folder=<?php echo $folder['id']; ?>" class="file-name file-link-clickable" onclick="event.stopPropagation();"><?php echo htmlspecialchars($folder['folder_name']); ?></a>
                             <span class="file-size">
                                 <?php
                                     $folderPath = $baseUploadDir . getFolderPath($conn, $folder['id']);
@@ -1959,12 +2088,12 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                                     echo formatBytes($folderSize);
                                 ?>
                             </span>
-                            <!-- Action buttons removed from grid item directly -->
+                            <button class="item-more" aria-haspopup="true" aria-label="More">⋮</button>
                         </div>
                     <?php endforeach; ?>
 
                     <?php foreach ($files as $file): ?>
-                        <div class="grid-item context-menu-trigger" data-id="<?php echo $file['id']; ?>" data-type="file" data-name="<?php echo htmlspecialchars($file['file_name']); ?>" data-path="<?php echo htmlspecialchars($file['file_path']); ?>" data-file-type="<?php echo strtolower($file['file_type']); ?>">
+                        <div class="grid-item file-item" data-id="<?php echo $file['id']; ?>" data-type="file" data-name="<?php echo htmlspecialchars($file['file_name']); ?>" data-path="<?php echo htmlspecialchars($file['file_path']); ?>" data-file-type="<?php echo strtolower($file['file_type']); ?>" tabindex="0">
                             <input type="checkbox" class="file-checkbox" data-id="<?php echo $file['id']; ?>" data-type="file">
                             <div class="grid-thumbnail">
                                 <?php
@@ -2006,9 +2135,9 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                                 <?php endif; ?>
                                 <span class="file-type-label"><?php echo strtoupper($fileExt); ?></span>
                             </div>
-                            <a href="view.php?file_id=<?php echo $file['id']; ?>" class="file-name"><?php echo $fileName; ?></a>
+                            <a href="view.php?file_id=<?php echo $file['id']; ?>" class="file-name file-link-clickable" onclick="event.stopPropagation();"><?php echo $fileName; ?></a>
                             <span class="file-size"><?php echo formatBytes($file['file_size']); ?></span>
-                            <!-- Action buttons removed from grid item directly -->
+                            <button class="item-more" aria-haspopup="true" aria-label="More">⋮</button>
                         </div>
                     <?php endforeach; ?>
                 </div>
@@ -2086,14 +2215,17 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
 
     <div id="customNotification" class="notification"></div>
 
-    <!-- Context Menu HTML -->
-    <div id="contextMenu" class="context-menu">
-        <a href="#" id="contextRename"><i class="fas fa-pen"></i> Rename</a>
-        <a href="#" id="contextDownload" class="hidden"><i class="fas fa-download"></i> Download</a>
-        <a href="#" id="contextShare" class="hidden"><i class="fas fa-share-alt"></i> Share Link</a>
-        <a href="#" id="contextExtract" class="hidden"><i class="fas fa-file-archive"></i> Extract ZIP</a>
-        <div class="separator"></div>
-        <a href="#" id="contextDelete"><i class="fas fa-trash"></i> Delete</a>
+    <!-- Custom context menu (shared UI, populated by JS) -->
+    <div id="context-menu" class="context-menu" hidden>
+        <ul>
+            <li data-action="rename"><i class="fas fa-pen"></i> Rename</li>
+            <li data-action="download" class="hidden"><i class="fas fa-download"></i> Download</li>
+            <li data-action="share" class="hidden"><i class="fas fa-share-alt"></i> Share Link</li>
+            <li data-action="extract" class="hidden"><i class="fas fa-file-archive"></i> Extract ZIP</li>
+            <li data-action="toggle-star"><i class="fas fa-star"></i> Pin to Priority</li> <!-- Changed data-action to toggle-star -->
+            <li class="separator"></li>
+            <li data-action="delete"><i class="fas fa-trash"></i> Delete</li>
+        </ul>
     </div>
 
     <!-- Overlay for mobile sidebar -->
@@ -2158,12 +2290,13 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             const copyShortLinkBtn = document.getElementById('copyShortLinkBtn');
 
             // Context Menu elements
-            const contextMenu = document.getElementById('contextMenu');
-            const contextRename = document.getElementById('contextRename');
-            const contextDownload = document.getElementById('contextDownload');
-            const contextShare = document.getElementById('contextShare');
-            const contextExtract = document.getElementById('contextExtract');
-            const contextDelete = document.getElementById('contextDelete');
+            const contextMenu = document.getElementById('context-menu'); // Changed from 'contextMenu' to 'context-menu'
+            const contextRename = document.querySelector('#context-menu [data-action="rename"]');
+            const contextDownload = document.querySelector('#context-menu [data-action="download"]');
+            const contextShare = document.querySelector('#context-menu [data-action="share"]');
+            const contextExtract = document.querySelector('#context-menu [data-action="extract"]');
+            const contextToggleStar = document.querySelector('#context-menu [data-action="toggle-star"]'); // Changed to toggle-star
+            const contextDelete = document.querySelector('#context-menu [data-action="delete"]');
 
             // Mobile sidebar elements
             const sidebar = document.querySelector('.sidebar');
@@ -2177,8 +2310,10 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             let currentContextItem = null; // To store the item clicked for context menu
 
             // Variables for long press
-            let pressTimer;
-            const longPressDuration = 500; // milliseconds
+            let lpTimer = null;
+            let lpStart = null;
+            const longPressDuration = 600; // milliseconds
+            const longPressMoveThreshold = 10; // pixels
 
             // Current state variables for AJAX filtering/sorting
             let currentFolderId = <?php echo json_encode($currentFolderId); ?>;
@@ -2186,6 +2321,32 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             let currentReleaseFilter = <?php echo json_encode($releaseFilter); ?>;
             let currentSortOrder = <?php echo json_encode($sortOrder); ?>;
             let currentFileTypeFilter = <?php echo json_encode($fileTypeFilter); ?>;
+
+            /*** Util helpers ****/
+            function debounce(fn, ms=150){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
+            function closestFileItem(el){ return el && el.closest('.file-item'); }
+
+            /*** Device detection & body class toggling ***/
+            function setDeviceClass() {
+                const ua = navigator.userAgent || '';
+                const isIPad = /iPad/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                const w = window.innerWidth;
+                document.body.classList.remove('mobile', 'tablet-portrait', 'tablet-landscape', 'desktop'); // Clear all
+                if (w <= 767) {
+                    document.body.classList.add('mobile');
+                } else if (w >= 768 && w <= 1024) {
+                    if (window.matchMedia("(orientation: portrait)").matches) {
+                        document.body.classList.add('tablet-portrait');
+                    } else {
+                        document.body.classList.add('tablet-landscape');
+                    }
+                } else {
+                    document.body.classList.add('desktop');
+                }
+            }
+            window.addEventListener('resize', debounce(setDeviceClass, 150));
+            window.addEventListener('orientationchange', setDeviceClass); // Listen for orientation changes
+            setDeviceClass(); // init
 
             // Function to get file icon class based on extension (for JS side, if needed for dynamic elements)
             // This function is now primarily handled by PHP's getFontAwesomeIconClass
@@ -2267,76 +2428,52 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             // This function is now primarily handled by PHP's getFileColorClassPhp
             function getFileColorClass(fileName) {
                 const extension = fileName.split('.').pop().toLowerCase();
-                switch (extension) {
-                    case 'pdf': return 'file-color-pdf';
-                    case 'doc':
-                    case 'docx': return 'file-color-doc';
-                    case 'xls':
-                    case 'xlsx': return 'file-color-xls';
-                    case 'ppt':
-                    case 'pptx': return 'file-color-ppt';
-                    case 'jpg':
-                    case 'jpeg':
-                    case 'png':
-                    case 'gif':
-                    case 'bmp':
-                    case 'webp': return 'file-color-image';
-                    case 'zip':
-                    case 'rar':
-                    case '7z': return 'file-color-archive';
-                    case 'txt':
-                    case 'log':
-                    case 'md': return 'file-color-txt';
-                    case 'exe':
-                    case 'apk': return 'file-color-exe';
-                    case 'mp3':
-                    case 'wav':
-                    case 'flac': return 'file-color-audio';
-                    case 'mp4':
-                    case 'avi':
-                    case 'mkv': return 'file-color-video';
-                    case 'html':
-                    case 'htm': return 'file-color-code';
-                    case 'css': return 'file-color-code';
-                    case 'js': return 'file-color-code';
-                    case 'php': return 'file-color-code';
-                    case 'py': return 'file-color-code';
-                    case 'json': return 'file-color-code';
-                    case 'sql': return 'file-color-code';
-                    case 'svg': return 'file-color-image';
-                    case 'sh':
-                    case 'bat': return 'file-color-code';
-                    case 'ini':
-                    case 'yml':
-                    case 'yaml': return 'file-color-code';
-                    case 'java': return 'file-color-code';
-                    case 'c':
-                    case 'cpp': return 'file-color-code';
-                    // ... (existing cases) ...
-                    case 'dwg':
-                    case 'dxf':
-                    case 'dgn':
-                    case 'iges':
-                    case 'igs':
-                    case 'step':
-                    case 'stp':
-                    case 'stl':
-                    case '3ds':
-                    case 'obj':
-                    case 'sldprt':
-                    case 'sldasm':
-                    case 'ipt':
-                    case 'iam':
-                    case 'catpart':
-                    case 'catproduct':
-                    case 'prt':
-                    case 'asm':
-                    case 'fcstd':
-                    case 'skp':
-                    case 'x_t':
-                    case 'x_b': return 'file-color-cad'; // NEW: CAD Color for JS
-                    default: return 'file-color-default';
-                }
+                const colorClasses = {
+                    'pdf': 'file-color-pdf', 'doc': 'file-color-doc', 'docx': 'file-color-doc',
+                    'xls': 'file-color-xls', 'xlsx': 'file-color-xls', 'ppt': 'file-color-ppt',
+                    'pptx': 'file-color-ppt', 'txt': 'file-color-txt', 'rtf': 'file-color-txt',
+                    'md': 'file-color-txt', 'csv': 'file-color-csv', 'odt': 'file-color-doc',
+                    'odp': 'file-color-ppt', 'log': 'file-color-txt', 'tex': 'file-color-txt',
+                    'jpg': 'file-color-image', 'jpeg': 'file-color-image', 'png': 'file-color-image',
+                    'gif': 'file-color-image', 'bmp': 'file-color-image', 'webp': 'file-color-image',
+                    'svg': 'file-color-image', 'tiff': 'file-color-image',
+                    'mp3': 'file-color-audio', 'wav': 'file-color-audio', 'ogg': 'file-color-audio',
+                    'flac': 'file-color-audio', 'aac': 'file-color-audio', 'm4a': 'file-color-audio',
+                    'alac': 'file-color-audio', 'wma': 'file-color-audio', 'opus': 'file-color-audio',
+                    'amr': 'file-color-audio', 'mid': 'file-color-audio',
+                    'mp4': 'file-color-video', 'avi': 'file-color-video', 'mov': 'file-color-video',
+                    'wmv': 'file-color-video', 'flv': 'file-color-video', 'webm': 'file-color-video',
+                    '3gp': 'file-color-video', 'm4v': 'file-color-video', 'mpg': 'file-color-video',
+                    'mpeg': 'file-color-video', 'ts': 'file-color-video', 'ogv': 'file-color-video',
+                    'zip': 'file-color-archive', 'rar': 'file-color-archive', '7z': 'file-color-archive',
+                    'tar': 'file-color-archive', 'gz': 'file-color-archive', 'bz2': 'file-color-archive',
+                    'xz': 'file-color-archive', 'iso': 'file-color-archive', 'cab': 'file-color-archive',
+                    'arj': 'file-color-archive',
+                    'html': 'file-color-code', 'htm': 'file-color-code', 'css': 'file-color-code',
+                    'js': 'file-color-code', 'php': 'file-color-code', 'py': 'file-color-code',
+                    'java': 'file-color-code', 'json': 'file-color-code', 'xml': 'file-color-code',
+                    'ts': 'file-color-code', 'tsx': 'file-color-code', 'jsx': 'file-color-code',
+                    'vue': 'file-color-code', 'cpp': 'file-color-code', 'c': 'file-color-code',
+                    'cs': 'file-color-code', 'rb': 'file-color-code', 'go': 'file-color-code',
+                    'swift': 'file-color-code', 'sql': 'file-color-code', 'sh': 'file-color-code',
+                    'bat': 'file-color-code', 'ini': 'file-color-code', 'yml': 'file-color-code',
+                    'yaml': 'file-color-code', 'pl': 'file-color-code', 'r': 'file-color-code',
+                    'exe': 'file-color-exe', 'msi': 'file-color-exe', 'apk': 'file-color-exe',
+                    'ipa': 'file-color-exe', 'jar': 'file-color-exe', 'appimage': 'file-color-exe',
+                    'dmg': 'file-color-exe', 'bin': 'file-color-exe',
+                    'torrent': 'file-color-default', 'nzb': 'file-color-default', 'ed2k': 'file-color-default',
+                    'part': 'file-color-default', '!ut': 'file-color-default',
+                    'dwg': 'file-color-cad', 'dxf': 'file-color-cad', 'dgn': 'file-color-cad',
+                    'iges': 'file-color-cad', 'igs': 'file-color-cad', 'step': 'file-color-cad',
+                    'stp': 'file-color-cad', 'stl': 'file-color-cad', '3ds': 'file-color-cad',
+                    'obj': 'file-color-cad', 'sldprt': 'file-color-cad', 'sldasm': 'file-color-cad',
+                    'ipt': 'file-color-cad', 'iam': 'file-color-cad', 'catpart': 'file-color-cad',
+                    'catproduct': 'file-color-cad', 'prt': 'file-color-cad', 'asm': 'file-color-cad',
+                    'fcstd': 'file-color-cad', 'skp': 'file-color-cad', 'x_t': 'file-color-cad',
+                    'x_b': 'file-color-cad',
+                    'default': 'file-color-default'
+                };
+                return colorClasses[extension] || colorClasses['default'];
             }
 
 
@@ -2463,7 +2600,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
 
                 // Close context menu if clicked outside
                 if (!contextMenu.contains(event.target)) {
-                    contextMenu.style.display = 'none';
+                    hideContextMenu(); // Use the new hide function
                 }
                 // Close mobile sidebar if overlay is clicked
                 if (event.target == mobileOverlay && sidebar.classList.contains('show-mobile-sidebar')) {
@@ -2724,12 +2861,14 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
 
 
             // --- Rename File/Folder ---
-            function handleRenameClick(item) {
-                const itemId = item.dataset.id;
+            function renameFile(id) {
+                const item = document.querySelector(`.file-item[data-id="${CSS.escape(id)}"]`);
+                if (!item) return;
+
                 const itemType = item.dataset.type;
                 const itemName = item.dataset.name;
 
-                document.getElementById('renameItemId').value = itemId;
+                document.getElementById('renameItemId').value = id;
                 document.getElementById('renameItemActualType').value = itemType;
                 document.getElementById('newName').value = itemName;
                 document.getElementById('renameItemType').textContent = itemType.charAt(0).toUpperCase() + itemType.slice(1);
@@ -2738,7 +2877,9 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             }
 
             // --- Download File ---
-            function handleDownloadClick(item) {
+            function downloadFile(id) {
+                const item = document.querySelector(`.file-item[data-id="${CSS.escape(id)}"]`);
+                if (!item) return;
                 const filePath = item.dataset.path;
                 const fileName = item.dataset.name;
                 const link = document.createElement('a');
@@ -2750,8 +2891,9 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             }
 
             // --- Individual Delete File/Folder ---
-            async function handleIndividualDeleteClick(item) {
-                const id = item.dataset.id;
+            async function deleteFile(id) {
+                const item = document.querySelector(`.file-item[data-id="${CSS.escape(id)}"]`);
+                if (!item) return;
                 const type = item.dataset.type;
                 const confirmMessage = type === 'file'
                     ? 'Are you sure you want to permanently delete this file?'
@@ -2771,7 +2913,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                             showNotification(data.message, 'success');
                             updateFileListAndFolders(); // Update content without full reload
                         } else {
-                            showNotification('Failed to delete: ' + data.message, 'error');
+                            showNotification(data.message, 'error');
                         }
                     } catch (error) {
                         console.error('Error:', error);
@@ -2781,8 +2923,9 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             }
 
             // --- Extract ZIP File ---
-            async function handleExtractClick(item) {
-                const fileId = item.dataset.id;
+            async function extractZipFile(id) {
+                const item = document.querySelector(`.file-item[data-id="${CSS.escape(id)}"]`);
+                if (!item) return;
                 const filePath = item.dataset.path; // Path relatif dari file ZIP
 
                 if (!confirm('Are you sure you want to extract this ZIP file? It will be extracted to a new folder named after the ZIP file in the current directory.')) {
@@ -2797,7 +2940,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ file_id: fileId, file_path: filePath })
+                        body: JSON.stringify({ file_id: id, file_path: filePath })
                     });
                     const data = await response.json();
                     if (data.success) {
@@ -2809,6 +2952,34 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 } catch (error) {
                     console.error('Error:', error);
                     showNotification('An error occurred during extraction.', 'error');
+                }
+            }
+
+            // --- Toggle Star (Pin to Priority) ---
+            async function toggleStar(id, type) {
+                const item = document.querySelector(`.file-item[data-id="${CSS.escape(id)}"]`);
+                if (!item) return;
+                const itemName = item.dataset.name;
+
+                try {
+                    const response = await fetch('toggle_star.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ id: id, type: type, name: itemName }) // Pass item name
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        showNotification(data.message, 'success');
+                        // No need to update UI here, as it's just a star/unstar action
+                        // The priority_files.php page will handle its own loading
+                    } else {
+                        showNotification('Failed to toggle star: ' + data.message, 'error');
+                    }
+                } catch (error) {
+                    console.error('Error toggling star:', error);
+                    showNotification('An error occurred while toggling star.', 'error');
                 }
             }
 
@@ -3047,8 +3218,9 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             });
 
             // --- Share Link Functionality ---
-            async function handleShareLinkClick(item) {
-                const fileId = item.dataset.id;
+            async function shareFileLink(id) {
+                const item = document.querySelector(`.file-item[data-id="${CSS.escape(id)}"]`);
+                if (!item) return;
                 const itemType = item.dataset.type; // Will always be 'file' for this button
 
                 if (itemType !== 'file') {
@@ -3064,7 +3236,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                         headers: {
                             'Content-Type': 'application/x-www-form-urlencoded', // Important for $_POST
                         },
-                        body: `file_id=${fileId}`
+                        body: `file_id=${id}`
                     });
 
                     const data = await response.json();
@@ -3089,140 +3261,216 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 showNotification('Link copied to clipboard!', 'success');
             });
 
-            // --- Context Menu Logic ---
-            document.addEventListener('contextmenu', function(event) {
-                const target = event.target.closest('.context-menu-trigger');
-                if (target) {
-                    event.preventDefault(); // Prevent default browser context menu
-                    currentContextItem = target;
+            /*** Context menu element ***/
+            function showContextMenuFor(fileEl, x, y) {
+                if (!fileEl) return;
+                // attach target id
+                contextMenu.dataset.targetId = fileEl.dataset.id;
+                contextMenu.dataset.targetType = fileEl.dataset.type;
+                contextMenu.dataset.targetName = fileEl.dataset.name; // Pass item name to context menu
+                contextMenu.dataset.targetFileType = fileEl.dataset.fileType || ''; // For files
 
-                    // Dapatkan posisi kursor mouse
-                    let mouseX = event.clientX;
-                    let mouseY = event.clientY;
+                // Show/hide options based on item type
+                const itemType = fileEl.dataset.type;
+                const fileType = fileEl.dataset.fileType;
 
-                    // Dapatkan dimensi viewport
-                    const viewportWidth = window.innerWidth;
-                    const viewportHeight = window.innerHeight;
-
-                    // Dapatkan dimensi context menu
-                    const menuWidth = contextMenu.offsetWidth;
-                    const menuHeight = contextMenu.offsetHeight;
-
-                    // Hitung posisi agar menu tidak keluar dari viewport
-                    let finalLeft = mouseX;
-                    let finalTop = mouseY;
-
-                    // Jika menu terlalu dekat dengan tepi kanan, geser ke kiri
-                    if (mouseX + menuWidth > viewportWidth) {
-                        finalLeft = viewportWidth - menuWidth - 10; // 10px padding dari tepi kanan
-                    }
-
-                    // Jika menu terlalu dekat dengan tepi bawah, geser ke atas
-                    if (mouseY + menuHeight > viewportHeight) {
-                        finalTop = viewportHeight - menuHeight  -10; // 10px padding dari tepi bawah
-                    }
-
-                    // Atur posisi custom context menu
-                    contextMenu.style.left = finalLeft + 'px';
-                    contextMenu.style.top = finalTop + 'px';
-                    contextMenu.style.display = 'block';
-
-                    // Show/hide options based on item type
-                    const itemType = currentContextItem.dataset.type;
-                    const fileType = currentContextItem.dataset.fileType; // For files
-
-                    if (itemType === 'folder') {
-                        contextDownload.classList.add('hidden');
-                        contextShare.classList.add('hidden');
+                if (itemType === 'folder') {
+                    contextDownload.classList.add('hidden');
+                    contextShare.classList.add('hidden');
+                    contextExtract.classList.add('hidden');
+                } else if (itemType === 'file') {
+                    contextDownload.classList.remove('hidden');
+                    contextShare.classList.remove('hidden');
+                    if (fileType === 'zip') {
+                        contextExtract.classList.remove('hidden');
+                    } else {
                         contextExtract.classList.add('hidden');
-                    } else if (itemType === 'file') {
-                        contextDownload.classList.remove('hidden');
-                        contextShare.classList.remove('hidden');
-                        if (fileType === 'zip') {
-                            contextExtract.classList.remove('hidden');
-                        } else {
-                            contextExtract.classList.add('hidden');
-                        }
                     }
+                }
+
+                // position - keep inside viewport
+                const rect = contextMenu.getBoundingClientRect();
+                const menuWidth = rect.width || 200;
+                const menuHeight = rect.height || 220;
+
+                let finalLeft = x;
+                let finalTop = y;
+
+                // If menu too close to right edge, shift left
+                if (x + menuWidth > window.innerWidth) {
+                    finalLeft = window.innerWidth - menuWidth - 10; // 10px padding from right edge
+                }
+
+                // If menu too close to bottom edge, shift up
+                if (y + menuHeight > window.innerHeight) {
+                    finalTop = window.innerHeight - menuHeight - 10; // 10px padding from bottom edge
+                }
+
+                contextMenu.style.left = finalLeft + 'px';
+                contextMenu.style.top = finalTop + 'px';
+                contextMenu.classList.add('visible');
+                contextMenu.hidden = false;
+                // prevent immediate click opening file
+                suppressOpenClickTemporarily();
+            }
+
+            function hideContextMenu(){ 
+                contextMenu.classList.remove('visible'); 
+                contextMenu.hidden = true; 
+                contextMenu.dataset.targetId = '';
+                contextMenu.dataset.targetType = '';
+                contextMenu.dataset.targetName = ''; // Clear item name
+                contextMenu.dataset.targetFileType = '';
+            }
+
+            /*** Prevent immediate click after open context (so right-click/long-press doesn't also open file) */
+            let _suppressOpenUntil = 0;
+            function suppressOpenClickTemporarily(ms=350){
+                _suppressOpenUntil = Date.now() + ms;
+            }
+
+            /*** Open file action (example) */
+            function openFileById(id){
+                if (Date.now() < _suppressOpenUntil) { return; } // Suppress if context menu just opened
+                const fileItem = document.querySelector(`.file-item[data-id="${CSS.escape(id)}"]`);
+                if (fileItem && fileItem.dataset.type === 'file') {
+                    window.location.href = `view.php?file_id=${id}`;
+                } else if (fileItem && fileItem.dataset.type === 'folder') {
+                    window.location.href = `index.php?folder=${id}`;
+                }
+            }
+
+            /*** Delegated click: open on click (but blocked if context menu just opened) */
+            document.addEventListener('click', function(e){
+                // item-more button: open menu (works across devices)
+                const moreBtn = e.target.closest('.item-more');
+                if (moreBtn) {
+                    const file = closestFileItem(moreBtn);
+                    const r = moreBtn.getBoundingClientRect();
+                    showContextMenuFor(file, r.right - 5, r.bottom + 5);
+                    e.stopPropagation(); // Prevent click from bubbling to document and closing menu
+                    return;
+                }
+
+                // normal click to open file (only if not suppressed)
+                const file = closestFileItem(e.target);
+                // MODIFIED: Only open file/folder if the click is NOT on the checkbox
+                if (file && !e.target.classList.contains('file-checkbox')) {
+                    openFileById(file.dataset.id);
                 } else {
-                    contextMenu.style.display = 'none'; // Hide if clicked elsewhere
+                    // click outside => close menu
+                    hideContextMenu();
                 }
             });
 
-            // --- Long Press for Context Menu on Touch Devices ---
-            document.addEventListener('touchstart', function(event) {
-                const target = event.target.closest('.context-menu-trigger');
-                if (target) {
-                    // Prevent default context menu on long press
-                    event.preventDefault(); 
-                    currentContextItem = target;
-                    
-                    // Start timer for long press
-                    pressTimer = setTimeout(() => {
-                        // Simulate right-click event to trigger context menu
-                        const touch = event.touches[0];
-                        const simulatedEvent = new MouseEvent('contextmenu', {
-                            bubbles: true,
-                            cancelable: true,
-                            view: window,
-                            clientX: touch.clientX,
-                            clientY: touch.clientY,
-                            button: 2 // Right mouse button
-                        });
-                        target.dispatchEvent(simulatedEvent);
-                    }, longPressDuration);
-                }
-            }, { passive: false }); // Use passive: false to allow preventDefault
-
-            document.addEventListener('touchend', function(event) {
-                clearTimeout(pressTimer);
-            });
-
-            document.addEventListener('touchmove', function(event) {
-                clearTimeout(pressTimer);
-            });
-
-
-            // Handle context menu item clicks
-            contextRename.addEventListener('click', (e) => {
-                e.preventDefault();
-                contextMenu.style.display = 'none';
-                if (currentContextItem) {
-                    handleRenameClick(currentContextItem);
+            /*** Desktop right-click (contextmenu) */
+            document.addEventListener('contextmenu', function(e){
+                if (! (document.body.classList.contains('desktop') || document.body.classList.contains('tablet-landscape')) ) return; // only desktop and tablet landscape
+                const file = closestFileItem(e.target);
+                if (file) {
+                    e.preventDefault();
+                    showContextMenuFor(file, e.clientX, e.clientY);
+                } else {
+                    hideContextMenu();
                 }
             });
 
-            contextDownload.addEventListener('click', (e) => {
-                e.preventDefault();
-                contextMenu.style.display = 'none';
-                if (currentContextItem) {
-                    handleDownloadClick(currentContextItem);
+            /*** Long-press for touch devices (iPad/tablet/phone)
+                Implementation: listen pointerdown, if pointerType touch and hold >600ms => show menu.
+                Cancel if pointer moves > threshold or pointerup/cancel before timer.
+            ***/
+            document.addEventListener('pointerdown', function(e){
+                if (! (document.body.classList.contains('mobile') ||
+                    document.body.classList.contains('tablet-portrait') ||
+                    document.body.classList.contains('device-ipad')) ) return; // Only for mobile and tablet portrait
+
+                const file = closestFileItem(e.target);
+                if (!file) return;
+                // MODIFIED: Do not trigger long press if the target is the checkbox
+                if (e.target.classList.contains('file-checkbox')) return;
+
+                if (e.pointerType !== 'touch') return; // only touch long-press
+
+                const startX = e.clientX, startY = e.clientY;
+                lpStart = file;
+                lpTimer = setTimeout(()=> {
+                    showContextMenuFor(file, startX, startY);
+                    lpTimer = null;
+                    // Prevent default click behavior after long press
+                    suppressOpenClickTemporarily(); 
+                }, longPressDuration);
+
+                function onMove(ev){
+                    if (Math.hypot(ev.clientX - startX, ev.clientY - startY) > longPressMoveThreshold) {
+                        clearLongPress();
+                    }
+                }
+                function clearLongPress(){
+                    if (lpTimer) clearTimeout(lpTimer);
+                    lpTimer = null;
+                    lpStart = null;
+                    file.removeEventListener('pointermove', onMove);
+                    file.removeEventListener('pointerup', clearLongPress);
+                    file.removeEventListener('pointercancel', clearLongPress);
+                }
+                file.addEventListener('pointermove', onMove);
+                file.addEventListener('pointerup', clearLongPress);
+                file.addEventListener('pointercancel', clearLongPress);
+            });
+
+            /*** Keyboard support: Enter opens, ContextMenu key / Shift+F10 opens menu for focused item */
+            document.addEventListener('keydown', function(e){
+                const focused = document.activeElement && document.activeElement.closest && document.activeElement.closest('.file-item');
+                if (!focused) return;
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    // MODIFIED: Only open file/folder if the focused element is not a checkbox
+                    if (!document.activeElement.classList.contains('file-checkbox')) {
+                        openFileById(focused.dataset.id);
+                    }
+                } else if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
+                    e.preventDefault();
+                    const rect = focused.getBoundingClientRect();
+                    showContextMenuFor(focused, rect.left + 8, rect.bottom + 8);
                 }
             });
 
-            contextShare.addEventListener('click', (e) => {
-                e.preventDefault();
-                contextMenu.style.display = 'none';
-                if (currentContextItem) {
-                    handleShareLinkClick(currentContextItem);
+            /*** Click inside context menu => execute actions */
+            contextMenu.addEventListener('click', function(e){
+                const li = e.target.closest('[data-action]');
+                if (!li) return;
+                const action = li.dataset.action;
+                const targetId = contextMenu.dataset.targetId;
+                const targetType = contextMenu.dataset.targetType;
+                const targetName = contextMenu.dataset.targetName; // Get item name
+
+                if (action === 'toggle-star') { // Handle toggle-star action
+                    toggleStar(targetId, targetType, targetName);
+                } else {
+                    handleMenuAction(action, targetId);
                 }
+                hideContextMenu();
             });
 
-            contextExtract.addEventListener('click', (e) => {
-                e.preventDefault();
-                contextMenu.style.display = 'none';
-                if (currentContextItem) {
-                    handleExtractClick(currentContextItem);
+            /*** Hide menu on outside clicks/touch */
+            document.addEventListener('click', function(e){ 
+                if (!e.target.closest('#context-menu') && !e.target.closest('.item-more')) { // Exclude item-more button
+                    hideContextMenu(); 
                 }
             });
+            window.addEventListener('blur', hideContextMenu);
 
-            contextDelete.addEventListener('click', (e) => {
-                e.preventDefault();
-                contextMenu.style.display = 'none';
-                if (currentContextItem) {
-                    handleIndividualDeleteClick(currentContextItem);
+            /*** Menu handlers (placeholders - ganti sesuai API/backend) */
+            function handleMenuAction(action, id){
+                switch(action){
+                    case 'rename': renameFile(id); break;
+                    case 'download': downloadFile(id); break;
+                    case 'share': shareFileLink(id); break;
+                    case 'extract': extractZipFile(id); break; // Added extract
+                    case 'delete': deleteFile(id); break;
+                    default: console.log('Unknown action', action);
                 }
-            });
+            }
 
             // --- AJAX Content Update Function ---
             async function updateFileListAndFolders() {
@@ -3291,52 +3539,6 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                     updateFileListAndFolders();
                 }
             });
-
-            // --- Responsive Class Handling ---
-            function applyDeviceClass() {
-                const width = window.innerWidth;
-                const body = document.body;
-
-                // Remove all previous device classes
-                body.classList.remove('mobile', 'tablet-portrait', 'tablet-landscape', 'desktop');
-
-                if (width <= 767) {
-                    body.classList.add('mobile');
-                    sidebar.classList.add('mobile-hidden'); // Ensure sidebar is hidden by default
-                    myDriveTitle.style.display = 'none'; // Hide "My Drive"
-                    desktopSearchBar.style.display = 'none'; // Hide desktop search
-                    mobileSearchBar.style.display = 'flex'; // Show mobile search
-                } else if (width >= 768 && width <= 1024) {
-                    if (window.matchMedia("(orientation: portrait)").matches) {
-                        body.classList.add('tablet-portrait');
-                        sidebar.classList.add('mobile-hidden'); // Ensure sidebar is hidden by default
-                        myDriveTitle.style.display = 'none'; // Hide "My Drive"
-                        desktopSearchBar.style.display = 'none'; // Hide desktop search
-                        mobileSearchBar.style.display = 'flex'; // Show mobile search
-                    } else {
-                        body.classList.add('tablet-landscape');
-                        sidebar.classList.remove('mobile-hidden'); // Show sidebar
-                        sidebar.classList.remove('show-mobile-sidebar'); // Ensure mobile sidebar is closed
-                        mobileOverlay.classList.remove('show'); // Hide overlay
-                        myDriveTitle.style.display = 'block'; // Show "My Drive"
-                        desktopSearchBar.style.display = 'flex'; // Show desktop search
-                        mobileSearchBar.style.display = 'none'; // Hide mobile search
-                    }
-                } else {
-                    body.classList.add('desktop');
-                    sidebar.classList.remove('mobile-hidden'); // Show sidebar
-                    sidebar.classList.remove('show-mobile-sidebar'); // Ensure mobile sidebar is closed
-                    mobileOverlay.classList.remove('show'); // Hide overlay
-                    myDriveTitle.style.display = 'block'; // Show "My Drive"
-                    desktopSearchBar.style.display = 'flex'; // Show desktop search
-                    mobileSearchBar.style.display = 'none'; // Hide mobile search
-                }
-            }
-
-            // Initial application of device class
-            applyDeviceClass();
-            window.addEventListener('resize', applyDeviceClass);
-            window.addEventListener('orientationchange', applyDeviceClass);
 
             // --- Mobile Sidebar Toggle ---
             sidebarToggleBtn.addEventListener('click', () => {

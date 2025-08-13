@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $user = null;
 
         // 1. Try to find user by username or primary email in 'users' table
-        $stmt = $conn->prepare("SELECT id, username, password FROM users WHERE username = ? OR email = ?");
+        $stmt = $conn->prepare("SELECT id, username, password, is_member FROM users WHERE username = ? OR email = ?");
         $stmt->bind_param("ss", $username, $username);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         // 2. If not found in 'users' table, try to find by additional email in 'user_emails' table
         if (!$user) {
-            $stmt_additional = $conn->prepare("SELECT u.id, u.username, u.password FROM users u JOIN user_emails ue ON u.id = ue.user_id WHERE ue.email = ?");
+            $stmt_additional = $conn->prepare("SELECT u.id, u.username, u.password, u.is_member FROM users u JOIN user_emails ue ON u.id = ue.user_id WHERE ue.email = ?");
             $stmt_additional->bind_param("s", $username);
             $stmt_additional->execute();
             $result_additional = $stmt_additional->get_result();
@@ -38,30 +38,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
 
         if ($user) {
-            // Verify password
+            // Verifikasi password
             if (password_verify($password, $user['password'])) {
-                // Login successful
+                // Check if user is a member, if not, update their status
+                if ($user['is_member'] == 0) {
+                    $stmt_update = $conn->prepare("UPDATE users SET is_member = 1 WHERE id = ?");
+                    $stmt_update->bind_param("i", $user['id']);
+                    $stmt_update->execute();
+                    $stmt_update->close();
+                }
+
+                // Login berhasil
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['username'] = $user['username'];
-
-                // Update last login time and IP, and also last_active for online status
-                $last_login_time = date('Y-m-d H:i:s');
-                $last_login_ip = $_SERVER['REMOTE_ADDR'];
-                $last_active_time = date('Y-m-d H:i:s'); // Update last_active on login
-
-                $stmt_update = $conn->prepare("UPDATE users SET last_login_time = ?, last_login_ip = ?, last_active = ? WHERE id = ?");
-                $stmt_update->bind_param("sssi", $last_login_time, $last_login_ip, $last_active_time, $user['id']);
-                $stmt_update->execute();
-                $stmt_update->close();
-
-                // Insert into login_history table (if you create one)
-                $stmt_history_insert = $conn->prepare("INSERT INTO login_history (user_id, login_time, ip_address) VALUES (?, ?, ?)");
-                $stmt_history_insert->bind_param("iss", $user['id'], $last_login_time, $last_login_ip);
-                $stmt_history_insert->execute();
-                $stmt_history_insert->close();
-
-
-                header("Location: index.php"); // Redirect to the main application page
+                header('Location: dashboard.php'); // Redirect ke halaman dashboard
                 exit();
             } else {
                 $error = 'Invalid username or password.';
@@ -77,259 +67,214 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - SKMI Cloud Storage</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <title>Login - SKMI Cloud</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&display=swap">
     <style>
-        /* Metro Design (Modern UI) & Windows 7 Animations */
         :root {
-            --metro-blue: #0078D7; /* Windows 10/Metro accent blue */
-            --metro-dark-blue: #0056b3;
-            --metro-light-gray: #E1E1E1;
-            --metro-medium-gray: #C8C8C8;
-            --metro-dark-gray: #666666;
-            --metro-text-color: #333333;
-            --metro-bg-color: #F0F0F0;
-            --metro-sidebar-bg: #2D2D30; /* Darker sidebar for contrast */
-            --metro-sidebar-text: #F0F0F0;
-            --metro-success: #4CAF50;
-            --metro-error: #E81123; /* Windows 10 error red */
-            --metro-warning: #FF8C00; /* Windows 10 warning orange */
+            --primary-color: #0078d7;
+            --secondary-color: #e6e6e6;
+            --background-color: #f0f0f0;
+            --text-color: #333;
+            --tile-background: #fff;
+            --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            background-color: var(--metro-bg-color); /* Metro background color */
-            background-image: url('https://source.unsplash.com/random/1920x1080/?abstract,technology'); /* Dynamic background image */
-            background-size: cover;
-            background-position: center;
-            color: var(--metro-text-color);
-            overflow: hidden;
+            padding: 20px;
+            transition: background-color 0.3s ease;
         }
 
-        .login-container {
-            display: flex;
-            background-color: white;
-            border-radius: 8px; /* Softer rounded corners */
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15); /* More pronounced shadow */
-            overflow: hidden;
-            max-width: 900px;
-            width: 90%;
-            animation: fadeInScale 0.5s ease-out forwards; /* Animation for the whole container */
+        .container {
+            width: 100%;
+            max-width: 400px;
+            padding: 20px;
         }
 
-        .left-panel {
-            flex: 1;
+        .login-box {
+            background-color: var(--tile-background);
+            border-radius: 8px;
+            box-shadow: var(--box-shadow);
             padding: 40px;
-            color: white;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-            background-image: linear-gradient(to right, rgba(0,0,0,0.5), rgba(0,0,0,0.2)), url('https://source.unsplash.com/random/800x600/?cloud,storage'); /* Dark overlay + dynamic background image */
-            background-size: cover;
-            background-position: center;
-            position: relative;
-            overflow: hidden; /* For subtle animation */
-        }
-
-        .left-panel::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(to bottom, rgba(0, 120, 215, 0.1), rgba(0, 120, 215, 0.3)); /* Subtle blue overlay */
-            z-index: 0;
-        }
-
-        .left-panel-content {
-            position: relative;
-            z-index: 1;
-            animation: slideInFromBottom 0.6s ease-out forwards; /* Animation for content */
-        }
-
-        .left-panel h2 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-            font-weight: 300; /* Lighter font weight */
-            text-shadow: 0 2px 5px rgba(0,0,0,0.3);
-        }
-
-        .left-panel p {
-            font-size: 1.1em;
-            line-height: 1.6;
-            text-shadow: 0 1px 3px rgba(0,0,0,0.2);
-        }
-
-        .right-panel {
-            flex: 1;
-            padding: 40px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            background-color: #FFFFFF; /* White background for form */
-            animation: slideInFromRight 0.6s ease-out forwards; /* Animation for form */
-        }
-
-        .right-panel h2 {
-            font-size: 2.2em; /* Slightly larger heading */
-            margin-bottom: 30px;
-            color: var(--metro-text-color); /* Metro text color */
             text-align: center;
-            font-weight: 300; /* Lighter font weight */
-            border-bottom: 1px solid var(--metro-light-gray); /* Subtle border */
-            padding-bottom: 15px;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h2 {
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: var(--primary-color);
+        }
+
+        .error-message, .success-message {
+            background-color: #ffcccc;
+            color: #d9534f;
+            border: 1px solid #d9534f;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            animation: shake 0.5s;
+        }
+
+        .success-message {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
         }
 
         .form-group {
             margin-bottom: 20px;
+            text-align: left;
+            position: relative;
         }
 
         .form-group label {
             display: block;
             margin-bottom: 8px;
-            color: var(--metro-text-color); /* Metro text color */
-            font-weight: 600; /* Bolder label */
-            font-size: 1.05em;
+            font-weight: 600;
+            color: var(--text-color);
         }
 
         .form-group input {
-            width: calc(100% - 24px); /* Adjust for padding and border */
-            padding: 12px; /* More padding */
-            border: 1px solid var(--metro-medium-gray); /* Subtle border */
-            border-radius: 3px; /* Small border-radius */
-            font-size: 1em;
-            outline: none;
-            background-color: var(--metro-bg-color); /* Light gray background for input */
-            color: var(--metro-text-color);
-            transition: border-color 0.2s ease-out, box-shadow 0.2s ease-out, background-color 0.2s ease-out;
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
         }
 
         .form-group input:focus {
-            border-color: var(--metro-blue); /* Metro blue for focus */
-            box-shadow: 0 0 0 2px rgba(0,120,215,0.3); /* Metro blue shadow */
-            background-color: #FFFFFF; /* White background on focus */
+            border-color: var(--primary-color);
+            box-shadow: 0 0 5px rgba(0, 120, 215, 0.5);
+            outline: none;
         }
 
         .form-group input.error {
-            border-color: var(--metro-error); /* Metro error red */
+            border-color: #d9534f;
+        }
+        
+        .password-container {
+            position: relative;
+        }
+        
+        .password-container input {
+            padding-right: 40px; /* Make space for the toggle icon */
         }
 
-        .error-message {
-            color: var(--metro-error); /* Metro error red */
-            font-size: 0.9em;
-            margin-top: 5px;
-            text-align: center;
-            padding: 8px;
-            background-color: rgba(232, 17, 35, 0.1); /* Light red background */
-            border-radius: 3px;
-            border: 1px solid var(--metro-error);
+        .password-toggle {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #999;
+            transition: color 0.3s ease;
+        }
+
+        .password-toggle:hover {
+            color: var(--primary-color);
         }
 
         .button-primary {
-            width: 100%;
-            padding: 12px;
-            background-color: var(--metro-blue); /* Metro blue for login */
-            color: white;
+            background-color: var(--primary-color);
+            color: #fff;
             border: none;
-            border-radius: 3px; /* Small border-radius */
-            font-size: 1.2em;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 18px;
             cursor: pointer;
-            transition: background-color 0.2s ease-out, transform 0.1s ease-out, box-shadow 0.2s ease-out;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Subtle shadow */
+            width: 100%;
+            transition: background-color 0.3s ease, transform 0.2s ease;
         }
 
         .button-primary:hover {
-            background-color: var(--metro-dark-blue); /* Darker blue on hover */
-            transform: translateY(-1px); /* Subtle lift */
-            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            background-color: #005a9e;
+            transform: translateY(-2px);
         }
 
         .button-primary:active {
-            transform: translateY(0); /* Press effect */
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transform: translateY(0);
         }
 
         .switch-link {
-            text-align: center;
             margin-top: 20px;
-            color: var(--metro-dark-gray); /* Metro dark gray */
-            font-size: 0.95em;
+            font-size: 14px;
+            color: #666;
         }
 
         .switch-link a {
-            color: var(--metro-blue); /* Metro blue for links */
+            color: var(--primary-color);
             text-decoration: none;
-            font-weight: bold;
-            transition: color 0.2s ease-out, text-decoration 0.2s ease-out;
+            font-weight: 600;
+            transition: color 0.3s ease;
         }
 
         .switch-link a:hover {
+            color: #005a9e;
             text-decoration: underline;
-            color: var(--metro-dark-blue);
         }
 
-        /* Windows 7-like Animations */
-        @keyframes fadeInScale {
-            from {
-                opacity: 0;
-                transform: scale(0.95);
+        /* Responsive Design */
+        @media (max-width: 600px) {
+            .login-box {
+                padding: 20px;
+                box-shadow: none;
+                border-radius: 0;
             }
-            to {
-                opacity: 1;
-                transform: scale(1);
+            body {
+                padding: 0;
             }
-        }
-
-        @keyframes slideInFromBottom {
-            from {
-                transform: translateY(50px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-
-        @keyframes slideInFromRight {
-            from {
-                transform: translateX(50px);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
+            .container {
+                max-width: 100%;
             }
         }
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <div class="left-panel">
-            <div class="left-panel-content">
-                <h2>Welcome to SKMI Cloud Storage</h2>
-                <p>Your secure and reliable cloud storage solution. Access your files anytime, anywhere.</p>
-            </div>
-        </div>
-        <div class="right-panel">
+    <div class="container">
+        <div class="login-box">
             <h2>Login</h2>
             <?php if ($error): ?>
                 <div class="error-message"><?php echo $error; ?></div>
             <?php endif; ?>
             <form action="login.php" method="POST">
                 <div class="form-group">
-                    <label for="username">Username or E-mail:</label>
+                    <label for="username">Username or Email:</label>
                     <input type="text" id="username" name="username" required class="<?php echo ($error) ? 'error' : ''; ?>">
                 </div>
                 <div class="form-group">
                     <label for="password">Password:</label>
-                    <input type="password" id="password" name="password" required class="<?php echo ($error) ? 'error' : ''; ?>">
+                    <div class="password-container">
+                        <input type="password" id="password" name="password" required class="<?php echo ($error) ? 'error' : ''; ?>">
+                        <span class="password-toggle" onclick="togglePasswordVisibility('password')">
+                            <i class="fas fa-eye"></i>
+                        </span>
+                    </div>
                 </div>
                 <button type="submit" class="button-primary">Login</button>
             </form>
@@ -338,5 +283,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             </div>
         </div>
     </div>
+
+    <script>
+        function togglePasswordVisibility(id) {
+            const passwordField = document.getElementById(id);
+            const toggleIcon = passwordField.nextElementSibling.querySelector('i');
+
+            if (passwordField.type === 'password') {
+                passwordField.type = 'text';
+                toggleIcon.classList.remove('fa-eye');
+                toggleIcon.classList.add('fa-eye-slash');
+            } else {
+                passwordField.type = 'password';
+                toggleIcon.classList.remove('fa-eye-slash');
+                toggleIcon.classList.add('fa-eye');
+            }
+        }
+    </script>
 </body>
 </html>
