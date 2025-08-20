@@ -51,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 // Login berhasil
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['username'] = $user['username'];
-                header('Location: dashboard.php'); // Redirect ke halaman dashboard
+                header('Location: index.php'); // Redirect ke halaman dashboard
                 exit();
             } else {
                 $error = 'Invalid username or password.';
