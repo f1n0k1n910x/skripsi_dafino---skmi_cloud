@@ -54,8 +54,7 @@ if ($currentFolderId) {
 $searchQuery = isset($_GET['search']) ? $_GET['search'] : '';
 
 // Get sorting parameters
-$releaseFilter = isset($_GET['release']) ? $_GET['release'] : 'all'; // 'newest', 'oldest', 'all'
-$sortOrder = isset($_GET['sort']) ? $_GET['sort'] : 'asc'; // 'asc', 'desc'
+$sizeFilter = isset($_GET['size']) ? $_GET['size'] : 'none'; // 'asc', 'desc', 'none'
 $fileTypeFilter = isset($_GET['file_type']) ? $_GET['file_type'] : 'all'; // 'all', 'document', 'music', etc.
 
 // Define file categories for filtering and thumbnail preview
@@ -84,34 +83,103 @@ switch ($fileTypeFilter) {
     case 'all': default: $filterExtensions = []; break; // No specific filter
 }
 
+// Function to check if a folder or its subfolders contain files of a specific type
+function folderContainsFilteredFiles($conn, $folderId, $filterExtensions, $baseUploadDir) {
+    if (empty($filterExtensions)) {
+        return true; // No specific file type filter, so all folders are relevant
+    }
+
+    // Check for files directly in this folder
+    $sql = "SELECT COUNT(id) FROM files WHERE folder_id = ?";
+    $params = [$folderId];
+    $types = "i";
+
+    $placeholders = implode(',', array_fill(0, count($filterExtensions), '?'));
+    $sql .= " AND file_type IN ($placeholders)";
+    foreach ($filterExtensions as $ext) {
+        $params[] = $ext;
+        $types .= "s";
+    }
+
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param($types, ...$params);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result->fetch_row();
+    if ($row[0] > 0) {
+        $stmt->close();
+        return true;
+    }
+    $stmt->close();
+
+    // Recursively check subfolders
+    $subfolders = [];
+    $stmt = $conn->prepare("SELECT id FROM folders WHERE parent_id = ?");
+    $stmt->bind_param("i", $folderId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $subfolders[] = $row['id'];
+    }
+    $stmt->close();
+
+    foreach ($subfolders as $subfolderId) {
+        if (folderContainsFilteredFiles($conn, $subfolderId, $filterExtensions, $baseUploadDir)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 
 // Fetch folders in current directory
 $folders = [];
 $sqlFolders = "SELECT id, folder_name, created_at, updated_at FROM folders WHERE parent_id <=> ?";
+$folderParams = [$currentFolderId];
+$folderTypes = "i";
+
 if (!empty($searchQuery)) {
     $sqlFolders .= " AND folder_name LIKE ?";
+    $searchTerm = '%' . $searchQuery . '%';
+    $folderParams[] = $searchTerm;
+    $folderTypes .= "s";
 }
 
-// Apply sorting for folders
-if ($sortOrder === 'asc') {
-    $sqlFolders .= " ORDER BY folder_name ASC";
-} else {
-    $sqlFolders .= " ORDER BY folder_name DESC";
-}
+// Apply sorting for folders (alphabetical by default, size sorting handled after fetching)
+$sqlFolders .= " ORDER BY folder_name ASC";
 
 $stmt = $conn->prepare($sqlFolders);
-if (!empty($searchQuery)) {
-    $searchTerm = '%' . $searchQuery . '%';
-    $stmt->bind_param("is", $currentFolderId, $searchTerm);
-} else {
-    $stmt->bind_param("i", $currentFolderId);
-}
+$stmt->bind_param($folderTypes, ...$folderParams);
 $stmt->execute();
 $result = $stmt->get_result();
+$tempFolders = [];
 while ($row = $result->fetch_assoc()) {
-    $folders[] = $row;
+    // Apply file type filter to folders
+    if (empty($filterExtensions) || folderContainsFilteredFiles($conn, $row['id'], $filterExtensions, $baseUploadDir)) {
+        $tempFolders[] = $row;
+    }
 }
 $stmt->close();
+
+// Calculate folder sizes for sorting
+foreach ($tempFolders as &$folder) {
+    $folderPath = $baseUploadDir . getFolderPath($conn, $folder['id']);
+    $folder['calculated_size'] = getFolderSize($folderPath);
+}
+unset($folder); // Unset reference
+
+// Apply size sorting for folders
+if ($sizeFilter === 'asc') {
+    usort($tempFolders, function($a, $b) {
+        return $a['calculated_size'] <=> $b['calculated_size'];
+    });
+} elseif ($sizeFilter === 'desc') {
+    usort($tempFolders, function($a, $b) {
+        return $b['calculated_size'] <=> $a['calculated_size'];
+    });
+}
+$folders = $tempFolders;
 
 
 // Fetch files in current directory
@@ -136,18 +204,14 @@ if (!empty($filterExtensions)) {
     }
 }
 
-// Apply release date filter
-if ($releaseFilter === 'newest') {
-    $sqlFiles .= " ORDER BY uploaded_at DESC";
-} elseif ($releaseFilter === 'oldest') {
-    $sqlFiles .= " ORDER BY uploaded_at ASC";
+// Apply size sorting for files
+if ($sizeFilter === 'asc') {
+    $sqlFiles .= " ORDER BY file_size ASC";
+} elseif ($sizeFilter === 'desc') {
+    $sqlFiles .= " ORDER BY file_size DESC";
 } else {
-    // Apply alphabetical sorting if no release filter or 'all'
-    if ($sortOrder === 'asc') {
-        $sqlFiles .= " ORDER BY file_name ASC";
-    } else {
-        $sqlFiles .= " ORDER BY file_name DESC";
-    }
+    // Default alphabetical sorting if no size filter
+    $sqlFiles .= " ORDER BY file_name ASC";
 }
 
 $stmt = $conn->prepare($sqlFiles);
@@ -709,7 +773,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             overflow: hidden; /* Ensure content stays within bounds */
             user-select: none; /* Prevent text selection on long press */
             cursor: pointer; /* Indicate clickable */
-            tabindex="0"; /* For keyboard navigation */
+            /* tabindex="0"; For keyboard navigation */
         }
 
         .grid-item:hover {
@@ -1824,6 +1888,221 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             border-bottom: none !important;
         }
 
+        /* MODIFIED: Google Drive Style - List View */
+        .file-table {
+            border: 1px solid #dadce0; /* Google Drive border color */
+            border-radius: 8px; /* Rounded corners for the table */
+            overflow: hidden; /* Ensures rounded corners apply to content */
+        }
+
+        .file-table th {
+            background-color: #f8f9fa; /* Lighter header background */
+            color: #5f6368; /* Darker gray for header text */
+            font-weight: 500; /* Slightly lighter font weight */
+            padding: 12px 24px; /* More padding */
+            border-bottom: 1px solid #dadce0; /* Consistent border */
+            font-size: 0.875em; /* Slightly larger header font */
+            text-transform: none; /* No uppercase */
+        }
+
+        .file-table td {
+            padding: 12px 24px; /* Consistent padding */
+            border-bottom: 1px solid #dadce0; /* Consistent border */
+            font-size: 0.9375em; /* Slightly smaller body font */
+            color: #3c4043; /* Darker text color */
+        }
+
+        .file-table tbody tr:last-child td {
+            border-bottom: none; /* No border on last row */
+        }
+
+        .file-table tbody tr:hover {
+            background-color: #f0f0f0; /* Lighter hover effect */
+        }
+
+        .file-name-cell {
+            display: flex;
+            align-items: center;
+            /* max-width: 400px; /* Adjusted max-width for name */
+        }
+
+        .file-name-cell .file-icon {
+            font-size: 1.2em; /* Slightly smaller icon for better alignment */
+            margin-right: 16px; /* More space between icon and name */
+            width: auto; /* Let icon size determine width */
+        }
+
+        .file-name-cell a {
+            font-weight: 400; /* Regular font weight */
+            color: #3c4043; /* Darker text color */
+        }
+
+        .file-checkbox {
+            margin-right: 16px; /* More space for checkbox */
+            transform: scale(1.0); /* Default scale */
+            accent-color: #1a73e8; /* Google Drive blue for checkbox */
+        }
+
+        /* MODIFIED: Google Drive Style - Grid View */
+        .file-grid {
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); /* Slightly smaller grid items */
+            gap: 16px; /* Reduced gap */
+            padding: 0; /* Remove padding, grid-item handles it */
+        }
+
+        .grid-item {
+            border: 1px solid #dadce0; /* Google Drive border color */
+            border-radius: 8px; /* Rounded corners */
+            padding: 12px; /* Reduced padding */
+            box-shadow: none; /* No box shadow by default */
+            transition: all 0.2s ease-out; /* Smooth transitions */
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start; /* Align content to start */
+            text-align: left; /* Align text to left */
+            position: relative;
+            overflow: hidden;
+        }
+
+        .grid-item:hover {
+            box-shadow: 0 1px 3px rgba(60,64,67,.3), 0 4px 8px rgba(60,64,67,.15); /* Google Drive hover shadow */
+            transform: translateY(0); /* No lift on hover */
+            border-color: transparent; /* Border disappears on hover */
+        }
+
+        .grid-item .file-checkbox {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            z-index: 2; /* Above thumbnail */
+            transform: scale(1.0);
+            accent-color: #1a73e8;
+        }
+
+        .grid-item .item-more {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            z-index: 2; /* Above thumbnail */
+            background-color: rgba(255,255,255,0.8); /* Slightly opaque background */
+            border-radius: 50%;
+            padding: 4px;
+            font-size: 1em;
+            color: #5f6368;
+            opacity: 0; /* Hidden by default */
+            transition: opacity 0.2s ease-out;
+        }
+
+        .grid-item:hover .item-more {
+            opacity: 1; /* Show on hover */
+        }
+
+        .grid-thumbnail {
+            width: 100%;
+            height: 120px; /* Slightly smaller thumbnail */
+            margin-bottom: 8px; /* Reduced margin */
+            border: none; /* No border on thumbnail */
+            background-color: #e8f0fe; /* Light blue background for folders/generic files */
+            border-radius: 4px; /* Slightly rounded corners */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .grid-thumbnail i {
+            font-size: 3.5em; /* Adjusted icon size */
+            color: #1a73e8; /* Google Drive blue for icons */
+        }
+
+        .grid-thumbnail img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .grid-thumbnail video, .grid-thumbnail audio {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Cover to fill space */
+        }
+
+        .grid-thumbnail pre {
+            font-size: 9px; /* Smaller font for code/text preview */
+            padding: 5px;
+        }
+
+        .grid-thumbnail .file-type-label {
+            display: none; /* Hide file type label in grid thumbnail */
+        }
+
+        .file-name {
+            font-weight: 400; /* Regular font weight */
+            color: #3c4043; /* Darker text color */
+            font-size: 0.9375em; /* Consistent font size */
+            margin-top: 0; /* No top margin */
+            padding-left: 4px; /* Small indent for name */
+            padding-right: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: calc(100% - 8px); /* Adjust width for padding */
+        }
+
+        .file-name:hover {
+            color: #1a73e8; /* Google Drive blue on hover */
+        }
+
+        .file-size {
+            font-size: 0.8125em; /* Smaller font size for size */
+            color: #5f6368; /* Medium gray for size text */
+            margin-top: 4px; /* Reduced margin */
+            padding-left: 4px;
+        }
+
+        /* Ensure Metro UI elements are not overridden by Google Drive styles */
+        .sidebar, .sidebar-header, .sidebar-menu, .storage-info {
+            /* Keep original Metro UI styles */
+        }
+
+        .modal-content, .notification {
+            /* Keep original Metro UI styles */
+        }
+
+        /* Adjustments for mobile table view to maintain Google Drive aesthetic */
+        @media (max-width: 767px) {
+            body.mobile .file-table tbody tr {
+                border: 1px solid #dadce0; /* Consistent border */
+                border-radius: 8px; /* Consistent rounded corners */
+                margin-bottom: 8px; /* Reduced margin */
+                box-shadow: none; /* No shadow */
+            }
+            body.mobile .file-table td {
+                padding: 8px 16px; /* Adjusted padding */
+                font-size: 0.875em; /* Slightly larger font for mobile */
+            }
+            body.mobile .file-table td:first-child {
+                top: 12px; /* Adjust checkbox position */
+                left: 12px;
+            }
+            body.mobile .file-table td:nth-child(2) {
+                padding-left: 48px; /* Adjust space for checkbox */
+                font-size: 0.9em;
+            }
+            body.mobile .file-table td:nth-child(3),
+            body.mobile .file-table td:nth-child(4),
+            body.mobile .file-table td:nth-child(5) {
+                padding-top: 4px;
+                padding-bottom: 4px;
+            }
+            body.mobile .file-table td:nth-child(3)::before,
+            body.mobile .file-table td:nth-child(4)::before,
+            body.mobile .file-table td:nth-child(5)::before {
+                color: #5f6368; /* Consistent text color */
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -1834,6 +2113,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
         <ul class="sidebar-menu">
             <li><a href="index.php" class="active"><i class="fas fa-folder"></i> My Drive</a></li>
             <li><a href="priority_files.php"><i class="fas fa-star"></i> Priority File</a></li> <!-- NEW: Priority File Link -->
+            <li><a href="recycle_bin.php"><i class="fas fa-trash"></i> Recycle Bin</a></li> <!-- NEW: Recycle Bin Link -->
             <li><a href="summary.php"><i class="fas fa-chart-line"></i> Summary</a></li>
             <li><a href="members.php"><i class="fas fa-users"></i> Members</a></li> <!-- NEW: Members Link -->
             <li><a href="profile.php"><i class="fas fa-user"></i> Profile</a></li>
@@ -1902,22 +2182,13 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                     </div>
                 </div>
 
-                <!-- Release Date Filter Button (Hidden on mobile/tablet portrait) -->
-                <div class="dropdown-container release-filter-dropdown-container">
-                    <button id="releaseFilterBtn" class="filter-button"><i class="fas fa-calendar-alt"></i></button>
-                    <div class="dropdown-content release-filter-dropdown-content">
-                        <a href="#" data-filter="newest">Newest</a>
-                        <a href="#" data-filter="oldest">Oldest</a>
-                        <a href="#" data-filter="all">All Files</a>
-                    </div>
-                </div>
-
-                <!-- Sort Order Filter Button (Hidden on mobile/tablet portrait) -->
-                <div class="dropdown-container sort-order-dropdown-container">
-                    <button id="sortOrderBtn" class="filter-button"><i class="fas fa-sort-alpha-down"></i></button>
-                    <div class="dropdown-content sort-order-dropdown-content">
-                        <a href="#" data-sort="asc">A-Z</a>
-                        <a href="#" data-sort="desc">Z-A</a>
+                <!-- Size Filter Button (Replaces Release Date Filter) -->
+                <div class="dropdown-container size-filter-dropdown-container">
+                    <button id="sizeFilterBtn" class="filter-button"><i class="fas fa-sort-amount-down"></i></button>
+                    <div class="dropdown-content size-filter-dropdown-content">
+                        <a href="#" data-size="desc">Size (Large to Small)</a>
+                        <a href="#" data-size="asc">Size (Small to Large)</a>
+                        <a href="#" data-size="none">Default (Alphabetical)</a>
                     </div>
                 </div>
 
@@ -1956,22 +2227,13 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 </div>
             </div>
 
-            <!-- Release Date Filter Button -->
-            <div class="dropdown-container release-filter-dropdown-container">
-                <button id="releaseFilterBtnHeader" class="filter-button"><i class="fas fa-calendar-alt"></i></button>
-                <div class="dropdown-content release-filter-dropdown-content">
-                    <a href="#" data-filter="newest">Newest</a>
-                    <a href="#" data-filter="oldest">Oldest</a>
-                    <a href="#" data-filter="all">All Files</a>
-                </div>
-            </div>
-
-            <!-- Sort Order Filter Button -->
-            <div class="dropdown-container sort-order-dropdown-container">
-                <button id="sortOrderBtnHeader" class="filter-button"><i class="fas fa-sort-alpha-down"></i></button>
-                <div class="dropdown-content sort-order-dropdown-content">
-                    <a href="#" data-sort="asc">A-Z</a>
-                    <a href="#" data-sort="desc">Z-A</a>
+            <!-- Size Filter Button (Replaces Release Date Filter) -->
+            <div class="dropdown-container size-filter-dropdown-container">
+                <button id="sizeFilterBtnHeader" class="filter-button"><i class="fas fa-sort-amount-down"></i></button>
+                <div class="dropdown-content size-filter-dropdown-content">
+                    <a href="#" data-size="desc">Size (Large to Small)</a>
+                    <a href="#" data-size="asc">Size (Small to Large)</a>
+                    <a href="#" data-size="none">Default (Alphabetical)</a>
                 </div>
             </div>
 
@@ -2028,9 +2290,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                                     <?php
                                         // NEW: Calculate and display folder size
                                         // Get the full physical path of the folder
-                                        $folderPath = $baseUploadDir . getFolderPath($conn, $folder['id']);
-                                        $folderSize = getFolderSize($folderPath);
-                                        echo formatBytes($folderSize);
+                                        echo formatBytes($folder['calculated_size']);
                                     ?>
                                 </td>
                                 <td>
@@ -2083,9 +2343,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                             <a href="index.php?folder=<?php echo $folder['id']; ?>" class="file-name file-link-clickable" onclick="event.stopPropagation();"><?php echo htmlspecialchars($folder['folder_name']); ?></a>
                             <span class="file-size">
                                 <?php
-                                    $folderPath = $baseUploadDir . getFolderPath($conn, $folder['id']);
-                                    $folderSize = getFolderSize($folderPath);
-                                    echo formatBytes($folderSize);
+                                    echo formatBytes($folder['calculated_size']);
                                 ?>
                             </span>
                             <button class="item-more" aria-haspopup="true" aria-label="More">⋮</button>
@@ -2242,13 +2500,12 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             const archiveSelectedBtn = document.getElementById('archiveSelectedBtn');
             const archiveDropdownContent = document.querySelector('.toolbar .archive-dropdown-content');
 
-            const releaseFilterDropdownContainer = document.querySelector('.toolbar .release-filter-dropdown-container');
-            const releaseFilterBtn = document.getElementById('releaseFilterBtn');
-            const releaseFilterDropdownContent = document.querySelector('.toolbar .release-filter-dropdown-content');
+            // REMOVED: releaseFilterDropdownContainer, releaseFilterBtn, releaseFilterDropdownContent
+            // REMOVED: sortOrderDropdownContainer, sortOrderBtn, sortOrderDropdownContent
 
-            const sortOrderDropdownContainer = document.querySelector('.toolbar .sort-order-dropdown-container');
-            const sortOrderBtn = document.getElementById('sortOrderBtn');
-            const sortOrderDropdownContent = document.querySelector('.toolbar .sort-order-dropdown-content');
+            const sizeFilterDropdownContainer = document.querySelector('.toolbar .size-filter-dropdown-container');
+            const sizeFilterBtn = document.getElementById('sizeFilterBtn');
+            const sizeFilterDropdownContent = document.querySelector('.toolbar .size-filter-dropdown-content');
 
             const fileTypeFilterDropdownContainer = document.querySelector('.toolbar .file-type-filter-dropdown-container');
             const fileTypeFilterBtn = document.getElementById('fileTypeFilterBtn');
@@ -2257,8 +2514,9 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             // Dropdown elements (header)
             const archiveSelectedBtnHeader = document.getElementById('archiveSelectedBtnHeader');
             const fileTypeFilterBtnHeader = document.getElementById('fileTypeFilterBtnHeader');
-            const releaseFilterBtnHeader = document.getElementById('releaseFilterBtnHeader');
-            const sortOrderBtnHeader = document.getElementById('sortOrderBtnHeader');
+            // REMOVED: releaseFilterBtnHeader
+            // REMOVED: sortOrderBtnHeader
+            const sizeFilterBtnHeader = document.getElementById('sizeFilterBtnHeader'); // NEW
             const listViewBtnHeader = document.getElementById('listViewBtnHeader'); // NEW
             const gridViewBtnHeader = document.getElementById('gridViewBtnHeader'); // NEW
 
@@ -2318,8 +2576,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             // Current state variables for AJAX filtering/sorting
             let currentFolderId = <?php echo json_encode($currentFolderId); ?>;
             let currentSearchQuery = <?php echo json_encode($searchQuery); ?>;
-            let currentReleaseFilter = <?php echo json_encode($releaseFilter); ?>;
-            let currentSortOrder = <?php echo json_encode($sortOrder); ?>;
+            let currentSizeFilter = <?php echo json_encode($sizeFilter); ?>; // Changed from releaseFilter
             let currentFileTypeFilter = <?php echo json_encode($fileTypeFilter); ?>;
 
             /*** Util helpers ****/
@@ -2563,11 +2820,10 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 if (archiveDropdownContainer && !archiveDropdownContainer.contains(event.target)) {
                     archiveDropdownContainer.classList.remove('show');
                 }
-                if (releaseFilterDropdownContainer && !releaseFilterDropdownContainer.contains(event.target)) {
-                    releaseFilterDropdownContainer.classList.remove('show');
-                }
-                if (sortOrderDropdownContainer && !sortOrderDropdownContainer.contains(event.target)) {
-                    sortOrderDropdownContainer.classList.remove('show');
+                // REMOVED: releaseFilterDropdownContainer check
+                // REMOVED: sortOrderDropdownContainer check
+                if (sizeFilterDropdownContainer && !sizeFilterDropdownContainer.contains(event.target)) {
+                    sizeFilterDropdownContainer.classList.remove('show');
                 }
                 if (fileTypeFilterDropdownContainer && !fileTypeFilterDropdownContainer.contains(event.target)) {
                     fileTypeFilterDropdownContainer.classList.remove('show');
@@ -2576,8 +2832,9 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 // Header toolbar dropdowns (now toolbar-filter-buttons)
                 const headerArchiveDropdownContainer = document.querySelector('.toolbar-filter-buttons .archive-dropdown-container');
                 const headerFileTypeDropdownContainer = document.querySelector('.toolbar-filter-buttons .file-type-filter-dropdown-container');
-                const headerReleaseDropdownContainer = document.querySelector('.toolbar-filter-buttons .release-filter-dropdown-container');
-                const headerSortOrderDropdownContainer = document.querySelector('.toolbar-filter-buttons .sort-order-dropdown-container');
+                // REMOVED: headerReleaseDropdownContainer
+                // REMOVED: headerSortOrderDropdownContainer
+                const headerSizeFilterDropdownContainer = document.querySelector('.toolbar-filter-buttons .size-filter-dropdown-container'); // NEW
                 const headerViewToggle = document.querySelector('.toolbar-filter-buttons .view-toggle'); // NEW
 
                 if (headerArchiveDropdownContainer && !headerArchiveDropdownContainer.contains(event.target)) {
@@ -2586,11 +2843,8 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 if (headerFileTypeDropdownContainer && !headerFileTypeDropdownContainer.contains(event.target)) {
                     headerFileTypeDropdownContainer.classList.remove('show');
                 }
-                if (headerReleaseDropdownContainer && !headerReleaseDropdownContainer.contains(event.target)) {
-                    headerReleaseDropdownContainer.classList.remove('show');
-                }
-                if (headerSortOrderDropdownContainer && !headerSortOrderDropdownContainer.contains(event.target)) {
-                    headerSortOrderDropdownContainer.classList.remove('show');
+                if (headerSizeFilterDropdownContainer && !headerSizeFilterDropdownContainer.contains(event.target)) { // NEW
+                    headerSizeFilterDropdownContainer.classList.remove('show');
                 }
                 // NEW: Close view toggle dropdown if clicked outside
                 if (headerViewToggle && !headerViewToggle.contains(event.target)) {
@@ -2802,8 +3056,8 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             setupFileTypeFilterDropdown('fileTypeFilterBtnHeader', '.toolbar-filter-buttons .file-type-filter-dropdown-content');
 
 
-            // --- Release Date Filter ---
-            function setupReleaseFilterDropdown(buttonId, dropdownContentSelector) {
+            // --- Size Filter (Replaces Release Date and Sort Order) ---
+            function setupSizeFilterDropdown(buttonId, dropdownContentSelector) {
                 const button = document.getElementById(buttonId);
                 const dropdownContent = document.querySelector(dropdownContentSelector);
                 const dropdownContainer = button.closest('.dropdown-container');
@@ -2819,45 +3073,14 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                     link.addEventListener('click', (event) => {
                         event.preventDefault();
                         dropdownContainer.classList.remove('show');
-                        currentReleaseFilter = event.target.dataset.filter;
-                        if (currentReleaseFilter !== 'all') {
-                            currentSortOrder = 'asc'; // Reset sort order if release filter is applied
-                        }
+                        currentSizeFilter = event.target.dataset.size;
                         updateFileListAndFolders();
                     });
                 });
             }
 
-            setupReleaseFilterDropdown('releaseFilterBtn', '.toolbar .release-filter-dropdown-content');
-            setupReleaseFilterDropdown('releaseFilterBtnHeader', '.toolbar-filter-buttons .release-filter-dropdown-content');
-
-
-            // --- Sort Order Filter ---
-            function setupSortOrderDropdown(buttonId, dropdownContentSelector) {
-                const button = document.getElementById(buttonId);
-                const dropdownContent = document.querySelector(dropdownContentSelector);
-                const dropdownContainer = button.closest('.dropdown-container');
-
-                if (!button || !dropdownContent || !dropdownContainer) return;
-
-                button.addEventListener('click', (event) => {
-                    event.stopPropagation();
-                    dropdownContainer.classList.toggle('show');
-                });
-
-                dropdownContent.querySelectorAll('a').forEach(link => {
-                    link.addEventListener('click', (event) => {
-                        event.preventDefault();
-                        dropdownContainer.classList.remove('show');
-                        currentSortOrder = event.target.dataset.sort;
-                        currentReleaseFilter = 'all'; // Ensure 'all' is set if sorting alphabetically
-                        updateFileListAndFolders();
-                    });
-                });
-            }
-
-            setupSortOrderDropdown('sortOrderBtn', '.toolbar .sort-order-dropdown-content');
-            setupSortOrderDropdown('sortOrderBtnHeader', '.toolbar-filter-buttons .sort-order-dropdown-content');
+            setupSizeFilterDropdown('sizeFilterBtn', '.toolbar .size-filter-dropdown-content');
+            setupSizeFilterDropdown('sizeFilterBtnHeader', '.toolbar-filter-buttons .size-filter-dropdown-content');
 
 
             // --- Rename File/Folder ---
@@ -3481,11 +3704,8 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 if (currentSearchQuery) {
                     params.set('search', currentSearchQuery);
                 }
-                if (currentReleaseFilter && currentReleaseFilter !== 'all') {
-                    params.set('release', currentReleaseFilter);
-                }
-                if (currentSortOrder && currentSortOrder !== 'asc') { // 'asc' is default, no need to send
-                    params.set('sort', currentSortOrder);
+                if (currentSizeFilter && currentSizeFilter !== 'none') { // Changed from releaseFilter
+                    params.set('size', currentSizeFilter); // Changed from release
                 }
                 if (currentFileTypeFilter && currentFileTypeFilter !== 'all') {
                     params.set('file_type', currentFileTypeFilter);

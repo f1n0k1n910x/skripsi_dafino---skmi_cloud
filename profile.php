@@ -144,7 +144,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_profile_data') {
     exit();
 }
 
-// Handle form submissions (Password Change, Profile Edit, Delete Account, Add/Delete Email)
+// Handle form submissions (Password Change, Profile Edit, Add/Delete Email)
 $notification_message = '';
 $notification_type = '';
 
@@ -281,7 +281,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_profile_submit']
                         // Save the merged image
                         if (imagepng($merged_img, $target_file)) {
                             // Delete old profile picture if it's not the default one
-                            if ($profile_picture && $profile_picture !== 'img/default_avatar.png' && $profile_picture !== 'img/photo_profile.png' && file_exists($profile_picture)) {
+                            if ($profile_picture && $profile_picture !== 'img/photo_profile.png' && $profile_picture !== 'img/photo_profile.png' && file_exists($profile_picture)) {
                                 unlink($profile_picture);
                             }
                             $profile_picture = $target_file;
@@ -298,7 +298,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_profile_submit']
                     $response['message'] = 'Background image not found. Uploading original PNG.';
                     // Fallback to just uploading the original PNG if background not found
                     if (move_uploaded_file($temp_file_path, $target_file)) {
-                        if ($profile_picture && $profile_picture !== 'img/default_avatar.png' && $profile_picture !== 'img/photo_profile.png' && file_exists($profile_picture)) {
+                        if ($profile_picture && $profile_picture !== 'img/photo_profile.png' && $profile_picture !== 'img/photo_profile.png' && file_exists($profile_picture)) {
                             unlink($profile_picture);
                         }
                         $profile_picture = $target_file;
@@ -350,7 +350,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_profile_pictur
     $profile_picture = $current_user_data['profile_picture'];
 
     // Check if there's a picture to delete and it's not the default blank/avatar
-    if ($profile_picture && $profile_picture !== 'img/default_avatar.png' && $profile_picture !== 'img/photo_profile.png' && file_exists($profile_picture)) {
+    if ($profile_picture && $profile_picture !== 'img/photo_profile.png' && $profile_picture !== 'img/photo_profile.png' && file_exists($profile_picture)) {
         if (unlink($profile_picture)) {
             // Update database to set profile_picture to default blank image
             $new_profile_picture_path = 'img/photo_profile.png';
@@ -374,95 +374,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_profile_pictur
     exit();
 }
 
-
-// Handle Delete Account
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_account'])) {
-    // Start a transaction for atomic deletion
-    $conn->begin_transaction();
-    try {
-        // 1. Delete user's activities first to avoid foreign key constraint
-        $stmt_delete_activities = $conn->prepare("DELETE FROM activities WHERE user_id = ?");
-        $stmt_delete_activities->bind_param("i", $user_id);
-        $stmt_delete_activities->execute();
-        $stmt_delete_activities->close();
-
-        // 2. Delete user's files from storage and database
-        $stmt_files = $conn->prepare("SELECT file_path FROM files WHERE user_id = ?");
-        $stmt_files->bind_param("i", $user_id);
-        $stmt_files->execute();
-        $result_files = $stmt_files->get_result();
-        while ($file_row = $result_files->fetch_assoc()) {
-            if (file_exists($file_row['file_path'])) {
-                unlink($file_row['file_path']);
-            }
-        }
-        $stmt_files->close();
-
-        $stmt_delete_files = $conn->prepare("DELETE FROM files WHERE user_id = ?");
-        $stmt_delete_files->bind_param("i", $user_id);
-        $stmt_delete_files->execute();
-        $stmt_delete_files->close();
-
-        // 3. Delete user's folders from database
-        $stmt_delete_folders = $conn->prepare("DELETE FROM folders WHERE user_id = ?");
-        $stmt_delete_folders->bind_param("i", $user_id);
-        $stmt_delete_folders->execute();
-        $stmt_delete_folders->close();
-
-        // 4. Delete profile picture if it's not the default one
-        $stmt_user_pic = $conn->prepare("SELECT profile_picture FROM users WHERE id = ?");
-        $stmt_user_pic->bind_param("i", $user_id);
-        $stmt_user_pic->execute();
-        $current_profile_pic = $stmt_user_pic->get_result()->fetch_assoc()['profile_picture'];
-        $stmt_user_pic->close();
-
-        if ($current_profile_pic && $current_profile_pic !== 'img/default_avatar.png' && $current_profile_pic !== 'img/photo_profile.png' && file_exists($current_profile_pic)) {
-            unlink($current_profile_pic);
-        }
-
-        // 5. Delete additional emails associated with the user
-        $stmt_delete_user_emails = $conn->prepare("DELETE FROM user_emails WHERE user_id = ?");
-        $stmt_delete_user_emails->bind_param("i", $user_id);
-        $stmt_delete_user_emails->execute();
-        $stmt_delete_user_emails->close();
-
-        // 6. Delete login history
-        $stmt_delete_login_history = $conn->prepare("DELETE FROM login_history WHERE user_id = ?");
-        $stmt_delete_login_history->bind_param("i", $user_id);
-        $stmt_delete_login_history->execute();
-        $stmt_delete_login_history->close();
-
-        // 7. Delete shared links (if any)
-        // Note: You might need to implement this if you have shared files functionality
-
-        // 8. Finally, delete user record
-        $stmt_delete_user = $conn->prepare("DELETE FROM users WHERE id = ?");
-        $stmt_delete_user->bind_param("i", $user_id);
-        $stmt_delete_user->execute();
-        $stmt_delete_user->close();
-
-        $conn->commit();
-        
-        // Destroy session and redirect
-        session_destroy();
-        
-        // Return success response
-        echo json_encode([
-            'success' => true, 
-            'message' => 'Account deleted successfully.', 
-            'redirect' => 'login.php'
-        ]);
-        exit();
-
-    } catch (Exception $e) {
-        $conn->rollback();
-        echo json_encode([
-            'success' => false, 
-            'message' => 'Failed to delete account: ' . $e->getMessage()
-        ]);
-        exit();
-    }
-}
 
 // --- NEW LOGIC FOR MANAGING ADDITIONAL EMAILS ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_email'])) {
@@ -994,9 +905,7 @@ $current_account_status = $initial_data['current_account_status'];
         .profile-actions-buttons .profile-button:nth-child(3) {
             background-color: #9C27B0; /* Purple for Logout */
         }
-        .profile-actions-buttons .profile-button:nth-child(4) {
-            background-color: #F44336; /* Red for Delete Account */
-        }
+        /* Removed .profile-button:nth-child(4) for Delete Account */
 
         /* Hover effects */
         .profile-actions-buttons .profile-button:hover {
@@ -1120,6 +1029,46 @@ $current_account_status = $initial_data['current_account_status'];
             font-weight: 600; /* Consistent font-weight */
             color: var(--metro-text-color); /* Consistent color */
         }
+
+        /* Activity Details Sticky and Full Background */
+        #activityList {
+            position: sticky;
+            bottom: 0; /* Stick to the bottom of its parent container */
+            width: 100%;
+            background-color: white; /* Full background */
+            border-top: 1px solid var(--metro-light-gray);
+            padding-top: 15px;
+            padding-bottom: 15px; /* Add padding to the bottom */
+            z-index: 10; /* Ensure it stays above other content when scrolling */
+            /*box-shadow: 0 -2px 5px rgba(0,0,0,0.05); */
+            /* Subtle shadow to indicate stickiness */
+            margin-top: 20px; /* Keep original margin-top */
+            border-radius: 0 0 8px 8px; /* Rounded bottom corners if card has them */
+            box-sizing: border-box; /* Include padding in width/height */
+        }
+
+        #activityList h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            padding-left: 10px; /* Align with list items */
+            color: var(--metro-text-color);
+        }
+
+        #activityList ul {
+            list-style: none;
+            padding: 0 10px; /* Add horizontal padding to list items */
+            margin: 0;
+            max-height: 150px; /* Keep max height for scrollbar */
+            overflow-y: auto; /* Enable vertical scrollbar */
+        }
+
+        #activityList ul li {
+            margin-bottom: 8px;
+            padding: 5px;
+            background-color: var(--metro-bg-color);
+            border-radius: 5px;
+        }
+
 
         /* Add Email Card */
         .add-email-card .card-header {
@@ -1948,6 +1897,7 @@ $current_account_status = $initial_data['current_account_status'];
         <ul class="sidebar-menu">
             <li><a href="index.php"><i class="fas fa-folder"></i> My Drive</a></li>
             <li><a href="priority_files.php"><i class="fas fa-star"></i> Priority File</a></li> <!-- NEW: Priority File Link -->
+            <li><a href="recycle_bin.php"><i class="fas fa-trash"></i> Recycle Bin</a></li> <!-- NEW: Recycle Bin Link -->
             <li><a href="summary.php"><i class="fas fa-chart-line"></i> Summary</a></li>
             <li><a href="members.php"><i class="fas fa-users"></i> Members</a></li>
             <li><a href="profile.php" class="active"><i class="fas fa-user"></i> Profile</a></li>
@@ -2045,9 +1995,7 @@ $current_account_status = $initial_data['current_account_status'];
                     <a href="logout.php" class="profile-button">
                         <i class="fas fa-sign-out-alt"></i> Logout
                     </a>
-                    <button type="button" id="deleteAccountBtn" class="profile-button delete-button">
-                        <i class="fas fa-trash-alt"></i> Delete Account
-                    </button>
+                    <!-- Removed Delete Account Button -->
                 </div>
             </div>
 
@@ -2073,12 +2021,12 @@ $current_account_status = $initial_data['current_account_status'];
                         <canvas id="activityLineChart"></canvas>
                     </div>
                     <!-- Detailed activity list -->
-                    <div id="activityList" style="max-height: 200px; overflow-y: auto; margin-top: 20px; border-top: 1px solid var(--metro-light-gray); padding-top: 15px;">
+                    <div id="activityList">
                         <h3>Activity Details:</h3>
-                        <ul id="activityListUl" style="list-style: none; padding: 0;">
+                        <ul id="activityListUl">
                             <?php if (!empty($activity_logs)): ?>
                                 <?php foreach ($activity_logs as $log): ?>
-                                    <li style="margin-bottom: 8px; padding: 5px; background-color: var(--metro-bg-color); border-radius: 5px;">
+                                    <li>
                                         <strong><?php echo htmlspecialchars($log['activity_type']); ?>:</strong>
                                         <?php echo htmlspecialchars($log['description']); ?>
                                         <span style="float: right; color: var(--metro-dark-gray); font-size: 0.9em;"><?php echo date('d M Y H:i', strtotime($log['timestamp'])); ?></span>
@@ -2353,10 +2301,6 @@ $current_account_status = $initial_data['current_account_status'];
             if (data.activity_logs.length > 0) {
                 data.activity_logs.forEach(log => {
                     const li = document.createElement('li');
-                    li.style.marginBottom = '8px';
-                    li.style.padding = '5px';
-                    li.style.backgroundColor = 'var(--metro-bg-color)';
-                    li.style.borderRadius = '5px';
                     li.innerHTML = `
                         <strong>${log.activity_type}:</strong>
                         ${log.description}
@@ -2528,7 +2472,7 @@ $current_account_status = $initial_data['current_account_status'];
             const closeButtons = document.querySelectorAll('.close-button');
             const profilePictureContainer = document.querySelector('.profile-picture-container');
             const profilePictureInput = document.getElementById('profilePictureInput');
-            const deleteAccountBtn = document.getElementById('deleteAccountBtn');
+            // const deleteAccountBtn = document.getElementById('deleteAccountBtn'); // Removed
             const addEmailForm = document.getElementById('addEmailForm');
             const additionalEmailsList = document.getElementById('additionalEmailsList');
             const deleteProfilePictureBtn = document.getElementById('deleteProfilePictureBtn');
@@ -2685,31 +2629,8 @@ $current_account_status = $initial_data['current_account_status'];
                 }
             });
 
-            // Handle Delete Account
-            deleteAccountBtn.addEventListener('click', async () => {
-                if (confirm('Are you sure you want to delete your account? This action cannot be undone and all your files will be permanently deleted!')) {
-                    const formData = new FormData();
-                    formData.append('delete_account', '1');
-                    try {
-                        const response = await fetch('profile.php', {
-                            method: 'POST',
-                            body: formData
-                        });
-                        const result = await response.json();
-                        if (result.success) {
-                            showNotification(result.message, 'success');
-                            setTimeout(() => {
-                                window.location.href = result.redirect; // Redirect to login page
-                            }, 1000);
-                        } else {
-                            showNotification(result.message, 'error');
-                        }
-                    } catch (error) {
-                        console.error('Error deleting account:', error);
-                        showNotification('An error occurred while deleting account.', 'error');
-                    }
-                }
-            });
+            // Removed Delete Account button event listener and PHP handling
+            // deleteAccountBtn.addEventListener('click', async () => { ... });
 
             // Handle Add Email Form Submission via AJAX
             addEmailForm.addEventListener('submit', async function(e) {
@@ -2803,10 +2724,6 @@ $current_account_status = $initial_data['current_account_status'];
                     filteredLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); // Sort newest to oldest
                     filteredLogs.forEach(log => {
                         const li = document.createElement('li');
-                        li.style.marginBottom = '8px';
-                        li.style.padding = '5px';
-                        li.style.backgroundColor = 'var(--metro-bg-color)';
-                        li.style.borderRadius = '5px';
                         li.innerHTML = `
                             <strong>${log.activity_type}:</strong>
                             ${log.description}

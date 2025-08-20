@@ -78,15 +78,17 @@ $stmt->close();
 $fileTypeLabels = array_map('strtoupper', array_keys($fileTypeDistribution));
 $fileTypeData = array_values($fileTypeDistribution);
 
-// 6. Uploads per Month (last 12 months)
+// 6. Uploads per Month (Januari - Desember for current year)
 $uploadsPerMonth = [];
-// Initialize all 12 months with 0
-for ($i = 0; $i < 12; $i++) {
-    $month = date('Y-m', strtotime("-$i months"));
-    $uploadsPerMonth[$month] = 0;
+$currentYear = date('Y');
+// Initialize all 12 months with 0 for the current year
+for ($m = 1; $m <= 12; $m++) {
+    $monthKey = $currentYear . '-' . str_pad($m, 2, '0', STR_PAD_LEFT);
+    $uploadsPerMonth[$monthKey] = 0;
 }
 
-$stmt = $conn->prepare("SELECT DATE_FORMAT(uploaded_at, '%Y-%m') as month, COUNT(id) as count FROM files WHERE uploaded_at >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH) GROUP BY month ORDER BY month ASC");
+$stmt = $conn->prepare("SELECT DATE_FORMAT(uploaded_at, '%Y-%m') as month, COUNT(id) as count FROM files WHERE YEAR(uploaded_at) = ? GROUP BY month ORDER BY month ASC");
+$stmt->bind_param("i", $currentYear);
 $stmt->execute();
 $result = $stmt->get_result();
 while ($row = $result->fetch_assoc()) {
@@ -94,29 +96,29 @@ while ($row = $result->fetch_assoc()) {
 }
 $stmt->close();
 
-// Ensure data is ordered correctly for the chart (oldest to newest)
-// Fill in missing months with 0 if no uploads occurred
-$allMonths = [];
-for ($i = 11; $i >= 0; $i--) {
-    $monthKey = date('Y-m', strtotime("-$i months"));
-    $allMonths[$monthKey] = $uploadsPerMonth[$monthKey] ?? 0;
+// Ensure data is ordered correctly for the chart (Januari to Desember)
+$allMonthsUploads = [];
+for ($m = 1; $m <= 12; $m++) {
+    $monthKey = $currentYear . '-' . str_pad($m, 2, '0', STR_PAD_LEFT);
+    $allMonthsUploads[$monthKey] = $uploadsPerMonth[$monthKey] ?? 0;
 }
 $monthLabels = array_map(function($date) {
-    return date('M Y', strtotime($date . '-01')); // Format to "Jan 2023"
-}, array_keys($allMonths));
-$monthData = array_values($allMonths);
+    return date('M', strtotime($date . '-01')); // Format to "Jan"
+}, array_keys($allMonthsUploads));
+$monthData = array_values($allMonthsUploads);
 
 
-// 7. Storage Usage Per Month
+// 7. Storage Usage Per Month (Januari - Desember for current year)
 $storageUsagePerMonth = [];
-// Initialize all 12 months with 0 bytes
-for ($i = 0; $i < 12; $i++) {
-    $month = date('Y-m', strtotime("-$i months"));
+// Initialize all 12 months with 0 bytes for the current year
+for ($m = 1; $m <= 12; $m++) {
+    $month = $currentYear . '-' . str_pad($m, 2, '0', STR_PAD_LEFT);
     $storageUsagePerMonth[$month] = 0;
 }
 
-// Query to get total file size uploaded per month
-$stmt = $conn->prepare("SELECT DATE_FORMAT(uploaded_at, '%Y-%m') as month, SUM(file_size) as total_size FROM files WHERE uploaded_at >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH) GROUP BY month ORDER BY month ASC");
+// Query to get total file size uploaded per month for the current year
+$stmt = $conn->prepare("SELECT DATE_FORMAT(uploaded_at, '%Y-%m') as month, SUM(file_size) as total_size FROM files WHERE YEAR(uploaded_at) = ? GROUP BY month ORDER BY month ASC");
+$stmt->bind_param("i", $currentYear);
 $stmt->execute();
 $result = $stmt->get_result();
 while ($row = $result->fetch_assoc()) {
@@ -124,15 +126,14 @@ while ($row = $result->fetch_assoc()) {
 }
 $stmt->close();
 
-// Ensure data is ordered correctly for the chart (oldest to newest)
-// Fill in missing months with 0 if no storage usage occurred
+// Ensure data is ordered correctly for the chart (Januari to Desember)
 $allStorageMonths = [];
-for ($i = 11; $i >= 0; $i--) {
-    $monthKey = date('Y-m', strtotime("-$i months"));
+for ($m = 1; $m <= 12; $m++) {
+    $monthKey = $currentYear . '-' . str_pad($m, 2, '0', STR_PAD_LEFT);
     $allStorageMonths[$monthKey] = $storageUsagePerMonth[$monthKey] ?? 0;
 }
 $storageMonthLabels = array_map(function($date) {
-    return date('M Y', strtotime($date . '-01')); // Format to "Jan 2023"
+    return date('M', strtotime($date . '-01')); // Format to "Jan"
 }, array_keys($allStorageMonths));
 $storageMonthData = array_values($allStorageMonths);
 
@@ -869,6 +870,7 @@ if ($isAjax) {
         <ul class="sidebar-menu">
             <li><a href="index.php"><i class="fas fa-folder"></i> My Drive</a></li>
             <li><a href="priority_files.php"><i class="fas fa-star"></i> Priority File</a></li> <!-- NEW: Priority File Link -->
+            <li><a href="recycle_bin.php"><i class="fas fa-trash"></i> Recycle Bin</a></li> <!-- NEW: Recycle Bin Link -->
             <li><a href="summary.php" class="active"><i class="fas fa-chart-line"></i> Summary</a></li>
             <li><a href="members.php"><i class="fas fa-users"></i> Members</a></li>
             <li><a href="profile.php"><i class="fas fa-user"></i> Profile</a></li>

@@ -352,6 +352,21 @@ if (!function_exists('getFolderPath')) {
 }
 
 /**
+ * Fungsi untuk menghapus file fisik dari disk.
+ *
+ * @param string $filePath Path absolut atau relatif ke file yang akan dihapus.
+ * @return bool True jika berhasil dihapus atau file tidak ada, false jika gagal.
+ */
+if (!function_exists('deleteFileFromDisk')) {
+    function deleteFileFromDisk($filePath) {
+        if (file_exists($filePath)) {
+            return unlink($filePath);
+        }
+        return true; // File sudah tidak ada, anggap sudah terhapus
+    }
+}
+
+/**
  * Fungsi rekursif untuk menghapus folder fisik beserta isinya.
  *
  * @param string $dir Path direktori yang akan dihapus.
@@ -365,8 +380,14 @@ if (!function_exists('deleteFolderRecursive')) {
         $files = array_diff(scandir($dir), array('.', '..'));
         foreach ($files as $file) {
             $itemPath = "$dir/$file";
-            (is_dir($itemPath)) ? deleteFolderRecursive($itemPath) : unlink($itemPath);
+            // Pastikan itemPath adalah path yang valid sebelum mencoba menghapus
+            if (is_file($itemPath)) {
+                unlink($itemPath);
+            } elseif (is_dir($itemPath)) {
+                deleteFolderRecursive($itemPath);
+            }
         }
+        // Coba hapus direktori setelah isinya kosong
         return rmdir($dir);
     }
 }
@@ -378,10 +399,14 @@ if (!function_exists('deleteFolderRecursive')) {
  * @param mysqli $conn Koneksi database.
  * @param int $folderId ID folder yang isinya akan dihapus dari DB.
  */
+// Fungsi rekursif untuk menghapus file dan subfolder dari database
+// yang berada di dalam folder tertentu (digunakan untuk penghapusan permanen)
 if (!function_exists('deleteFolderContentsFromDB')) {
-    function deleteFolderContentsFromDB($conn, $folderId) {
+    function deleteFolderContentsFromDB($conn, $folderId, $isDeletedTable = false) {
+        $tablePrefix = $isDeletedTable ? 'deleted_' : '';
+
         // Hapus file di dalam folder ini
-        $stmt_files = $conn->prepare("DELETE FROM files WHERE folder_id = ?");
+        $stmt_files = $conn->prepare("DELETE FROM {$tablePrefix}files WHERE folder_id = ?");
         if ($stmt_files) {
             $stmt_files->bind_param("i", $folderId);
             $stmt_files->execute();
@@ -390,20 +415,200 @@ if (!function_exists('deleteFolderContentsFromDB')) {
             error_log("Error preparing delete files statement in deleteFolderContentsFromDB: " . $conn->error);
         }
 
-
         // Dapatkan subfolder
-        $stmt_subfolders = $conn->prepare("SELECT id FROM folders WHERE parent_id = ?");
+        $stmt_subfolders = $conn->prepare("SELECT id FROM {$tablePrefix}folders WHERE parent_id = ?");
         if ($stmt_subfolders) {
             $stmt_subfolders->bind_param("i", $folderId);
             $stmt_subfolders->execute();
             $result_subfolders = $stmt_subfolders->get_result();
             while ($row = $result_subfolders->fetch_assoc()) {
-                deleteFolderContentsFromDB($conn, $row['id']); // Rekursif
+                deleteFolderContentsFromDB($conn, $row['id'], $isDeletedTable); // Rekursif
             }
             $stmt_subfolders->close();
         } else {
             error_log("Error preparing select subfolders statement in deleteFolderContentsFromDB: " . $conn->error);
         }
+    }
+}
+
+/**
+ * Fungsi baru: Menghapus folder secara fisik dan memindahkan file-filenya ke Recycle Bin.
+ * Ini akan menghapus entri folder dari DB dan fisik, tetapi memindahkan file ke deleted_files.
+ *
+ * @param mysqli $conn Koneksi database.
+ * @param int $userId ID pengguna yang melakukan operasi.
+ * @param int $folderId ID folder yang akan dihapus.
+ * @param string $baseUploadDir Direktori dasar tempat file diunggah (misalnya, 'uploads/').
+ * @return array Hasil operasi (filesMoved: array of file names, foldersDeleted: array of folder names).
+ */
+if (!function_exists('deleteFolderAndMoveFilesToTrash')) {
+    function deleteFolderAndMoveFilesToTrash($conn, $userId, $folderId, $baseUploadDir) {
+        $filesMoved = [];
+        $foldersDeleted = [];
+
+        // 1. Ambil semua file di dalam folder ini dan subfolder-nya
+        // Gunakan RecursiveIteratorIterator untuk mendapatkan semua file di dalam folder fisik
+        $folderPathPhysical = $baseUploadDir . getFolderPath($conn, $folderId);
+
+        if (is_dir($folderPathPhysical)) {
+            $iterator = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($folderPathPhysical, RecursiveDirectoryIterator::SKIP_DOTS),
+                RecursiveIteratorIterator::SELF_FIRST
+            );
+
+            foreach ($iterator as $item) {
+                if ($item->isFile()) {
+                    $filePathRelative = str_replace($baseUploadDir, '', $item->getPathname());
+                    
+                    // Cari file di DB berdasarkan file_path
+                    $stmt_find_file_db = $conn->prepare("SELECT id, file_name, file_size, file_type, folder_id FROM files WHERE file_path = ?");
+                    $stmt_find_file_db->bind_param("s", $filePathRelative);
+                    $stmt_find_file_db->execute();
+                    $result_find_file_db = $stmt_find_file_db->get_result();
+                    $file = $result_find_file_db->fetch_assoc();
+                    $stmt_find_file_db->close();
+
+                    if ($file) {
+                        $fileName = $file['file_name'];
+                        $fileSize = $file['file_size'];
+                        $fileType = $file['file_type'];
+                        $originalFolderId = $file['folder_id'];
+                        $originalFolderPath = getFolderPath($conn, $originalFolderId);
+
+                        // Pindahkan ke deleted_files table
+                        $stmt_insert_deleted = $conn->prepare("INSERT INTO deleted_files (user_id, file_name, file_path, file_size, file_type, folder_id, original_folder_path, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())");
+                        $stmt_insert_deleted->bind_param("issisis", $userId, $fileName, $filePathRelative, $fileSize, $fileType, $originalFolderId, $originalFolderPath);
+                        
+                        if ($stmt_insert_deleted->execute()) {
+                            // Hapus dari tabel files asli
+                            $stmt_delete_original_file = $conn->prepare("DELETE FROM files WHERE id = ?");
+                            $stmt_delete_original_file->bind_param("i", $file['id']);
+                            if ($stmt_delete_original_file->execute()) {
+                                $filesMoved[] = $fileName;
+                                // File fisik akan dihapus bersama folder induknya nanti
+                            } else {
+                                error_log("Failed to delete file from original files table: " . $stmt_delete_original_file->error);
+                            }
+                            $stmt_delete_original_file->close();
+                        } else {
+                            error_log("Failed to move file to deleted_files table: " . $stmt_insert_deleted->error);
+                        }
+                        $stmt_insert_deleted->close();
+                    }
+                }
+            }
+        }
+
+        // 2. Hapus entri folder dari database secara rekursif
+        // Ini akan menghapus folder utama dan semua subfolder dari tabel 'folders'
+        // dan juga file-file yang mungkin belum terdeteksi oleh iterasi fisik di atas
+        // (misal: file yang ada di DB tapi tidak ada fisiknya, atau sebaliknya)
+        // Kita akan menggunakan pendekatan yang lebih aman: hapus dari DB, lalu hapus fisik.
+
+        // Dapatkan semua subfolder dari folder yang akan dihapus (termasuk dirinya sendiri)
+        $foldersToDeleteFromDB = [];
+        $queue = [$folderId];
+
+        while (!empty($queue)) {
+            $currentFolderId = array_shift($queue);
+            $foldersToDeleteFromDB[] = $currentFolderId;
+
+            $stmt_sub = $conn->prepare("SELECT id FROM folders WHERE parent_id = ?");
+            $stmt_sub->bind_param("i", $currentFolderId);
+            $stmt_sub->execute();
+            $result_sub = $stmt_sub->get_result();
+            while ($row_sub = $result_sub->fetch_assoc()) {
+                $queue[] = $row_sub['id'];
+            }
+            $stmt_sub->close();
+        }
+
+        // Hapus dari DB dari yang paling dalam ke luar
+        $foldersToDeleteFromDB = array_reverse($foldersToDeleteFromDB);
+
+        foreach ($foldersToDeleteFromDB as $fId) {
+            $stmt_get_folder_name = $conn->prepare("SELECT folder_name FROM folders WHERE id = ?");
+            $stmt_get_folder_name->bind_param("i", $fId);
+            $stmt_get_folder_name->execute();
+            $result_get_folder_name = $stmt_get_folder_name->get_result();
+            $folderNameRow = $result_get_folder_name->fetch_assoc();
+            $stmt_get_folder_name->close();
+
+            if ($folderNameRow) {
+                $foldersDeleted[] = $folderNameRow['folder_name'];
+            }
+
+            $stmt_delete_folder_db = $conn->prepare("DELETE FROM folders WHERE id = ?");
+            $stmt_delete_folder_db->bind_param("i", $fId);
+            if (!$stmt_delete_folder_db->execute()) {
+                error_log("Error deleting folder from DB (ID: {$fId}): " . $conn->error);
+            }
+            $stmt_delete_folder_db->close();
+        }
+
+        // 3. Hapus folder fisik secara rekursif
+        // Ini akan menghapus folder utama dan semua isinya (file yang sudah dipindahkan ke trash secara DB,
+        // dan subfolder yang sudah kosong di DB)
+        if (is_dir($folderPathPhysical)) {
+            deleteFolderRecursive($folderPathPhysical);
+        }
+
+        return ['filesMoved' => $filesMoved, 'foldersDeleted' => $foldersDeleted];
+    }
+}
+
+
+// NEW: Fungsi untuk membersihkan Recycle Bin secara otomatis (setelah 30 hari)
+if (!function_exists('cleanRecycleBinAutomatically')) {
+    function cleanRecycleBinAutomatically($conn) {
+        $thirtyDaysAgo = date('Y-m-d H:i:s', strtotime('-30 days'));
+        $baseUploadDir = 'uploads/'; // Sesuaikan dengan direktori upload Anda
+
+        // Hapus file dari deleted_files yang lebih dari 30 hari
+        $stmt_files = $conn->prepare("SELECT id, file_path FROM deleted_files WHERE deleted_at <= ?");
+        $stmt_files->bind_param("s", $thirtyDaysAgo);
+        $stmt_files->execute();
+        $result_files = $stmt_files->get_result();
+        $filesToDelete = [];
+        while ($row = $result_files->fetch_assoc()) {
+            $filesToDelete[] = $row;
+        }
+        $stmt_files->close();
+
+        foreach ($filesToDelete as $file) {
+            if (file_exists($file['file_path'])) {
+                unlink($file['file_path']); // Hapus file fisik
+            }
+            $stmt_delete_db = $conn->prepare("DELETE FROM deleted_files WHERE id = ?");
+            $stmt_delete_db->bind_param("i", $file['id']);
+            $stmt_delete_db->execute();
+            $stmt_delete_db->close();
+            // Log aktivitas jika diperlukan, tapi ini otomatis jadi mungkin tidak perlu log per item
+        }
+
+        // Hapus folder dari deleted_folders yang lebih dari 30 hari
+        // Ini lebih kompleks karena perlu menghapus sub-itemnya juga.
+        // Untuk kesederhanaan, kita akan menghapus entri folder dan mengandalkan
+        // penghapusan file fisik yang sudah dilakukan di atas.
+        // Jika ada folder kosong yang tersisa di sistem file, itu perlu penanganan terpisah.
+        $stmt_folders = $conn->prepare("SELECT id FROM deleted_folders WHERE deleted_at <= ?");
+        $stmt_folders->bind_param("s", $thirtyDaysAgo);
+        $stmt_folders->execute();
+        $result_folders = $stmt_folders->get_result();
+        $foldersToDelete = [];
+        while ($row = $result_folders->fetch_assoc()) {
+            $foldersToDelete[] = $row['id'];
+        }
+        $stmt_folders->close();
+
+        foreach ($foldersToDelete as $folderId) {
+            // Hapus entri folder dari database
+            $stmt_delete_db = $conn->prepare("DELETE FROM deleted_folders WHERE id = ?");
+            $stmt_delete_db->bind_param("i", $folderId);
+            $stmt_delete_db->execute();
+            $stmt_delete_db->close();
+        }
+        error_log("Recycle Bin cleanup completed. Items older than 30 days removed.");
     }
 }
 

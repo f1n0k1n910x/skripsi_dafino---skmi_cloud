@@ -41,8 +41,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
             // Insert new user into the database and set is_member to 1
-            $stmt_insert = $conn->prepare("INSERT INTO users (full_name, username, email, password, is_member) VALUES (?, ?, ?, ?, 1)");
-            $stmt_insert->bind_param("ssss", $username, $username, $email, $hashed_password); // ✅ Correct
+            $stmt_insert = $conn->prepare("INSERT INTO users (username, email, password, is_member) VALUES (?, ?, ?, 1)");
+            $stmt_insert->bind_param("sss", $username, $email, $hashed_password);
 
             if ($stmt_insert->execute()) {
                 // Ambil ID pengguna yang baru saja didaftarkan
@@ -51,11 +51,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 // Set session untuk login otomatis
                 $_SESSION['user_id'] = $user_id;
                 $_SESSION['username'] = $username;
+                $_SESSION['is_member'] = 1; // Pastikan is_member juga disimpan di session jika diperlukan
 
                 $success = 'Registration successful! You are now logged in.';
                 // Redirect ke index.php setelah registrasi dan login otomatis
                 header('Location: index.php');
-                exit();
+                exit(); // Penting: Pastikan untuk keluar setelah header redirect
             } else {
                 $error = 'Something went wrong. Please try again.';
             }

@@ -18,7 +18,8 @@ function getDashboardData($conn, $currentUserId) {
     $data = [];
 
     // Total Active Users
-    $stmt = $conn->prepare("SELECT COUNT(id) AS total_users FROM users WHERE is_member = 1");
+    // MODIFIKASI: Menghapus WHERE is_member = 1 agar semua user terhitung
+    $stmt = $conn->prepare("SELECT COUNT(id) AS total_users FROM users");
     $stmt->execute();
     $result = $stmt->get_result();
     $data['totalUsers'] = $result->fetch_assoc()['total_users'];
@@ -62,13 +63,14 @@ function getDashboardData($conn, $currentUserId) {
     // Member List (Paginated - Initial Load)
     $members = [];
     $offset = 0;
-    $stmt = $conn->prepare("SELECT id, username, email, full_name, last_active, last_login FROM users WHERE is_member = 1 ORDER BY username ASC LIMIT ? OFFSET ?");
+    // MODIFIKASI: Menghapus WHERE is_member = 1 agar semua user terhitung
+    $stmt = $conn->prepare("SELECT id, username, email, full_name, last_active, last_login FROM users ORDER BY username ASC LIMIT ? OFFSET ?");
     $stmt->bind_param("ii", $membersPerPage, $offset);
     $stmt->execute();
     $result = $stmt->get_result();
 
     while ($row = $result->fetch_assoc()) {
-        // Online status check
+        // Online status check (active in last 15 minutes)
         $isOnline = (strtotime($row['last_active']) > strtotime('-15 minutes'));
 
         $members[] = [
@@ -181,22 +183,20 @@ function getDashboardData($conn, $currentUserId) {
 
     return $data;
 }
-$stmt->close();
-$usedStorageGB = $usedStorageBytes / (1024 * 1024 * 1024);
-$usedPercentage = ($totalStorageGB > 0) ? ($usedStorageGB / $totalStorageGB) * 100 : 0;
-if ($usedPercentage > 100) $usedPercentage = 100;
 
 // Function to get paginated members data
 function getPaginatedMembers($conn, $page, $membersPerPage) {
     $offset = ($page - 1) * $membersPerPage;
     $members = [];
 
+    // MODIFIKASI: Menghapus WHERE is_member = 1 agar semua user terhitung
     $stmt = $conn->prepare("SELECT id, username, email, full_name, last_active, last_login FROM users ORDER BY username ASC LIMIT ? OFFSET ?");
     $stmt->bind_param("ii", $membersPerPage, $offset);
     $stmt->execute();
     $result = $stmt->get_result();
 
     while ($row = $result->fetch_assoc()) {
+        // Online status check (active in last 15 minutes)
         $isOnline = (strtotime($row['last_active']) > strtotime('-15 minutes'));
 
         $members[] = [
@@ -220,13 +220,13 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_dashboard_data') {
     $conn->close();
     exit();
 }
-$stmt->close();
 
 // Handle AJAX request for paginated members
 if (isset($_GET['action']) && $_GET['action'] === 'get_members') {
     header('Content-Type: application/json');
     $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
     $totalMembersCount = 0;
+    // MODIFIKASI: Menghapus WHERE is_member = 1 agar semua user terhitung
     $stmt = $conn->prepare("SELECT COUNT(id) AS total_members FROM users");
     $stmt->execute();
     $result = $stmt->get_result();
@@ -346,89 +346,25 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_member_details_paginated'
 // Initial data load for the first page render
 $dashboardData = getDashboardData($conn, $currentUserId);
 
-// --- Fetch Top Members by Public Files (for Bar Chart) ---
-$topMembersPublicFiles = [];
-$stmt = $conn->prepare("
-    SELECT u.username, COUNT(f.id) AS public_files_count
-    FROM users u
-    JOIN files f ON u.id = f.user_id
-    WHERE f.folder_id IS NULL
-    GROUP BY u.username
-    ORDER BY public_files_count DESC
-    LIMIT 5
-");
-$stmt->execute();
-$result = $stmt->get_result();
-while ($row = $result->fetch_assoc()) {
-    $topMembersPublicFiles[] = $row;
-}
-$stmt->close();
-
-// --- Fetch Daily Activity (for Line Chart) ---
-$dailyActivities = [];
-for ($i = 6; $i >= 0; $i--) {
-    $date = date('Y-m-d', strtotime("-$i days"));
-    $dailyActivities[$date] = 0;
-}
-$stmt = $conn->prepare("SELECT DATE(timestamp) as activity_date, COUNT(id) as count FROM activities WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 7 DAY) GROUP BY activity_date ORDER BY activity_date ASC");
-$stmt->execute();
-$result = $stmt->get_result();
-while ($row = $result->fetch_assoc()) {
-    $dailyActivities[$row['activity_date']] = $row['count'];
-}
-$stmt->close();
-
-// --- Fetch Recent Activities ---
-$recentActivities = [];
-$stmt = $conn->prepare("
-    SELECT a.activity_type, a.description, u.username, a.timestamp
-    FROM activities a
-    JOIN users u ON a.user_id = u.id
-    ORDER BY a.timestamp DESC
-    LIMIT 10
-");
-$stmt->execute();
-$result = $stmt->get_result();
-while ($row = $result->fetch_assoc()) {
-    $recentActivities[] = $row;
-}
-$stmt->close();
-
-// --- Fetch Current User's Mini Profile ---
-$currentUserProfile = [];
-$stmt = $conn->prepare("SELECT username FROM users WHERE id = ?");
-$stmt->bind_param("i", $currentUserId);
-$stmt->execute();
-$result = $stmt->get_result();
-$currentUserProfile['username'] = $result->fetch_assoc()['username'];
-$stmt->close();
-
-$stmt = $conn->prepare("SELECT COUNT(id) AS total_files FROM files WHERE user_id = ?");
-$stmt->bind_param("i", $currentUserId);
-$stmt->execute();
-$result = $stmt->get_result();
-$data = $result->fetch_assoc();
-$currentUserProfile['total_files'] = $data['total_files'];
-// MODIFIKASI: Samakan 'storage_used' dengan 'usedStorageBytes' global
-$currentUserProfile['storage_used'] = formatBytes($usedStorageBytes);
-$stmt->close();
-
-$stmt = $conn->prepare("SELECT COUNT(id) AS public_files FROM files WHERE user_id = ? AND folder_id IS NULL");
-$stmt->bind_param("i", $currentUserId);
-$stmt->execute();
-$result = $stmt->get_result();
-$currentUserProfile['public_files'] = $result->fetch_assoc()['public_files'];
-$stmt->close();
-
-$stmt = $conn->prepare("SELECT COUNT(id) AS weekly_activities FROM activities WHERE user_id = ? AND timestamp >= DATE_SUB(NOW(), INTERVAL 7 DAY)");
-$stmt->bind_param("i", $currentUserId);
-$stmt->execute();
-$result = $stmt->get_result();
-$currentUserProfile['weekly_activities'] = $result->fetch_assoc()['weekly_activities'];
-$stmt->close();
+// Extract data for HTML rendering
+$totalUsers = $dashboardData['totalUsers'];
+$totalPublicFiles = $dashboardData['totalPublicFiles'];
+$usedStorageBytes = $dashboardData['usedStorageBytes'];
+$totalStorageGB = $dashboardData['totalStorageGB'];
+$totalStorageBytes = $dashboardData['totalStorageBytes']; // Get totalStorageBytes
+$usedPercentage = $dashboardData['usedPercentage'];
+$isStorageFull = $dashboardData['isStorageFull']; // Get isStorageFull
+$weeklyActivities = $dashboardData['weeklyActivities'];
+$members = $dashboardData['members'];
+$activityDistribution = $dashboardData['activityDistribution'];
+$topMembersPublicFiles = $dashboardData['topMembersPublicFiles'];
+$dailyActivities = $dashboardData['dailyActivities'];
+$recentActivities = $dashboardData['recentActivities'];
+$currentUserProfile = $dashboardData['currentUserProfile'];
 
 // Get total member count for pagination
 $totalMembersCount = 0;
+// MODIFIKASI: Menghapus WHERE is_member = 1 agar semua user terhitung
 $stmt = $conn->prepare("SELECT COUNT(id) AS total_members FROM users");
 $stmt->execute();
 $result = $stmt->get_result();
@@ -442,7 +378,8 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Dafino Cloud Storage - Members Dashboard</title>
+    <title>SKMI Cloud Storage - Members Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -469,6 +406,10 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             /* --- AKHIR LOKASI EDIT UKURAN FONT SIDEBAR --- */
         }
 
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
@@ -479,7 +420,7 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             overflow: hidden; /* Prevent body scroll, main-content handles it */
         }
 
-        /* Sidebar */
+        /* Base Sidebar (for Desktop/Tablet Landscape) */
         .sidebar {
             width: 250px; /* Wider sidebar for Metro feel */
             background-color: var(--metro-sidebar-bg);
@@ -487,8 +428,8 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             display: flex;
             flex-direction: column;
             padding: 20px 0;
-            box-shadow: 3px 0 8px rgba(0,0,0,0.2); /* More pronounced shadow */
-            transition: width 0.3s ease-in-out;
+            transition: width 0.3s ease-in-out, transform 0.3s ease-in-out;
+            flex-shrink: 0; /* Prevent shrinking */
         }
 
         .sidebar-header {
@@ -575,6 +516,7 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             height: 8px;
             margin-bottom: 10px;
             overflow: hidden;
+            position: relative; /* Added for text overlay */
         }
 
         .progress-bar {
@@ -582,6 +524,21 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             background-color: var(--metro-success); /* Green for progress */
             border-radius: 5px;
             transition: width 0.5s ease-in-out;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Progress bar text overlay */
+        .progress-bar-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff; /* White text for contrast */
+            font-size: 0.7em; /* Smaller font size */
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5); /* Add shadow for readability */
+            white-space: nowrap; /* Prevent text from wrapping */
         }
 
         .storage-text {
@@ -602,6 +559,7 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             /* box-shadow: 0 5px 15px rgba(0,0,0,0.1); */ /* Removed shadow */
         }
 
+        /* Header Main - Now always white */
         .header-main {
             display: flex;
             justify-content: space-between;
@@ -623,14 +581,15 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             font-weight: 300;
         }
 
-        /* Dashboard Cards */
-        .dashboard-cards {
+        /* Dashboard Specific Styles (from summary.php) */
+        .dashboard-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); /* Adjusted minmax for better fit */
             gap: 20px;
             margin-bottom: 30px;
         }
 
+        /* Card styles (from summary.php) */
         .card {
             background-color: var(--metro-blue);
             color: #FFFFFF;
@@ -671,6 +630,19 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
         .card.orange { background-color: var(--metro-warning); }
         .card.red { background-color: var(--metro-error); }
 
+        /* Adjust .card p for the count and storage text */
+        .card p.count {
+            font-size: 2.2em; /* Match .card p */
+            font-weight: 600;
+            color: #FFFFFF; /* White text for counts on colored cards */
+            margin-top: 5px;
+        }
+        .card p.storage-text-card { /* New class for the "of X used" text */
+            font-size: 0.9em;
+            color: rgba(255,255,255,0.8);
+            margin-top: 5px;
+        }
+
         /* Member Table */
         .section-title {
             font-size: 1.8em;
@@ -688,7 +660,7 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
         .table-container {
             background-color: #FFFFFF;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            /* Removed box-shadow to eliminate shadow */
             overflow-x: auto;
             margin-bottom: 30px;
             animation: fadeIn 0.6s ease-out forwards;
@@ -804,7 +776,7 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             background-color: #FFFFFF;
             padding: 25px;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            /* Removed box-shadow to eliminate shadow */
             animation: fadeIn 0.7s ease-out forwards;
             opacity: 0;
         }
@@ -835,7 +807,7 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             background-color: #FFFFFF;
             padding: 25px;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            /* Removed box-shadow to eliminate shadow */
             animation: fadeIn 1.0s ease-out forwards;
             opacity: 0;
             overflow-y: auto; /* Add scrollbar */
@@ -866,7 +838,6 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
 
         .recent-activities li i {
             margin-right: 10px;
-            color: var(--metro-blue);
             font-size: 1.1em;
             width: 20px;
             text-align: center;
@@ -891,7 +862,7 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             background-color: #FFFFFF;
             padding: 25px;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            /* Removed box-shadow to eliminate shadow */
             animation: fadeIn 1.1s ease-out forwards;
             opacity: 0;
             /* Adjust height to match recent activities if needed, or let content define */
@@ -928,42 +899,9 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             to { opacity: 1; transform: translateX(0); }
         }
 
-        /* Responsive adjustments */
-        @media (max-width: 992px) {
-            .bottom-section {
-                grid-template-columns: 1fr; /* Stack on smaller screens */
-            }
-        }
-
-        @media (max-width: 768px) {
-            .main-content {
-                margin: 10px;
-                padding: 15px;
-            }
-            .dashboard-cards {
-                grid-template-columns: 1fr;
-            }
-            .charts-section {
-                grid-template-columns: 1fr;
-            }
-            .sidebar {
-                width: 200px;
-            }
-            .sidebar-menu a {
-                padding: 10px 15px;
-                font-size: 1em;
-            }
-            .header-main h1 {
-                font-size: 2em;
-            }
-            .section-title {
-                font-size: 1.5em;
-            }
-        }
-
         /* Modal Styles (Pop-up CRUD) */
         .modal {
-            display: none;
+            display: flex; /* Changed to flex for centering */
             position: fixed;
             z-index: 1000;
             left: 0;
@@ -975,12 +913,13 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             justify-content: center;
             align-items: center;
             opacity: 0;
-            transition: opacity 0.3s ease-out;
+            visibility: hidden; /* Hidden by default */
+            transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
         }
 
         .modal.show {
-            display: flex;
             opacity: 1;
+            visibility: visible;
         }
 
         .modal-content {
@@ -1425,16 +1364,25 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             cursor: not-allowed;
             opacity: 0.5;
         }
+
+        /* NEW: Styles for text-overflow: ellipsis in modal */
+        .modal-content #recentFilesList li,
+        .modal-content #recentActivitiesList li {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
     </style>
 </head>
 <body>
-    <div class="sidebar">
+    <div class="sidebar mobile-hidden">
         <div class="sidebar-header">
             <img src="img/logo.png" alt="Dafino Logo">
         </div>
         <ul class="sidebar-menu">
             <li><a href="index.php"><i class="fas fa-folder"></i> My Drive</a></li>
             <li><a href="priority_files.php"><i class="fas fa-star"></i> Priority File</a></li> <!-- NEW: Priority File Link -->
+            <li><a href="recycle_bin.php"><i class="fas fa-trash"></i> Recycle Bin</a></li> <!-- NEW: Recycle Bin Link -->
             <li><a href="summary.php"><i class="fas fa-chart-line"></i> Summary</a></li>
             <li><a href="members.php" class="active"><i class="fas fa-users"></i> Members</a></li>
             <li><a href="profile.php"><i class="fas fa-user"></i> Profile</a></li>
@@ -1443,33 +1391,40 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
         <div class="storage-info">
             <h4>Storage</h4>
             <div class="progress-bar-container">
-                <div class="progress-bar" style="width: <?php echo round($usedPercentage, 2); ?>%;"></div>
+                <div class="progress-bar" style="width: <?php echo round($usedPercentage, 2); ?>%;">
+                    <span class="progress-bar-text"><?php echo round($usedPercentage, 2); ?>%</span>
+                </div>
             </div>
-            <p class="storage-text"><?php echo formatBytes($usedStorageBytes); ?> of <?php echo formatBytes($totalStorageGB * 1024 * 1024 * 1024); ?> used</p>
+            <p class="storage-text" id="storageText"><?php echo formatBytes($usedStorageBytes); ?> of <?php echo formatBytes($totalStorageBytes); ?> used</p>
+            <?php if ($isStorageFull): ?>
+                <p class="storage-text storage-full-message" style="color: var(--metro-error); font-weight: bold;">Storage Full!</p>
+            <?php endif; ?>
         </div>
     </div>
 
     <div class="main-content">
         <div class="header-main">
-            <h1>Members Dashboard</h1>
+            <button class="sidebar-toggle-btn" id="sidebarToggleBtn"><i class="fas fa-bars"></i></button>
+            <h1 class="members-title">Members Dashboard</h1>
         </div>
 
         <div class="dashboard-grid">
             <div class="card" id="totalMembersCard">
                 <h3>Total Members</h3>
-                <p><?php echo $totalUsers; ?> Active Users</p>
+                <p class="count"><?php echo $totalUsers; ?> Active Users</p>
             </div>
-            <div class="card green">
-                <h3>Public Files</h3>
-                <p><?php echo $totalPublicFiles; ?> Available</p>
+            <div class="card green" id="publicFilesCard">
+                <h3>Total Files</h3>
+                <p class="count"><?php echo $totalPublicFiles; ?> Available</p>
             </div>
-            <div class="card orange">
+            <div class="card orange" id="storageUsedCard">
                 <h3>Total Storage Used</h3>
-                <p><?php echo formatBytes($usedStorageBytes); ?> / <?php echo formatBytes($totalStorageGB * 1024 * 1024 * 1024); ?></p>
+                <p class="count"><?php echo formatBytes($usedStorageBytes); ?></p>
+                <p class="storage-text-card">of <?php echo formatBytes($totalStorageBytes); ?></p>
             </div>
-            <div class="card red">
+            <div class="card red" id="weeklyActivitiesCard">
                 <h3>Weekly Activities</h3>
-                <p><?php echo $weeklyActivities; ?> Activities</p>
+                <p class="count"><?php echo $weeklyActivities; ?> Activities</p>
             </div>
         </div>
 
@@ -1488,19 +1443,27 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($members as $index => $member): ?>
+                    <?php if (!empty($members)): ?>
+                        <?php foreach ($members as $index => $member): ?>
+                            <tr data-member-id="<?= $member['id'] ?>">
+                                <td><?= $index + 1 ?></td>
+                                <td><?= htmlspecialchars($member['full_name']) ?></td>
+                                <td><?= htmlspecialchars($member['username']) ?></td>
+                                <td><?= htmlspecialchars($member['email']) ?></td>
+                                <td>
+                                    <?= !empty($member['last_login']) ? date('Y-m-d H:i:s', strtotime($member['last_login'])) : 'Never logged in' ?>
+                                </td>
+                                <td>
+                                    <span class="status-indicator <?= $member['is_online'] ? 'online' : 'offline' ?>"></span>
+                                    <?= $member['is_online'] ? 'Online' : 'Offline' ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php else: ?>
                         <tr>
-                            <td><?= $index + 1 ?></td>
-                            <td><?= htmlspecialchars($member['full_name']) ?></td>
-                            <td><?= htmlspecialchars($member['username']) ?></td>
-                            <td><?= htmlspecialchars($member['email']) ?></td>
-                            <td><?= date('Y-m-d H:i:s', strtotime($member['last_login'])) ?></td>
-                            <td>
-                                <span class="status-indicator <?php echo $member['is_online'] ? 'online' : 'offline'; ?>"></span>
-                                <?php echo $member['is_online'] ? 'Online' : 'Offline'; ?>
-                            </td>
+                            <td colspan="6" class="text-center">No members found</td>
                         </tr>
-                    <?php endforeach; ?>
+                    <?php endif; ?>
                 </tbody>
             </table>
         </div>
@@ -1521,7 +1484,7 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
                 <canvas id="activityDistributionChart"></canvas>
             </div>
             <div class="chart-card">
-                <h4>Top Members by Public Files</h4>
+                <h4>Top Members by Total Files</h4>
                 <canvas id="topMembersPublicFilesChart"></canvas>
             </div>
             <div class="chart-card">
@@ -1564,7 +1527,7 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
                 <h4>My Mini Profile</h4>
                 <p><strong>Name:</strong> <?php echo htmlspecialchars($currentUserProfile['username']); ?></p>
                 <p><strong>Total Files:</strong> <?php echo $currentUserProfile['total_files']; ?></p>
-                <p><strong>Public Files:</strong> <?php echo $currentUserProfile['public_files']; ?></p>
+                <p><strong>Total Files (Public):</strong> <?php echo $currentUserProfile['public_files']; ?></p>
                 <p><strong>Storage Used:</strong> <?php echo $currentUserProfile['storage_used']; ?></p>
                 <p><strong>Weekly Activities:</strong> <?php echo $currentUserProfile['weekly_activities']; ?></p>
             </div>
@@ -1643,6 +1606,13 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             const memberDetailModal = document.getElementById('memberDetailModal');
             if (event.target == memberDetailModal) {
                 closeModal(memberDetailModal);
+            }
+            // Close mobile sidebar if overlay is clicked
+            const sidebar = document.querySelector('.sidebar');
+            const mobileOverlay = document.getElementById('mobileOverlay');
+            if (event.target == mobileOverlay && sidebar.classList.contains('show-mobile-sidebar')) {
+                sidebar.classList.remove('show-mobile-sidebar');
+                mobileOverlay.classList.remove('show');
             }
         });
 
@@ -1851,6 +1821,14 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             return bytes.toFixed(precision) + ' ' + units[unitIndex];
         }
 
+        // Function to update dashboard UI with new data
+        function updateDashboardUI(data) {
+            // Update Summary Statistics Cards
+            document.getElementById('totalMembersCard').querySelector('p.count').textContent = `${data.totalUsers} Active Users`;
+            document.getElementById('publicFilesCard').querySelector('p.count').textContent = `${data.totalPublicFiles} Available`;
+            document.getElementById('storageUsedCard').querySelector('p.count').textContent = `${formatBytes(data.usedStorageBytes)}`;
+            document.getElementById('storageUsedCard').querySelector('p.storage-text-card').textContent = `of ${formatBytes(data.totalStorageBytes)}`;
+            document.getElementById('weeklyActivitiesCard').querySelector('p.count').textContent = `${data.weeklyActivities} Activities`;
 
             // Update Storage Info in Sidebar
             document.querySelector('.progress-bar').style.width = `${data.usedPercentage.toFixed(2)}%`;
@@ -2005,88 +1983,80 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
         function updateCharts(activityDistribution, topMembersPublicFiles, dailyActivities) {
             // Activity Distribution Pie Chart
             const activityCtx = document.getElementById('activityDistributionChart').getContext('2d');
-            const activityData = <?php echo json_encode(array_values($activityDistribution)); ?>;
-            const activityLabels = <?php echo json_encode(array_keys($activityDistribution)); ?>;
+            const activityData = Object.values(activityDistribution);
+            const activityLabels = Object.keys(activityDistribution);
             const activityColors = [
-                '#0078D7', // blue
-                '#4CAF50', // green
-                '#FF8C00', // orange
-                '#E81123', // red
-                '#8E24AA', // purple
-                '#00B294', // teal
-                '#FFB900', // gold
-                '#505050'  // dark gray
+                '#0078D7', '#4CAF50', '#FF8C00', '#E81123', '#8E24AA', '#00B294', '#FFB900', '#505050'
             ];
 
-            new Chart(activityCtx, {
-                type: 'pie',
-                data: {
-                    labels: activityLabels,
-                    datasets: [{
-                        data: activityData,
-                        backgroundColor: activityColors,
-                        hoverOffset: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: 'right',
-                            labels: {
-                                color: 'var(--metro-text-color)',
-                                font: {
-                                    family: 'Segoe UI'
+            if (activityChartInstance) {
+                activityChartInstance.data.labels = activityLabels;
+                activityChartInstance.data.datasets[0].data = activityData;
+                activityChartInstance.data.datasets[0].backgroundColor = activityColors;
+                activityChartInstance.update();
+            } else {
+                activityChartInstance = new Chart(activityCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: activityLabels,
+                        datasets: [{
+                            data: activityData,
+                            backgroundColor: activityColors,
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: {
+                                    color: 'var(--metro-text-color)',
+                                    font: {
+                                        family: 'Segoe UI'
+                                    }
                                 }
+                            },
+                            title: {
+                                display: false,
+                                text: 'Activity Distribution'
                             }
-                        },
-                        title: {
-                            display: false,
-                            text: 'Activity Distribution'
                         }
                     }
-                }
-            });
+                });
+            }
 
             // Top Members by Public Files Bar Chart
             const membersCtx = document.getElementById('topMembersPublicFilesChart').getContext('2d');
-            const membersLabels = <?php echo json_encode(array_column($topMembersPublicFiles, 'username')); ?>;
-            const membersData = <?php echo json_encode(array_column($topMembersPublicFiles, 'public_files_count')); ?>;
+            const membersLabels = topMembersPublicFiles.map(m => m.username);
+            const membersData = topMembersPublicFiles.map(m => m.public_files_count);
 
-            new Chart(membersCtx, {
-                type: 'bar',
-                data: {
-                    labels: membersLabels,
-                    datasets: [{
-                        label: 'Public Files',
-                        data: membersData,
-                        backgroundColor: 'var(--metro-blue)',
-                        borderColor: 'var(--metro-dark-blue)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        title: {
-                            display: false,
-                            text: 'Top Members by Public Files'
-                        }
+            if (membersChartInstance) {
+                membersChartInstance.data.labels = membersLabels;
+                membersChartInstance.data.datasets[0].data = membersData;
+                membersChartInstance.update();
+            } else {
+                membersChartInstance = new Chart(membersCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: membersLabels,
+                        datasets: [{
+                            label: 'Total Files',
+                            data: membersData,
+                            backgroundColor: 'var(--metro-blue)',
+                            borderColor: 'var(--metro-dark-blue)',
+                            borderWidth: 1
+                        }]
                     },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                color: 'var(--metro-text-color)',
-                                font: {
-                                    family: 'Segoe UI'
-                                }
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                display: false
                             },
-                            grid: {
-                                color: 'var(--metro-light-gray)'
+                            title: {
+                                display: false,
+                                text: 'Top Members by Total Files'
                             }
                         },
                         scales: {
@@ -2109,49 +2079,41 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
                             }
                         }
                     }
-                }
-            });
+                });
+            }
 
             // Daily Activity Line Chart
             const dailyCtx = document.getElementById('dailyActivityChart').getContext('2d');
-            const dailyLabels = <?php echo json_encode(array_keys($dailyActivities)); ?>;
-            const dailyData = <?php echo json_encode(array_values($dailyActivities)); ?>;
+            const dailyLabels = Object.keys(dailyActivities);
+            const dailyData = Object.values(dailyActivities);
 
-            new Chart(dailyCtx, {
-                type: 'line',
-                data: {
-                    labels: dailyLabels,
-                    datasets: [{
-                        label: 'Activities',
-                        data: dailyData,
-                        borderColor: 'var(--metro-success)',
-                        backgroundColor: 'rgba(76, 175, 80, 0.2)',
-                        tension: 0.3,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        title: {
-                            display: false,
-                            text: 'Daily Activity Trend'
-                        }
+            if (dailyChartInstance) {
+                dailyChartInstance.data.labels = dailyLabels;
+                dailyChartInstance.data.datasets[0].data = dailyData;
+                dailyChartInstance.update();
+            } else {
+                dailyChartInstance = new Chart(dailyCtx, {
+                    type: 'line',
+                    data: {
+                        labels: dailyLabels,
+                        datasets: [{
+                            label: 'Activities',
+                            data: dailyData,
+                            borderColor: 'var(--metro-success)',
+                            backgroundColor: 'rgba(76, 175, 80, 0.2)',
+                            tension: 0.3,
+                            fill: true
+                        }]
                     },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                color: 'var(--metro-text-color)',
-                                font: {
-                                    family: 'Segoe UI'
-                                }
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                display: false
                             },
-                            grid: {
-                                color: 'var(--metro-light-gray)'
+                            title: {
+                                display: false,
+                                text: 'Daily Activity Trend'
                             }
                         },
                         scales: {
@@ -2174,6 +2136,16 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
                             }
                         }
                     }
+                });
+            }
+        }
+
+        // Function to fetch dashboard data via AJAX
+        async function fetchDashboardData() {
+            try {
+                const response = await fetch('members.php?action=get_dashboard_data');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const data = await response.json();
                 updateDashboardUI(data);

@@ -1,13 +1,16 @@
 <?php
 include 'config.php';
+include 'functions.php'; // Include functions.php for getFolderPath and logActivity
 
 header('Content-Type: application/json');
 
+// These functions are now only used by delete_forever.php, not by this file directly.
+// They are kept here for completeness if this file were to perform direct physical deletion.
 function deleteFileFromDisk($filePath) {
     if (file_exists($filePath)) {
         return unlink($filePath);
     }
-    return true; // File already doesn't exist, consider it deleted
+    return true;
 }
 
 function deleteFolderRecursive($dir) {
@@ -16,132 +19,227 @@ function deleteFolderRecursive($dir) {
     }
     $files = array_diff(scandir($dir), array('.', '..'));
     foreach ($files as $file) {
-        (is_dir("$dir/$file")) ? deleteFolderRecursive("$dir/$file") : unlink("$dir/$file");
+        $itemPath = "$dir/$file";
+        (is_dir($itemPath)) ? deleteFolderRecursive($itemPath) : unlink($itemPath);
     }
     return rmdir($dir);
 }
 
+// Fungsi baru: Menghapus folder secara fisik dan memindahkan file-filenya ke Recycle Bin
+// Fungsi ini diduplikasi dari delete.php agar mandiri, atau bisa dipindahkan ke functions.php
+function deleteFolderAndMoveFilesToTrash($conn, $userId, $folderId, $baseUploadDir) {
+    $filesMoved = [];
+    $foldersDeleted = [];
+
+    // 1. Ambil semua file di dalam folder ini dan subfolder-nya
+    $stmt_files = $conn->prepare("SELECT id, file_name, file_path, file_size, file_type, folder_id FROM files WHERE folder_id = ?");
+    $stmt_files->bind_param("i", $folderId);
+    $stmt_files->execute();
+    $result_files = $stmt_files->get_result();
+    while ($file = $result_files->fetch_assoc()) {
+        $fileName = $file['file_name'];
+        $filePath = $file['file_path'];
+        $fileSize = $file['file_size'];
+        $fileType = $file['file_type'];
+        $originalFolderId = $file['folder_id'];
+
+        $originalFolderPath = getFolderPath($conn, $originalFolderId);
+
+        // Pindahkan ke deleted_files table
+        $stmt_insert_deleted = $conn->prepare("INSERT INTO deleted_files (user_id, file_name, file_path, file_size, file_type, folder_id, original_folder_path, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())");
+        $stmt_insert_deleted->bind_param("issisis", $userId, $fileName, $filePath, $fileSize, $fileType, $originalFolderId, $originalFolderPath);
+        if ($stmt_insert_deleted->execute()) {
+            // Hapus dari tabel files asli
+            $stmt_delete_original_file = $conn->prepare("DELETE FROM files WHERE id = ?");
+            $stmt_delete_original_file->bind_param("i", $file['id']);
+            if ($stmt_delete_original_file->execute()) {
+                $filesMoved[] = $fileName;
+                // Hapus file fisik
+                deleteFileFromDisk($baseUploadDir . $filePath);
+            }
+            $stmt_delete_original_file->close();
+        }
+        $stmt_insert_deleted->close();
+    }
+    $stmt_files->close();
+
+    // 2. Ambil semua subfolder di dalam folder ini dan rekursif panggil fungsi ini
+    $stmt_folders = $conn->prepare("SELECT id, folder_name FROM folders WHERE parent_id = ?");
+    $stmt_folders->bind_param("i", $folderId);
+    $stmt_folders->execute();
+    $result_folders = $stmt_folders->get_result();
+    while ($subfolder = $result_folders->fetch_assoc()) {
+        $subfolderName = $subfolder['folder_name'];
+        $subfolderId = $subfolder['id'];
+
+        // Rekursif panggil untuk subfolder
+        $recursiveResult = deleteFolderAndMoveFilesToTrash($conn, $userId, $subfolderId, $baseUploadDir);
+        $filesMoved = array_merge($filesMoved, $recursiveResult['filesMoved']);
+        $foldersDeleted = array_merge($foldersDeleted, $recursiveResult['foldersDeleted']);
+
+        // Setelah semua isi subfolder diproses, hapus entri subfolder dari DB
+        $stmt_delete_original_folder = $conn->prepare("DELETE FROM folders WHERE id = ?");
+        $stmt_delete_original_folder->bind_param("i", $subfolderId);
+        if ($stmt_delete_original_folder->execute()) {
+            $foldersDeleted[] = $subfolderName;
+        }
+        $stmt_delete_original_folder->close();
+    }
+    $stmt_folders->close();
+
+    // 3. Hapus folder utama dari DB (jika belum terhapus oleh cascade)
+    $stmt_main_folder_path = $conn->prepare("SELECT folder_name, parent_id FROM folders WHERE id = ?");
+    $stmt_main_folder_path->bind_param("i", $folderId);
+    $stmt_main_folder_path->execute();
+    $result_main_folder_path = $stmt_main_folder_path->get_result();
+    $mainFolderData = $result_main_folder_path->fetch_assoc();
+    $stmt_main_folder_path->close();
+
+    if ($mainFolderData) {
+        $mainFolderName = $mainFolderData['folder_name'];
+        $mainFolderPath = getFolderPath($conn, $folderId); // Dapatkan path fisik folder
+
+        $stmt_delete_main_folder = $conn->prepare("DELETE FROM folders WHERE id = ?");
+        $stmt_delete_main_folder->bind_param("i", $folderId);
+        if ($stmt_delete_main_folder->execute()) {
+            $foldersDeleted[] = $mainFolderName;
+            // Hapus folder fisik setelah semua isinya dipindahkan/dihapus
+            deleteFolderRecursive($baseUploadDir . $mainFolderPath);
+        }
+        $stmt_delete_main_folder->close();
+    }
+
+    return ['filesMoved' => $filesMoved, 'foldersDeleted' => $foldersDeleted];
+}
+
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    session_start();
+    if (!isset($_SESSION['user_id'])) {
+        echo json_encode(['success' => false, 'message' => 'Unauthorized access. Please log in.']);
+        exit;
+    }
+    $userId = $_SESSION['user_id'];
+
     $input = json_decode(file_get_contents('php://input'), true);
     $itemsToDelete = $input['items'] ?? [];
 
     if (empty($itemsToDelete)) {
-        echo json_encode(['success' => false, 'message' => 'No items selected for deletion.']);
+        echo json_encode(['success' => false, 'message' => 'No items selected.']);
         exit;
     }
 
     $conn->begin_transaction();
-    $allSuccess = true;
-    $messages = [];
+    $successCount = 0;
+    $failMessages = [];
+    $filesMovedToTrashCount = 0;
+    $foldersPermanentlyDeletedCount = 0;
+    $baseUploadDir = 'uploads/';
 
-    foreach ($itemsToDelete as $item) {
-        $id = (int)$item['id'];
-        $type = $item['type'];
+    try {
+        foreach ($itemsToDelete as $item) {
+            $id = (int)($item['id'] ?? 0);
+            $type = $item['type'] ?? '';
 
-        if ($type === 'file') {
-            // Fetch file path from database
-            $stmt = $conn->prepare("SELECT file_path FROM files WHERE id = ?");
-            $stmt->bind_param("i", $id);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            $file = $result->fetch_assoc();
-            $stmt->close();
-
-            if ($file) {
-                // Delete from disk
-                if (deleteFileFromDisk($file['file_path'])) {
-                    // Delete from database
-                    $stmt = $conn->prepare("DELETE FROM files WHERE id = ?");
-                    $stmt->bind_param("i", $id);
-                    if (!$stmt->execute()) {
-                        $allSuccess = false;
-                        $messages[] = "Failed to delete file from DB: " . htmlspecialchars($file['file_name']);
-                    }
-                    $stmt->close();
-                } else {
-                    $allSuccess = false;
-                    $messages[] = "Failed to delete physical file: " . htmlspecialchars($file['file_name']);
-                }
-            } else {
-                $messages[] = "File not found: ID " . $id;
+            if ($id === 0 || empty($type)) {
+                $failMessages[] = "Invalid item ID or type for one of the selected items.";
+                continue;
             }
-        } elseif ($type === 'folder') {
-            // Fetch folder path (reconstruct from breadcrumbs or store in DB if needed)
-            // For simplicity, let's assume we store a base path or reconstruct it.
-            // A more robust system would store the full path in the DB for folders too.
-            // For now, we'll try to find its full disk path based on its name and parent.
 
-            // To properly delete folder from disk, you need its full path.
-            // A more robust solution involves storing a full_path column in the folders table
-            // or reconstructing it recursively. For this example, let's simplify and assume
-            // the `uploads/` base path and reconstruct based on parent structure.
-            // A safer approach: fetch folder_name and parent_id, then recursively build path.
-
-            // Let's modify folders table to store `full_path` for easier deletion
-            // For now, we'll fetch folder_name and assume uploads/folder_name if root.
-            // *** IMPORTANT: For production, ensure folder_path is managed correctly in DB ***
-            
-            // For demonstration, let's assume `uploads` is the root and
-            // folders are created directly under it (or we reconstruct path carefully)
-            
-            // A better way: fetch full path from DB if you stored it, or
-            // build it recursively. For this example, we'll delete based on DB
-            // and cascade delete will handle files. Physical deletion needs path.
-
-            // To actually delete from disk, you need the folder's full path.
-            // Let's assume a simplified scenario for now, but a real system
-            // would either store the full_path in the folders table or
-            // have a more sophisticated path reconstruction.
-
-            $stmt = $conn->prepare("SELECT folder_name FROM folders WHERE id = ?");
-            $stmt->bind_param("i", $id);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            $folder = $result->fetch_assoc();
-            $stmt->close();
-
-            if ($folder) {
-                 // !!! THIS IS A SIMPLIFICATION !!!
-                 // To delete a folder physically, you need its absolute path.
-                 // The best way is to have a 'folder_path' column in your 'folders' table,
-                 // just like 'file_path' in the 'files' table.
-                 // For now, assuming direct subfolders of 'uploads/' for demonstration.
-                 // In a real app, you would reconstruct the full path, e.g., using parent_id.
-
-                // Example of path reconstruction (simplified, assuming depth 1 for physical deletion)
-                // If you implemented full_path in DB, retrieve it directly.
-                // For a truly nested path, you would need to recursively get parents.
-                $folderPathOnDisk = 'uploads/' . $folder['folder_name']; // This is simplistic
-
-                // Cascade delete in DB will handle files and subfolders in DB
-                $stmt = $conn->prepare("DELETE FROM folders WHERE id = ?");
+            if ($type === 'file') {
+                $stmt = $conn->prepare("SELECT file_name, file_path, file_size, file_type, folder_id FROM files WHERE id = ?");
                 $stmt->bind_param("i", $id);
-                if ($stmt->execute()) {
-                    // Try to delete physical folder after DB.
-                    // This can fail if folder is not empty (contains other files/folders not in DB, or if path is wrong)
-                    if (is_dir($folderPathOnDisk)) {
-                        if (!deleteFolderRecursive($folderPathOnDisk)) {
-                            $allSuccess = false;
-                            $messages[] = "Failed to delete physical folder and its contents: " . htmlspecialchars($folder['folder_name']);
-                        }
-                    }
-                } else {
-                    $allSuccess = false;
-                    $messages[] = "Failed to delete folder from DB: " . htmlspecialchars($folder['folder_name']);
-                }
+                $stmt->execute();
+                $result = $stmt->get_result();
+                $file = $result->fetch_assoc();
                 $stmt->close();
+
+                if ($file) {
+                    $fileName = $file['file_name'];
+                    $filePath = $file['file_path'];
+                    $fileSize = $file['file_size'];
+                    $fileType = $file['file_type'];
+                    $folderId = $file['folder_id'];
+
+                    $originalFolderPath = getFolderPath($conn, $folderId);
+
+                    $stmt_insert_deleted = $conn->prepare("INSERT INTO deleted_files (user_id, file_name, file_path, file_size, file_type, folder_id, original_folder_path, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())");
+                    $stmt_insert_deleted->bind_param("issisis", $userId, $fileName, $filePath, $fileSize, $fileType, $folderId, $originalFolderPath);
+                    
+                    if ($stmt_insert_deleted->execute()) {
+                        $stmt_delete_original = $conn->prepare("DELETE FROM files WHERE id = ?");
+                        $stmt_delete_original->bind_param("i", $id);
+                        if ($stmt_delete_original->execute()) {
+                            // Hapus file fisik
+                            deleteFileFromDisk($baseUploadDir . $filePath);
+                            $successCount++;
+                            $filesMovedToTrashCount++;
+                            logActivity($conn, $userId, 'move_to_trash_file', "Moved file to trash: " . $fileName);
+                        } else {
+                            $failMessages[] = "Failed to delete file '" . htmlspecialchars($fileName) . "' from original files table: " . $stmt_delete_original->error;
+                        }
+                        $stmt_delete_original->close();
+                    } else {
+                        $failMessages[] = "Failed to move file '" . htmlspecialchars($fileName) . "' to deleted_files table: " . $stmt_insert_deleted->error;
+                    }
+                    $stmt_insert_deleted->close();
+
+                } else {
+                    $failMessages[] = "File not found with ID: " . $id;
+                }
+            } elseif ($type === 'folder') {
+                $stmt = $conn->prepare("SELECT folder_name FROM folders WHERE id = ?");
+                $stmt->bind_param("i", $id);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                $folder = $result->fetch_assoc();
+                $stmt->close();
+
+                if ($folder) {
+                    $folderName = $folder['folder_name'];
+                    
+                    // Panggil fungsi baru untuk menghapus folder dan memindahkan file ke Recycle Bin
+                    $deleteResult = deleteFolderAndMoveFilesToTrash($conn, $userId, $id, $baseUploadDir);
+                    
+                    $filesMovedToTrashCount += count($deleteResult['filesMoved']);
+                    $foldersPermanentlyDeletedCount++; // Hitung folder utama yang dihapus
+                    $successCount++;
+                    logActivity($conn, $userId, 'delete_folder_permanent', "Permanently deleted folder: " . $folderName . " and moved its files to trash.");
+
+                } else {
+                    $failMessages[] = "Folder not found with ID: " . $id;
+                }
             } else {
-                $messages[] = "Folder not found: ID " . $id;
+                $failMessages[] = "Unknown item type: " . htmlspecialchars($type);
             }
         }
-    }
 
-    if ($allSuccess) {
-        $conn->commit();
-        echo json_encode(['success' => true, 'message' => 'Selected items deleted successfully!']);
-    } else {
+        if (empty($failMessages)) {
+            $conn->commit();
+            $message = "Operation completed successfully. ";
+            if ($filesMovedToTrashCount > 0) {
+                $message .= "{$filesMovedToTrashCount} file(s) moved to Recycle Bin. ";
+            }
+            if ($foldersPermanentlyDeletedCount > 0) {
+                $message .= "{$foldersPermanentlyDeletedCount} folder(s) permanently deleted.";
+            }
+            echo json_encode(['success' => true, 'message' => $message]);
+        } else {
+            $conn->rollback();
+            $message = "Operation completed with errors. ";
+            if ($filesMovedToTrashCount > 0) {
+                $message .= "{$filesMovedToTrashCount} file(s) moved to Recycle Bin. ";
+            }
+            if ($foldersPermanentlyDeletedCount > 0) {
+                $message .= "{$foldersPermanentlyDeletedCount} folder(s) permanently deleted. ";
+            }
+            $message .= "Errors: " . implode(" ", $failMessages);
+            echo json_encode(['success' => false, 'message' => $message]);
+        }
+
+    } catch (Exception $e) {
         $conn->rollback();
-        echo json_encode(['success' => false, 'message' => 'Some items could not be deleted: ' . implode(', ', $messages)]);
+        echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
     }
 
 } else {
