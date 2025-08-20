@@ -41,8 +41,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
             // Insert new user into the database and set is_member to 1
-            $stmt_insert = $conn->prepare("INSERT INTO users (username, email, password, is_member) VALUES (?, ?, ?, 1)");
-            $stmt_insert->bind_param("sss", $username, $email, $hashed_password);
+            $stmt_insert = $conn->prepare("INSERT INTO users (full_name, username, email, password, is_member) VALUES (?, ?, ?, ?, 1)");
+            $stmt_insert->bind_param("ssss", $username, $username, $email, $hashed_password); // ✅ Correct
 
             if ($stmt_insert->execute()) {
                 // Ambil ID pengguna yang baru saja didaftarkan
