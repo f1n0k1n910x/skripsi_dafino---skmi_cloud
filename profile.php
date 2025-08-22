@@ -9,6 +9,13 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
+// --- Tambahkan kode ini ---
+// Define $currentUserRole from session
+$currentUserRole = isset($_SESSION['role']) ? $_SESSION['role'] : 'guest'; // Default to 'guest' or 'user' if not set
+// --- Akhir penambahan kode ---
+// Current folder ID, default to NULL for root
+$currentFolderId = isset($_GET['folder']) ? (int)$_GET['folder'] : NULL;
+
 $user_id = $_SESSION['user_id'];
 
 // Function to fetch all profile data
@@ -298,7 +305,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_profile_submit']
                     $response['message'] = 'Background image not found. Uploading original PNG.';
                     // Fallback to just uploading the original PNG if background not found
                     if (move_uploaded_file($temp_file_path, $target_file)) {
-                        if ($profile_picture && $profile_picture !== 'img/photo_profile.png' && $profile_picture !== 'img/photo_profile.png' && file_exists($profile_picture)) {
+                        if ($profile_picture && $profile_picture !== 'img/default_avatar.png' && $profile_picture !== 'img/photo_profile.png' && file_exists($profile_picture)) {
                             unlink($profile_picture);
                         }
                         $profile_picture = $target_file;
@@ -574,6 +581,8 @@ $current_account_status = $initial_data['current_account_status'];
             padding: 0;
             margin: 0;
             flex-grow: 1;
+            overflow-y: auto; /* Enable vertical scrolling */
+            overflow-x: hidden; /* Hide horizontal scrolling */
         }
 
         .sidebar-menu li {
@@ -598,9 +607,12 @@ $current_account_status = $initial_data['current_account_status'];
             text-align: center;
         }
 
+        /* Perbaikan Animasi Hover dan Active */
         .sidebar-menu a:hover {
-            background-color: rgba(255,255,255,0.1); /* Subtle hover */
+            background-color: rgba(255,255,255,0.15); /* Sedikit lebih terang dari sebelumnya */
             color: #FFFFFF;
+            transform: translateX(5px); /* Efek geser ke kanan */
+            transition: background-color 0.2s ease-out, color 0.2s ease-out, transform 0.2s ease-out;
         }
 
         .sidebar-menu a.active {
@@ -608,6 +620,7 @@ $current_account_status = $initial_data['current_account_status'];
             border-left: 5px solid var(--metro-blue);
             color: #FFFFFF;
             font-weight: 600;
+            transform: translateX(0); /* Pastikan tidak ada geseran saat aktif */
         }
 
         /* Storage Info */
@@ -1894,10 +1907,15 @@ $current_account_status = $initial_data['current_account_status'];
         <div class="sidebar-header">
             <img src="img/logo.png" alt="Dafino Logo">
         </div>
-        <ul class="sidebar-menu">
-            <li><a href="index.php"><i class="fas fa-folder"></i> My Drive</a></li>
-            <li><a href="priority_files.php"><i class="fas fa-star"></i> Priority File</a></li> <!-- NEW: Priority File Link -->
-            <li><a href="recycle_bin.php"><i class="fas fa-trash"></i> Recycle Bin</a></li> <!-- NEW: Recycle Bin Link -->
+<ul class="sidebar-menu">
+            <?php if ($currentUserRole === 'admin' || $currentUserRole === 'moderator'): ?>
+                <li><a href="control_center.php"><i class="fas fa-cogs"></i> Control Center</a></li>
+            <?php endif; ?>
+            <?php if ($currentUserRole === 'admin' || $currentUserRole === 'user' || $currentUserRole === 'member'): ?>
+                <li><a href="index.php"><i class="fas fa-folder"></i> My Drive</a></li>
+                <li><a href="priority_files.php"><i class="fas fa-star"></i> Priority File</a></li>
+                <li><a href="recycle_bin.php"><i class="fas fa-trash"></i> Recycle Bin</a></li>
+            <?php endif; ?>
             <li><a href="summary.php"><i class="fas fa-chart-line"></i> Summary</a></li>
             <li><a href="members.php"><i class="fas fa-users"></i> Members</a></li>
             <li><a href="profile.php" class="active"><i class="fas fa-user"></i> Profile</a></li>
@@ -2743,6 +2761,17 @@ $current_account_status = $initial_data['current_account_status'];
             sidebarToggleBtn.addEventListener('click', () => {
                 sidebar.classList.toggle('show-mobile-sidebar');
                 mobileOverlay.classList.toggle('show');
+            });
+
+            // Set active class for current page in sidebar
+            const sidebarMenuItems = document.querySelectorAll('.sidebar-menu a');
+            const currentPage = window.location.pathname.split('/').pop();
+            sidebarMenuItems.forEach(item => {
+                item.classList.remove('active');
+                const itemHref = item.getAttribute('href');
+                if (itemHref === currentPage || (currentPage === 'profile.php' && itemHref === 'profile.php')) {
+                    item.classList.add('active');
+                }
             });
 
             // Refresh data periodically (e.g., every 30 seconds)

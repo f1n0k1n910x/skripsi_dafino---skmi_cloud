@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $user = null;
 
         // 1. Try to find user by username or primary email in 'users' table
-        $stmt = $conn->prepare("SELECT id, username, password, is_member FROM users WHERE username = ? OR email = ?");
+        $stmt = $conn->prepare("SELECT id, username, password,role, is_member FROM users WHERE username = ? OR email = ?");
         $stmt->bind_param("ss", $username, $username);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         // 2. If not found in 'users' table, try to find by additional email in 'user_emails' table
         if (!$user) {
-            $stmt_additional = $conn->prepare("SELECT u.id, u.username, u.password, u.is_member FROM users u JOIN user_emails ue ON u.id = ue.user_id WHERE ue.email = ?");
+            $stmt_additional = $conn->prepare("SELECT u.id, u.username, u.password, u.is_member, u.role FROM users u JOIN user_emails ue ON u.id = ue.user_id WHERE ue.email = ?");
             $stmt_additional->bind_param("s", $username);
             $stmt_additional->execute();
             $result_additional = $stmt_additional->get_result();
@@ -51,7 +51,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 // Login berhasil
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['username'] = $user['username'];
+                $_SESSION['role'] = $user['role']; // Simpan peran pengguna
                 header('Location: index.php'); // Redirect ke halaman dashboard
+                // print_r($user);
                 exit();
             } else {
                 $error = 'Invalid username or password.';

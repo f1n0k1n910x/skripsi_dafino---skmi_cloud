@@ -9,6 +9,12 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
+// Define $currentUserRole from session
+$currentUserRole = isset($_SESSION['role']) ? $_SESSION['role'] : 'guest'; // Default to 'guest' or 'user' if not set
+
+// Current folder ID, default to NULL for root
+$currentFolderId = isset($_GET['folder']) ? (int)$_GET['folder'] : NULL;
+
 $current_user_id = $_SESSION['user_id'];
 $baseUploadDir = 'uploads/';
 
@@ -150,7 +156,6 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Priority Files - SKMI Cloud Storage</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="css/internal.css"> <!-- Import CSS -->
     <style>
         /* Metro Design (Modern UI) & Windows 7 Animations */
         :root {
@@ -216,6 +221,8 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             padding: 0;
             margin: 0;
             flex-grow: 1;
+            overflow-y: auto; /* Enable vertical scrolling */
+            overflow-x: hidden; /* Hide horizontal scrolling */
         }
 
         .sidebar-menu li {
@@ -240,16 +247,20 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             text-align: center;
         }
 
+        /* Perbaikan Animasi Hover dan Active (Diambil dari index.php terbaru) */
         .sidebar-menu a:hover {
-            background-color: rgba(255,255,255,0.1);
+            background-color: rgba(255,255,255,0.15); /* Sedikit lebih terang dari sebelumnya */
             color: #FFFFFF;
+            transform: translateX(5px); /* Efek geser ke kanan */
+            transition: background-color 0.2s ease-out, color 0.2s ease-out, transform 0.2s ease-out;
         }
 
         .sidebar-menu a.active {
-            background-color: var(--metro-blue);
+            background-color: var(--metro-blue); /* Metro accent color */
             border-left: 5px solid var(--metro-blue);
             color: #FFFFFF;
             font-weight: 600;
+            transform: translateX(0); /* Pastikan tidak ada geseran saat aktif */
         }
 
         /* Storage Info */
@@ -835,9 +846,14 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             <img src="img/logo.png" alt="Dafino Logo">
         </div>
         <ul class="sidebar-menu">
-            <li><a href="index.php"><i class="fas fa-folder"></i> My Drive</a></li>
-            <li><a href="priority_files.php" class="active"><i class="fas fa-star"></i> Priority File</a></li>
-            <li><a href="recycle_bin.php"><i class="fas fa-trash"></i> Recycle Bin</a></li> <!-- NEW: Recycle Bin Link -->
+            <?php if ($currentUserRole === 'admin' || $currentUserRole === 'moderator'): ?>
+                <li><a href="control_center.php"><i class="fas fa-cogs"></i> Control Center</a></li>
+            <?php endif; ?>
+            <?php if (in_array($currentUserRole, ['admin', 'moderator', 'user', 'member'])): ?>
+                <li><a href="index.php"><i class="fas fa-folder"></i> My Drive</a></li>
+                <li><a href="priority_files.php" class="active"><i class="fas fa-star"></i> Priority File</a></li>
+                <li><a href="recycle_bin.php"><i class="fas fa-trash"></i> Recycle Bin</a></li>
+            <?php endif; ?>
             <li><a href="summary.php"><i class="fas fa-chart-line"></i> Summary</a></li>
             <li><a href="members.php"><i class="fas fa-users"></i> Members</a></li>
             <li><a href="profile.php"><i class="fas fa-user"></i> Profile</a></li>
@@ -923,6 +939,9 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             const myDriveTitle = document.querySelector('.priority-files-title');
             const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
             const mobileOverlay = document.getElementById('mobileOverlay');
+
+            // Sidebar menu items for active state management
+            const sidebarMenuItems = document.querySelectorAll('.sidebar-menu a');
 
             let currentUserPage = 1;
             let totalUserPages = 1;
@@ -1280,6 +1299,16 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 if (sidebar.classList.contains('show-mobile-sidebar')) {
                     sidebar.classList.remove('show-mobile-sidebar');
                     mobileOverlay.classList.remove('show');
+                }
+            });
+
+            // Set active class for current page in sidebar
+            const currentPage = window.location.pathname.split('/').pop();
+            sidebarMenuItems.forEach(item => {
+                item.classList.remove('active');
+                const itemHref = item.getAttribute('href');
+                if (itemHref === currentPage || (currentPage === 'priority_files.php' && itemHref === 'priority_files.php')) {
+                    item.classList.add('active');
                 }
             });
 

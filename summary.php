@@ -2,9 +2,22 @@
 include 'config.php';
 include 'functions.php';
 
+// Pastikan session_start() ada di sini, di awal file
+session_start();
+
+// Define $currentUserRole from session
+// Ini penting untuk menghindari "Undefined variable" dan untuk logika sidebar
+$currentUserRole = isset($_SESSION['role']) ? $_SESSION['role'] : 'guest'; // Default to 'guest' if not set
+
 // Check if user is logged in (assuming session_start() is handled elsewhere or at the top of config.php)
 // If not, you might want to redirect or handle unauthorized access.
 // For this summary page, we'll assume it's accessible if config.php and functions.php are included.
+// Tambahan: Jika halaman summary hanya untuk user login, tambahkan cek ini:
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit();
+}
+
 
 // Check if it's an AJAX request
 $isAjax = isset($_GET['ajax']) && $_GET['ajax'] == 1;
@@ -51,6 +64,7 @@ if ($usedPercentage > 100) $usedPercentage = 100;
 $freeStorageGB = $totalStorageGB - $usedStorageGB;
 
 // Check if storage is full
+// Pastikan fungsi isStorageFull() tersedia di functions.php
 $isStorageFull = isStorageFull($conn, $totalStorageBytes);
 
 
@@ -247,6 +261,8 @@ if ($isAjax) {
             padding: 0;
             margin: 0;
             flex-grow: 1;
+            overflow-y: auto; /* Enable vertical scrolling */
+            overflow-x: hidden; /* Hide horizontal scrolling */
         }
 
         .sidebar-menu li {
@@ -271,9 +287,12 @@ if ($isAjax) {
             text-align: center;
         }
 
+        /* Perbaikan Animasi Hover dan Active (Diambil dari index.php) */
         .sidebar-menu a:hover {
-            background-color: rgba(255,255,255,0.1); /* Subtle hover */
+            background-color: rgba(255,255,255,0.15); /* Sedikit lebih terang dari sebelumnya */
             color: #FFFFFF;
+            transform: translateX(5px); /* Efek geser ke kanan */
+            transition: background-color 0.2s ease-out, color 0.2s ease-out, transform 0.2s ease-out;
         }
 
         .sidebar-menu a.active {
@@ -281,6 +300,7 @@ if ($isAjax) {
             border-left: 5px solid var(--metro-blue);
             color: #FFFFFF;
             font-weight: 600;
+            transform: translateX(0); /* Pastikan tidak ada geseran saat aktif */
         }
 
         /* Storage Info */
@@ -592,59 +612,61 @@ if ($isAjax) {
         }
 
         /* Class for iPad & Tablet (Landscape: min-width 768px, max-width 1024px) */
-        body.tablet-landscape .sidebar {
-            width: 220px; /* Slightly narrower sidebar */
-        }
-        body.tablet-landscape .main-content {
-            margin: 0; /* MODIFIED: Full width */
-            padding: 20px;
-            overflow-x: hidden; /* Tambahan: Mencegah scrollbar horizontal */
-        }
-        body.tablet-landscape .header-main {
-            padding: 10px 20px;
-            margin: -20px -20px 20px -20px;
-        }
-        body.tablet-landscape .header-main h1 {
-            font-size: 2em;
-        }
-        body.tablet-landscape .dashboard-grid {
-            grid-template-columns: repeat(2, 1fr); /* Tampilan 2x2 */
-            gap: 15px;
-        }
-        body.tablet-landscape .card {
-            padding: 20px;
-        }
-        body.tablet-landscape .card h3 {
-            font-size: 1em;
-        }
-        body.tablet-landscape .card p.count {
-            font-size: 1.8em;
-        }
-        body.tablet-landscape .chart-container {
-            padding: 15px;
-        }
-        body.tablet-landscape .chart-container h3,
-        body.tablet-landscape .last-uploaded-files h3 {
-            font-size: 1.5em;
-            margin-bottom: 15px;
-        }
-        body.tablet-landscape .last-uploaded-files li {
-            font-size: 0.9em;
-            padding: 8px 0;
-        }
-        body.tablet-landscape .last-uploaded-files .file-info {
-             min-width: 0;
-        }
-        body.tablet-landscape .last-uploaded-files .file-icon {
-            font-size: 1.2em;
-            margin-right: 10px;
-            width: 25px;
-        }
-        body.tablet-landscape .last-uploaded-files .file-meta {
-            font-size: 0.8em;
-        }
-        body.tablet-landscape .sidebar-menu a {
-            font-size: var(--sidebar-font-size-tablet-landscape); /* Menggunakan variabel untuk tablet landscape */
+        @media (min-width: 768px) and (max-width: 1024px) {
+            body.tablet-landscape .sidebar {
+                width: 220px; /* Slightly narrower sidebar */
+            }
+            body.tablet-landscape .main-content {
+                margin: 0; /* MODIFIED: Full width */
+                padding: 20px;
+                overflow-x: hidden; /* Tambahan: Mencegah scrollbar horizontal */
+            }
+            body.tablet-landscape .header-main {
+                padding: 10px 20px;
+                margin: -20px -20px 20px -20px;
+            }
+            body.tablet-landscape .header-main h1 {
+                font-size: 2em;
+            }
+            body.tablet-landscape .dashboard-grid {
+                grid-template-columns: repeat(2, 1fr); /* Tampilan 2x2 */
+                gap: 15px;
+            }
+            body.tablet-landscape .card {
+                padding: 20px;
+            }
+            body.tablet-landscape .card h3 {
+                font-size: 1em;
+            }
+            body.tablet-landscape .card p.count {
+                font-size: 1.8em;
+            }
+            body.tablet-landscape .chart-container {
+                padding: 15px;
+            }
+            body.tablet-landscape .chart-container h3,
+            body.tablet-landscape .last-uploaded-files h3 {
+                font-size: 1.5em;
+                margin-bottom: 15px;
+            }
+            body.tablet-landscape .last-uploaded-files li {
+                font-size: 0.9em;
+                padding: 8px 0;
+            }
+            body.tablet-landscape .last-uploaded-files .file-info {
+                 min-width: 0;
+            }
+            body.tablet-landscape .last-uploaded-files .file-icon {
+                font-size: 1.2em;
+                margin-right: 10px;
+                width: 25px;
+            }
+            body.tablet-landscape .last-uploaded-files .file-meta {
+                font-size: 0.8em;
+            }
+            body.tablet-landscape .sidebar-menu a {
+                font-size: var(--sidebar-font-size-tablet-landscape); /* Menggunakan variabel untuk tablet landscape */
+            }
         }
 
         /* Class for iPad & Tablet (Portrait: min-width 768px, max-width 1024px) */
@@ -747,39 +769,37 @@ if ($isAjax) {
                 height: 100%;
                 width: 200px; /* Narrower sidebar for mobile */
                 z-index: 100;
-                transform: translateX(-100%); /* Hidden by default */
-                /* REMOVED: box-shadow */
+                transform: translateX(-100%);
             }
             body.mobile .sidebar.show-mobile-sidebar {
-                transform: translateX(0); /* Show when active */
+                transform: translateX(0);
             }
             body.mobile .sidebar-toggle-btn {
-                display: block; /* Show toggle button */
+                display: block;
                 background: none;
                 border: none;
                 font-size: 1.5em;
                 color: var(--metro-text-color);
                 cursor: pointer;
-                margin-left: 10px; /* Space from logo */
-                order: 0; /* Place on the left */
+                margin-left: 10px;
+                order: 0;
             }
             body.mobile .header-main {
-                justify-content: space-between; /* Align items */
+                justify-content: space-between;
                 padding: 10px 15px;
                 margin: -15px -15px 15px -15px; /* REVISED: Adjusted margins for mobile */
             }
             body.mobile .header-main h1 {
                 font-size: 1.8em;
-                flex-grow: 1; /* Allow title to take space */
-                text-align: center; /* Center title */
+                flex-grow: 1;
+                text-align: center;
             }
             body.mobile .header-main .summary-title {
-                display: none; /* Hide "Activity Log" */
+                display: none;
             }
             body.mobile .main-content {
-                margin: 0; /* MODIFIED: Full width */
                 padding: 15px;
-                overflow-x: hidden; /* Tambahan: Mencegah scrollbar horizontal */
+                overflow-x: hidden;
             }
             body.mobile .dashboard-grid {
                 grid-template-columns: repeat(2, 1fr) !important; /* Tampilan 2x2 */
@@ -868,12 +888,17 @@ if ($isAjax) {
             <img src="img/logo.png" alt="Dafino Logo">
         </div>
         <ul class="sidebar-menu">
-            <li><a href="index.php"><i class="fas fa-folder"></i> My Drive</a></li>
-            <li><a href="priority_files.php"><i class="fas fa-star"></i> Priority File</a></li> <!-- NEW: Priority File Link -->
-            <li><a href="recycle_bin.php"><i class="fas fa-trash"></i> Recycle Bin</a></li> <!-- NEW: Recycle Bin Link -->
-            <li><a href="summary.php" class="active"><i class="fas fa-chart-line"></i> Summary</a></li>
-            <li><a href="members.php"><i class="fas fa-users"></i> Members</a></li>
-            <li><a href="profile.php"><i class="fas fa-user"></i> Profile</a></li>
+            <?php if ($currentUserRole === 'admin' || $currentUserRole === 'moderator'): ?>
+                <li><a href="control_center.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'control_center.php') ? 'active' : ''; ?>"><i class="fas fa-cogs"></i> Control Center</a></li>
+            <?php endif; ?>
+            <?php if ($currentUserRole === 'admin' || $currentUserRole === 'user' || $currentUserRole === 'member'): ?>
+                <li><a href="index.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'index.php') ? 'active' : ''; ?>"><i class="fas fa-folder"></i> My Drive</a></li>
+                <li><a href="priority_files.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'priority_files.php') ? 'active' : ''; ?>"><i class="fas fa-star"></i> Priority File</a></li>
+                <li><a href="recycle_bin.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'recycle_bin.php') ? 'active' : ''; ?>"><i class="fas fa-trash"></i> Recycle Bin</a></li>
+            <?php endif; ?>
+            <li><a href="summary.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'summary.php') ? 'active' : ''; ?>"><i class="fas fa-chart-line"></i> Summary</a></li>
+            <li><a href="members.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'members.php') ? 'active' : ''; ?>"><i class="fas fa-users"></i> Members</a></li>
+            <li><a href="profile.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'profile.php') ? 'active' : ''; ?>"><i class="fas fa-user"></i> Profile</a></li>
             <li><a href="logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
         </ul>
         <div class="storage-info">
@@ -984,6 +1009,9 @@ if ($isAjax) {
             const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
             const mobileOverlay = document.getElementById('mobileOverlay');
 
+            // Sidebar menu items for active state management
+            const sidebarMenuItems = document.querySelectorAll('.sidebar-menu a');
+
             // --- Responsive Class Handling ---
             function applyDeviceClass() {
                 const width = window.innerWidth;
@@ -1029,6 +1057,16 @@ if ($isAjax) {
                 if (sidebar.classList.contains('show-mobile-sidebar')) {
                     sidebar.classList.remove('show-mobile-sidebar');
                     mobileOverlay.classList.remove('show');
+                }
+            });
+
+            // Set active class for current page in sidebar
+            const currentPage = window.location.pathname.split('/').pop();
+            sidebarMenuItems.forEach(item => {
+                item.classList.remove('active');
+                const itemHref = item.getAttribute('href');
+                if (itemHref === currentPage || (currentPage === 'index.php' && itemHref === 'index.php')) {
+                    item.classList.add('active');
                 }
             });
         });

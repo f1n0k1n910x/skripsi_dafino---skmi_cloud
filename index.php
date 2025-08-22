@@ -9,6 +9,13 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
+// --- Tambahkan kode ini ---
+// Define $currentUserRole from session
+$currentUserRole = isset($_SESSION['role']) ? $_SESSION['role'] : 'guest'; // Default to 'guest' or 'user' if not set
+// --- Akhir penambahan kode ---
+// Current folder ID, default to NULL for root
+$currentFolderId = isset($_GET['folder']) ? (int)$_GET['folder'] : NULL;
+
 // Current folder ID, default to NULL for root
 $currentFolderId = isset($_GET['folder']) ? (int)$_GET['folder'] : NULL;
 $currentFolderName = 'Root';
@@ -342,6 +349,8 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             padding: 0;
             margin: 0;
             flex-grow: 1;
+            overflow-y: auto; /* Enable vertical scrolling */
+            overflow-x: hidden; /* Hide horizontal scrolling */
         }
 
         .sidebar-menu li {
@@ -366,9 +375,12 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             text-align: center;
         }
 
+        /* Perbaikan Animasi Hover dan Active */
         .sidebar-menu a:hover {
-            background-color: rgba(255,255,255,0.1); /* Subtle hover */
+            background-color: rgba(255,255,255,0.15); /* Sedikit lebih terang dari sebelumnya */
             color: #FFFFFF;
+            transform: translateX(5px); /* Efek geser ke kanan */
+            transition: background-color 0.2s ease-out, color 0.2s ease-out, transform 0.2s ease-out;
         }
 
         .sidebar-menu a.active {
@@ -376,6 +388,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             border-left: 5px solid var(--metro-blue);
             color: #FFFFFF;
             font-weight: 600;
+            transform: translateX(0); /* Pastikan tidak ada geseran saat aktif */
         }
 
         /* Storage Info */
@@ -384,6 +397,9 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             border-top: 1px solid rgba(255,255,255,0.1);
             text-align: center;
             font-size: 0.9em;
+            /* Posisi dirapikan seperti priority_files.php */
+            margin-top: auto; /* Dorong ke bawah */
+            padding-top: 20px;
         }
 
         .storage-info h4 {
@@ -2111,14 +2127,17 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             <img src="img/logo.png" alt="Dafino Logo">
         </div>
         <ul class="sidebar-menu">
+            <?php if ($currentUserRole === 'admin' || $currentUserRole === 'moderator'): ?>
+                <li><a href="control_center.php"><i class="fas fa-cogs"></i> Control Center</a></li>
+            <?php endif; ?>
             <li><a href="index.php" class="active"><i class="fas fa-folder"></i> My Drive</a></li>
-            <li><a href="priority_files.php"><i class="fas fa-star"></i> Priority File</a></li> <!-- NEW: Priority File Link -->
-            <li><a href="recycle_bin.php"><i class="fas fa-trash"></i> Recycle Bin</a></li> <!-- NEW: Recycle Bin Link -->
+            <li><a href="priority_files.php"><i class="fas fa-star"></i> Priority File</a></li>
+            <li><a href="recycle_bin.php"><i class="fas fa-trash"></i> Recycle Bin</a></li>
             <li><a href="summary.php"><i class="fas fa-chart-line"></i> Summary</a></li>
-            <li><a href="members.php"><i class="fas fa-users"></i> Members</a></li> <!-- NEW: Members Link -->
+            <li><a href="members.php"><i class="fas fa-users"></i> Members</a></li>
             <li><a href="profile.php"><i class="fas fa-user"></i> Profile</a></li>
             <li><a href="logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
-            </ul>
+        </ul>
         <div class="storage-info">
             <h4>Storage</h4>
             <div class="progress-bar-container">
@@ -2343,6 +2362,8 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                             <a href="index.php?folder=<?php echo $folder['id']; ?>" class="file-name file-link-clickable" onclick="event.stopPropagation();"><?php echo htmlspecialchars($folder['folder_name']); ?></a>
                             <span class="file-size">
                                 <?php
+                                    // NEW: Calculate and display folder size
+                                    // Get the full physical path of the folder
                                     echo formatBytes($folder['calculated_size']);
                                 ?>
                             </span>
@@ -2563,6 +2584,9 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             const myDriveTitle = document.querySelector('.my-drive-title');
             const desktopSearchBar = document.querySelector('.search-bar-desktop');
             const mobileSearchBar = document.querySelector('.search-bar-mobile');
+
+            // Sidebar menu items for active state management
+            const sidebarMenuItems = document.querySelectorAll('.sidebar-menu a');
 
             let activeUploads = new Map();
             let currentContextItem = null; // To store the item clicked for context menu
@@ -3779,6 +3803,16 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 // Since the current PHP code already renders the full HTML, we'll just let it render.
                 // The JS will then parse it.
             }
+
+            // Set active class for current page in sidebar
+            const currentPage = window.location.pathname.split('/').pop();
+            sidebarMenuItems.forEach(item => {
+                item.classList.remove('active');
+                const itemHref = item.getAttribute('href');
+                if (itemHref === currentPage || (currentPage === 'index.php' && itemHref === 'index.php')) {
+                    item.classList.add('active');
+                }
+            });
         });
     </script>
 </body>

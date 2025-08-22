@@ -4,10 +4,12 @@ include '../functions.php'; // For logActivity
 
 // Tambahkan fungsi ini
 function deleteFileFromDisk($filePath) {
-    if (file_exists($filePath)) {
-        return unlink($filePath);
+    // Ensure relative paths like "uploads/..." resolve correctly
+    $absolutePath = realpath(__DIR__ . '/../' . $filePath);
+    if ($absolutePath && file_exists($absolutePath)) {
+        return unlink($absolutePath);
     }
-    return true; // File sudah tidak ada, anggap sudah terhapus
+    return true; // Already gone
 }
 
 header('Content-Type: application/json');
