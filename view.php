@@ -14,9 +14,24 @@ if (!$is_shared_link && !isset($_SESSION['user_id'])) {
 }
 
 $user_id = $_SESSION['user_id'] ?? null; // user_id bisa null jika akses dari shared link dan belum login
+$currentUserRole = isset($_SESSION['role']) ? $_SESSION['role'] : 'guest'; // Define currentUserRole for view.php
+
+// Define restricted file types for view.php as well
+$docExt = ['doc','docx','pdf','ppt','pptx','xls','xlsx','txt','odt','odp','rtf','md','log','csv','tex'];
+$musicExt = ['mp3','wav','aac','ogg','flac','m4a','alac','wma','opus','amr','mid'];
+$videoExt = ['mp4','mkv','avi','mov','wmv','flv','webm','3gp','m4v','mpg','mpeg','ts','ogv'];
+$codeExt = ['html','htm','css','js','php','py','java','json','xml','ts','tsx','jsx','vue','cpp','c','cs','rb','go','swift','sql','sh','bat','ini','yml','yaml','md','pl','r'];
+$archiveExt = ['zip','rar','7z','tar','gz','bz2','xz','iso','cab','arj'];
+$instExt = ['exe','msi','apk','ipa','sh','bat','jar','appimage','dmg','bin'];
+$ptpExt = ['torrent','nzb','ed2k','part','!ut'];
+$imageExt = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'tiff'];
+$cadExt = ['dwg', 'dxf', 'dgn', 'iges', 'igs', 'step', 'stp', 'stl', '3ds', 'obj', 'sldprt', 'sldasm', 'ipt', 'iam', 'catpart', 'catproduct', 'prt', 'asm', 'fcstd', 'skp', 'x_t', 'x_b'];
+
+$restrictedFileTypes = array_merge($codeExt, $instExt, $ptpExt);
+
 
 // Function to fetch file data
-function getFileData($conn, $fileId, $user_id) {
+function getFileData($conn, $fileId, $user_id, $currentUserRole, $restrictedFileTypes) {
     $data = [];
 
     // Fetch user information to display in the header
@@ -40,7 +55,7 @@ function getFileData($conn, $fileId, $user_id) {
 
     $file = null;
     if ($fileId > 0) {
-        $stmt = $conn->prepare("SELECT file_name, file_path, file_size, file_type, uploaded_at, folder_id FROM files WHERE id = ?");
+        $stmt = $conn->prepare("SELECT id, file_name, file_path, file_size, file_type, uploaded_at, folder_id FROM files WHERE id = ?");
         $stmt->bind_param("i", $fileId);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -51,6 +66,13 @@ function getFileData($conn, $fileId, $user_id) {
     if (!$file) {
         return ['error' => true, 'message' => 'File not found.'];
     }
+
+    // NEW: Check for restricted file types for non-admin/moderator users
+    $fileExtension = strtolower(pathinfo($file['file_name'], PATHINFO_EXTENSION));
+    if (in_array($fileExtension, $restrictedFileTypes) && $currentUserRole !== 'admin' && $currentUserRole !== 'moderator') {
+        return ['error' => true, 'message' => 'Access to this file type is restricted.'];
+    }
+
 
     $data['file'] = $file;
     $data['fileName'] = $file['file_name'];
@@ -131,14 +153,14 @@ function getFileData($conn, $fileId, $user_id) {
 if (isset($_GET['action']) && $_GET['action'] === 'get_file_data') {
     header('Content-Type: application/json');
     $fileId = isset($_GET['file_id']) ? (int)$_GET['file_id'] : 0;
-    echo json_encode(getFileData($conn, $fileId, $user_id)); // Pass $user_id to getFileData
+    echo json_encode(getFileData($conn, $fileId, $user_id, $currentUserRole, $restrictedFileTypes)); // Pass $user_id, $currentUserRole, $restrictedFileTypes to getFileData
     $conn->close();
     exit();
 }
 
 // Initial data load for the first page render
 $fileId = isset($_GET['file_id']) ? (int)$_GET['file_id'] : 0;
-$initial_data = getFileData($conn, $fileId, $user_id); // Pass $user_id
+$initial_data = getFileData($conn, $fileId, $user_id, $currentUserRole, $restrictedFileTypes); // Pass $user_id, $currentUserRole, $restrictedFileTypes
 
 if (isset($initial_data['error'])) {
     // If there's an error, redirect based on shared link status
@@ -239,6 +261,7 @@ function readArchiveContent($filePath, $fileType) {
 <head>
     <meta charset="UTF-8">
     <title>File Preview : <?php echo htmlspecialchars($fileName); ?></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <?php if ($fileCategory === 'code'): ?>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/vs2015.min.css">
@@ -247,55 +270,72 @@ function readArchiveContent($filePath, $fileType) {
     <script>hljs.highlightAll();</script>
     <?php endif; ?>
     <style>
+        /* Material Design Google + Admin LTE */
         :root {
-            --metro-blue: #0078D7;
-            --metro-dark-blue: #0056b3;
-            --metro-light-gray: #E1E1E1;
-            --metro-medium-gray: #C8C8C8;
-            --metro-dark-gray: #666666;
-            --metro-text-color: #333333;
-            --metro-bg-color: #F0F0F0;
-            --metro-success: #4CAF50;
-            --metro-error: #E81123;
-            --metro-warning: #FF8C00;
+            --primary-color: #3F51B5; /* Indigo 500 - Material Design */
+            --primary-dark-color: #303F9F; /* Indigo 700 */
+            --accent-color: #FF4081; /* Pink A200 */
+            --text-color: #212121; /* Grey 900 */
+            --secondary-text-color: #757575; /* Grey 600 */
+            --divider-color: #BDBDBD; /* Grey 400 */
+            --background-color: #F5F5F5; /* Grey 100 */
+            --surface-color: #FFFFFF; /* White */
+            --success-color: #4CAF50; /* Green 500 */
+            --error-color: #F44336; /* Red 500 */
+            --warning-color: #FFC107; /* Amber 500 */
+
+            /* AdminLTE specific colors */
+            --adminlte-sidebar-bg: #222d32;
+            --adminlte-sidebar-text: #b8c7ce;
+            --adminlte-sidebar-hover-bg: #1e282c;
+            --adminlte-sidebar-active-bg: #1e282c;
+            --adminlte-sidebar-active-text: #ffffff;
+            --adminlte-header-bg: #ffffff;
+            --adminlte-header-text: #333333;
+
+            /* --- LOKASI EDIT UKURAN FONT SIDEBAR --- */
+            --sidebar-font-size-desktop: 0.9em; /* Ukuran font default untuk desktop */
+            --sidebar-font-size-tablet-landscape: 1.0em; /* Ukuran font untuk tablet landscape */
+            --sidebar-font-size-tablet-portrait: 0.95em; /* Ukuran font untuk tablet portrait */
+            --sidebar-font-size-mobile: 0.9em; /* Ukuran font untuk mobile */
+            /* --- AKHIR LOKASI EDIT UKURAN FONT SIDEBAR --- */
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Roboto', sans-serif; /* Material Design font */
             margin: 0;
-            background-color: var(--metro-bg-color);
-            color: var(--metro-text-color);
-            padding: 0;
-            height: 100vh;
-            overflow: hidden;
             display: flex;
-            flex-direction: column;
+            height: 100vh;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            overflow: hidden; /* Prevent body scroll, main-content handles it */
+            flex-direction: column; /* Ensure body is column for header + main-container */
         }
 
-        .header-sticky {
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-            background-color: #fff;
-            padding: 15px 30px;
+        /* Header Main (Full-width, white, no background residue) */
+        .header-main {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            transition: transform 0.3s ease-in-out;
+            padding: 15px 20px; /* Padding for header */
+            border-bottom: 1px solid var(--divider-color);
+            background-color: var(--adminlte-header-bg); /* White header */
+            box-shadow: none; /* No box-shadow */
+            flex-shrink: 0; /* Prevent header from shrinking */
         }
 
-        .header-sticky h1 {
+        .header-main h1 {
             margin: 0;
-            font-size: 1.8em;
-            font-weight: 300;
-            color: var(--metro-text-color);
+            color: var(--adminlte-header-text);
+            font-size: 2em; /* Slightly smaller title */
+            font-weight: 400; /* Lighter font weight */
             display: flex;
             align-items: center;
         }
 
-        .header-sticky h1 i {
+        .header-main h1 i {
             margin-right: 15px;
-            color: var(--metro-blue);
+            color: var(--primary-color); /* Use primary color for icon */
         }
 
         .profile-container {
@@ -309,60 +349,60 @@ function readArchiveContent($filePath, $fileType) {
             border-radius: 50%;
             object-fit: cover;
             margin-left: 15px;
-            border: 2px solid var(--metro-light-gray);
+            border: 2px solid var(--divider-color);
             transition: border-color 0.3s ease-in-out;
         }
 
         .profile-container .profile-image:hover {
-            border-color: var(--metro-blue);
+            border-color: var(--primary-color);
         }
 
         .profile-container .username {
-            font-weight: 600;
-            color: var(--metro-text-color);
+            font-weight: 500;
+            color: var(--text-color);
             font-size: 1em;
             text-decoration: none;
             transition: color 0.3s ease-in-out;
         }
 
         .profile-container .username:hover {
-            color: var(--metro-blue);
+            color: var(--primary-color);
         }
 
-        /* Base Main Container Styles (Desktop) */
+        /* Main Content Container */
         .main-container {
             flex-grow: 1;
             overflow: hidden;
             padding: 20px;
             display: flex;
-            background-color: var(--metro-bg-color); /* Ensure background is consistent */
+            background-color: var(--background-color);
         }
 
         .preview-pane {
             flex: 3;
-            background-color: #fff;
+            background-color: var(--surface-color);
             margin-right: 20px;
-            border-radius: 8px;
+            border-radius: 0; /* Siku-siku */
             padding: 20px;
             overflow-y: auto;
             position: relative;
-            animation: fadeIn 0.5s ease-out;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Subtle shadow */
         }
 
         .file-info-pane {
             flex: 1;
-            background-color: #fff;
-            border-radius: 8px;
+            background-color: var(--surface-color);
+            border-radius: 0; /* Siku-siku */
             padding: 20px;
-            animation: slideInRight 0.5s ease-out;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Subtle shadow */
         }
 
         .file-info-pane h3 {
             margin-top: 0;
-            font-weight: 600;
+            font-weight: 500;
             font-size: 1.2em;
-            color: var(--metro-text-color);
-            border-bottom: 2px solid var(--metro-light-gray);
+            color: var(--text-color);
+            border-bottom: 1px solid var(--divider-color);
             padding-bottom: 10px;
             margin-bottom: 15px;
         }
@@ -375,14 +415,14 @@ function readArchiveContent($filePath, $fileType) {
         .file-info-item strong {
             display: block;
             font-size: 0.9em;
-            color: var(--metro-dark-gray);
+            color: var(--secondary-text-color);
             margin-bottom: 5px;
         }
 
         .file-info-item span {
             display: block;
             font-size: 1em;
-            color: var(--metro-text-color);
+            color: var(--text-color);
             word-wrap: break-word;
         }
 
@@ -392,7 +432,7 @@ function readArchiveContent($filePath, $fileType) {
             background: transparent;
             border: none;
             cursor: pointer;
-            color: var(--metro-text-color);
+            color: var(--secondary-text-color);
             text-decoration: none;
             font-size: 1.1em;
             font-weight: 400;
@@ -401,7 +441,7 @@ function readArchiveContent($filePath, $fileType) {
         }
 
         .back-button:hover {
-            color: var(--metro-blue);
+            color: var(--primary-color);
             transform: translateX(-5px);
         }
 
@@ -439,7 +479,7 @@ function readArchiveContent($filePath, $fileType) {
         }
 
         .preview-content pre {
-            background-color: var(--metro-bg-color);
+            background-color: var(--background-color);
             padding: 0px;
             border-radius: 5px;
             text-align: left;
@@ -459,17 +499,17 @@ function readArchiveContent($filePath, $fileType) {
         }
 
         .general-file-info {
-            background-color: var(--metro-light-gray);
-            color: var(--metro-dark-gray);
+            background-color: var(--background-color);
+            color: var(--secondary-text-color);
             padding: 30px;
             border-radius: 5px;
             text-align: center;
-            animation: fadeIn 0.5s ease-out;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
 
         .general-file-info .icon {
             font-size: 48px;
-            color: var(--metro-blue);
+            color: var(--primary-color);
             margin-bottom: 20px;
         }
 
@@ -482,17 +522,17 @@ function readArchiveContent($filePath, $fileType) {
             display: inline-flex;
             align-items: center;
             padding: 12px 24px;
-            background-color: var(--metro-blue);
+            background-color: var(--primary-color);
             color: #FFFFFF;
             text-decoration: none;
-            border-radius: 5px;
-            font-weight: 600;
+            border-radius: 0; /* Siku-siku */
+            font-weight: 500;
             transition: background-color 0.2s ease-out, transform 0.2s ease-out;
             margin-top: 20px;
         }
 
         .download-button:hover {
-            background-color: var(--metro-dark-blue);
+            background-color: var(--primary-dark-color);
             transform: translateY(-2px);
         }
 
@@ -508,33 +548,29 @@ function readArchiveContent($filePath, $fileType) {
             transition: transform 0.1s ease-out; /* Added for smooth zoom */
         }
 
-        /* Animations */
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes slideInRight {
-            from { transform: translateX(20px); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-
+        /* Breadcrumbs (Material Design style) */
         .breadcrumbs {
             margin-bottom: 20px;
             font-size: 0.9em;
+            color: var(--secondary-text-color);
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            padding: 0;
         }
         .breadcrumbs a {
-            color: var(--metro-dark-gray);
+            color: var(--primary-color);
             text-decoration: none;
-            transition: color 0.2s ease-in-out;
+            margin-right: 5px;
+            transition: color 0.2s ease-out;
         }
         .breadcrumbs a:hover {
-            color: var(--metro-blue);
             text-decoration: underline;
+            color: var(--primary-dark-color);
         }
         .breadcrumbs span {
-            color: var(--metro-dark-gray);
-            margin: 0 5px;
+            margin-right: 5px;
+            color: var(--divider-color);
         }
 
         /* Zoom Controls */
@@ -548,7 +584,7 @@ function readArchiveContent($filePath, $fileType) {
         }
 
         .zoom-button {
-            background-color: var(--metro-blue);
+            background-color: var(--primary-color);
             color: #fff;
             border: none;
             border-radius: 50%;
@@ -563,15 +599,15 @@ function readArchiveContent($filePath, $fileType) {
         }
 
         .zoom-button:hover {
-            background-color: var(--metro-dark-blue);
+            background-color: var(--primary-dark-color);
             transform: scale(1.05);
         }
 
         /* Styles from your provided code for text viewer */
         .viewer-container {
             padding: 1rem;
-            background: #fff;
-            border: 1px solid #ccc;
+            background: var(--background-color);
+            border: 1px solid var(--divider-color);
             overflow: auto;
             max-height: 70vh; /* Adjusted to fit preview-content height */
             width: 100%; /* Ensure it takes full width */
@@ -580,7 +616,7 @@ function readArchiveContent($filePath, $fileType) {
         .viewer-container pre {
             white-space: pre-wrap;
             word-wrap: break-word;
-            background: #eef;
+            background: var(--surface-color);
             padding: 1rem;
             text-align: left; /* Align text to left */
         }
@@ -590,9 +626,9 @@ function readArchiveContent($filePath, $fileType) {
             width: 100%;
             max-height: 70vh;
             overflow-y: auto;
-            background-color: #f9f9f9;
-            border: 1px solid var(--metro-light-gray);
-            border-radius: 5px;
+            background-color: var(--background-color);
+            border: 1px solid var(--divider-color);
+            border-radius: 0; /* Siku-siku */
             padding: 15px;
             text-align: left;
         }
@@ -600,9 +636,9 @@ function readArchiveContent($filePath, $fileType) {
         .archive-viewer h3 {
             margin-top: 0;
             margin-bottom: 15px;
-            color: var(--metro-text-color);
+            color: var(--text-color);
             font-size: 1.3em;
-            border-bottom: 1px solid var(--metro-medium-gray);
+            border-bottom: 1px solid var(--divider-color);
             padding-bottom: 10px;
         }
 
@@ -619,23 +655,23 @@ function readArchiveContent($filePath, $fileType) {
         }
 
         .archive-table th, .archive-table td {
-            border: 1px solid var(--metro-light-gray);
+            border: 1px solid var(--divider-color);
             padding: 8px 12px;
             text-align: left;
         }
 
         .archive-table th {
-            background-color: var(--metro-bg-color);
-            color: var(--metro-dark-gray);
+            background-color: var(--surface-color);
+            color: var(--secondary-text-color);
             font-weight: 600;
         }
 
         .archive-table tbody tr:nth-child(even) {
-            background-color: #f2f2f2;
+            background-color: var(--background-color);
         }
 
         .archive-table tbody tr:hover {
-            background-color: var(--metro-light-gray);
+            background-color: var(--divider-color);
         }
 
         /* Responsive table for small screens */
@@ -651,8 +687,8 @@ function readArchiveContent($filePath, $fileType) {
 
             .archive-table tr {
                 margin-bottom: 15px; /* Space between rows */
-                border: 1px solid var(--metro-light-gray);
-                border-radius: 5px;
+                border: 1px solid var(--divider-color);
+                border-radius: 0; /* Siku-siku */
                 overflow: hidden; /* Ensure border-radius applies */
             }
 
@@ -661,7 +697,7 @@ function readArchiveContent($filePath, $fileType) {
                 padding-left: 50%; /* Make space for the data-label */
                 position: relative;
                 border: none; /* Remove individual cell borders */
-                border-bottom: 1px solid var(--metro-light-gray); /* Add bottom border for separation */
+                border-bottom: 1px solid var(--divider-color); /* Add bottom border for separation */
             }
 
             .archive-table td:last-child {
@@ -678,7 +714,7 @@ function readArchiveContent($filePath, $fileType) {
                 overflow: hidden;
                 text-overflow: ellipsis;
                 font-weight: 600;
-                color: var(--metro-dark-gray);
+                color: var(--secondary-text-color);
                 text-align: left; /* Align label to the left */
             }
         }
@@ -714,8 +750,18 @@ function readArchiveContent($filePath, $fileType) {
                 padding: 15px;
                 display: block; /* Show info pane */
             }
-            body.tablet-landscape .header-sticky {
+            body.tablet-landscape .header-main {
                 padding: 10px 20px;
+            }
+            body.tablet-landscape .header-main h1 {
+                font-size: 1.8em;
+            }
+            body.tablet-landscape .profile-container .username {
+                font-size: 0.9em;
+            }
+            body.tablet-landscape .profile-container .profile-image {
+                width: 35px;
+                height: 35px;
             }
         }
 
@@ -738,8 +784,18 @@ function readArchiveContent($filePath, $fileType) {
                 width: auto; /* Auto width */
                 display: block; /* Show info pane */
             }
-            body.tablet-portrait .header-sticky {
+            body.tablet-portrait .header-main {
                 padding: 10px 20px;
+            }
+            body.tablet-portrait .header-main h1 {
+                font-size: 1.8em;
+            }
+            body.tablet-portrait .profile-container .username {
+                font-size: 0.9em;
+            }
+            body.tablet-portrait .profile-container .profile-image {
+                width: 35px;
+                height: 35px;
             }
         }
 
@@ -762,14 +818,14 @@ function readArchiveContent($filePath, $fileType) {
                 width: auto; /* Auto width */
                 display: block; /* Show info pane */
             }
-            body.mobile .header-sticky {
+            body.mobile .header-main {
                 padding: 10px 15px;
             }
-            body.mobile .header-sticky h1 {
+            body.mobile .header-main h1 {
                 margin-right: 5px; /* Reduce margin for icon */
                 font-size: 1.3em; /* Smaller font size for header */
             }
-            body.mobile .header-sticky h1 i {
+            body.mobile .header-main h1 i {
                 margin-right: 8px;
             }
             body.mobile .profile-container .username {
@@ -854,8 +910,8 @@ function readArchiveContent($filePath, $fileType) {
 </head>
 <body>
 
-<header class="header-sticky">
-    <h1><i class="fas fa-file-alt"></i>File Preview</h1>
+<header class="header-main">
+    <h1><i class="fas fa-file-alt"></i> <span data-lang-key="filePreview">File Preview</span></h1>
     <div class="profile-container">
         <?php if ($user_id !== null): ?>
             <a href="profile.php" class="username" id="headerUsername">
@@ -865,7 +921,7 @@ function readArchiveContent($filePath, $fileType) {
                 <img src="<?php echo htmlspecialchars($user['profile_picture'] ?? 'img/default_avatar.png'); ?>" alt="Profile Picture" class="profile-image" id="headerProfilePicture">
             </a>
         <?php else: ?>
-            <span class="username" id="headerUsername">Guest</span>
+            <span class="username" id="headerUsername" data-lang-key="guest">Guest</span>
             <img src="img/default_avatar.png" alt="Profile Picture" class="profile-image" id="headerProfilePicture">
         <?php endif; ?>
     </div>
@@ -874,7 +930,7 @@ function readArchiveContent($filePath, $fileType) {
 <div class="main-container">
     <div class="preview-pane">
         <div class="breadcrumbs" id="breadcrumbsContainer">
-            <a href="index.php"><i class="fas fa-home"></i> Home</a>
+            <a href="index.php"><i class="fas fa-home"></i> <span data-lang-key="home">Home</span></a>
             <?php
             // Tampilkan breadcrumbs hanya jika pengguna login
             if ($user_id !== null) {
@@ -886,7 +942,7 @@ function readArchiveContent($filePath, $fileType) {
             <span>/</span><span id="currentFileNameBreadcrumb"><?php echo htmlspecialchars($fileName); ?></span>
         </div>
         <a href="index.php<?php echo ($user_id !== null && $currentFolderId) ? '?folder=' . htmlspecialchars($currentFolderId) : ''; ?>" class="back-button" id="backButton">
-            <i class="fas fa-arrow-left"></i> Back
+            <i class="fas fa-arrow-left"></i> <span data-lang-key="back">Back</span>
         </a>
         <div class="preview-content" id="previewContent">
             <?php
@@ -908,12 +964,12 @@ function readArchiveContent($filePath, $fileType) {
             <?php elseif ($fileCategory === 'audio'): ?>
                 <audio id="previewElement" controls autoplay>
                     <source src="<?php echo htmlspecialchars($filePath); ?>" type="audio/<?php echo htmlspecialchars($fileType); ?>">
-                    Your browser does not support the audio element.
+                    <span data-lang-key="audioNotSupported">Your browser does not support the audio element.</span>
                 </audio>
             <?php elseif ($fileCategory === 'video'): ?>
                 <video id="previewElement" controls autoplay>
                     <source src="<?php echo htmlspecialchars($filePath); ?>" type="video/<?php echo htmlspecialchars($fileType); ?>">
-                    Your browser does not support the video tag.
+                    <span data-lang-key="videoNotSupported">Your browser does not support the video tag.</span>
                 </video>
             <?php elseif ($fileCategory === 'document' && $fileType === 'pdf'): ?>
                 <iframe id="previewElement" src="<?php echo htmlspecialchars($filePath); ?>" class="pdf-viewer"></iframe>
@@ -927,10 +983,10 @@ function readArchiveContent($filePath, $fileType) {
                 <?php else: ?>
                     <div class="general-file-info">
                         <i class="fas fa-archive icon"></i>
-                        <p>Previewing the contents of the archive file <strong><?php echo strtoupper($fileType); ?></strong> is not supported.</p>
-                        <p>Please download the file to view its contents.</p>
+                        <p><span data-lang-key="archivePreviewNotSupported">Previewing the contents of the archive file</span> <strong><?php echo strtoupper($fileType); ?></strong> <span data-lang-key="isNotSupported">is not supported.</span></p>
+                        <p><span data-lang-key="downloadToView">Please download the file to view its contents.</span></p>
                         <a href="download.php?file=<?php echo urlencode($filePath); ?>&new_filename=<?php echo urlencode($fileName); ?>" download="<?php echo htmlspecialchars($fileName); ?>" class="download-button" id="downloadButton1">
-                            <i class="fas fa-download"></i> Download File
+                            <i class="fas fa-download"></i> <span data-lang-key="downloadFile">Download File</span>
                         </a>
                     </div>
                 <?php endif; ?>
@@ -945,10 +1001,10 @@ function readArchiveContent($filePath, $fileType) {
             <?php elseif (in_array($fileType, ['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'odt', 'odp', 'rtf'])): ?>
                 <div class="general-file-info">
                     <i class="fas fa-file-alt icon"></i>
-                    <p>⚠️ Pratinjau lokal untuk file <strong><?= strtoupper($fileType) ?></strong> tidak didukung secara langsung.</p>
-                    <p>Silakan <a href="<?= htmlspecialchars($filePath) ?>" target="_blank" download>download file</a> untuk melihat isinya.</p>
+                    <p>⚠️ <span data-lang-key="officePreviewNotSupported">Local preview for</span> <strong><?= strtoupper($fileType) ?></strong> <span data-lang-key="isNotSupportedDirectly">files is not supported directly.</span></p>
+                    <p><span data-lang-key="pleaseDownload">Please</span> <a href="<?= htmlspecialchars($filePath) ?>" target="_blank" download><span data-lang-key="downloadFileLink">download the file</span></a> <span data-lang-key="toViewContents">to view its contents.</span></p>
                     <a href="download.php?file=<?php echo urlencode($filePath); ?>&new_filename=<?php echo urlencode($fileName); ?>" download="<?php echo htmlspecialchars($fileName); ?>" class="download-button" id="downloadButton3">
-                        <i class="fas fa-download"></i> Download File
+                        <i class="fas fa-download"></i> <span data-lang-key="downloadFile">Download File</span>
                     </a>
                 </div>
             <?php
@@ -956,10 +1012,10 @@ function readArchiveContent($filePath, $fileType) {
             elseif ($fileCategory === 'cad'): ?>
                 <div class="general-file-info">
                     <i class="fas fa-cube icon"></i> <!-- Using fa-cube icon for CAD -->
-                    <p>Preview for CAD file type <strong><?php echo strtoupper($fileType); ?></strong> is not supported directly in the browser.</p>
-                    <p>Please download the file to open it with appropriate software.</p>
+                    <p><span data-lang-key="cadPreviewNotSupported">Preview for CAD file type</span> <strong><?php echo strtoupper($fileType); ?></strong> <span data-lang-key="isNotSupportedDirectly">is not supported directly in the browser.</span></p>
+                    <p><span data-lang-key="downloadWithSoftware">Please download the file to open it with appropriate software.</span></p>
                     <a href="download.php?file=<?php echo urlencode($filePath); ?>&new_filename=<?php echo urlencode($fileName); ?>" download="<?php echo htmlspecialchars($fileName); ?>" class="download-button" id="downloadButtonCAD">
-                        <i class="fas fa-download"></i> Download File
+                        <i class="fas fa-download"></i> <span data-lang-key="downloadFile">Download File</span>
                     </a>
                 </div>
             <?php
@@ -967,40 +1023,85 @@ function readArchiveContent($filePath, $fileType) {
             else: ?>
                 <div class="general-file-info">
                     <i class="fas fa-exclamation-circle icon"></i>
-                    <p>Preview for file type <strong><?php echo strtoupper($fileType); ?></strong> is not supported.</p>
-                    <p>Please download the file to open it.</p>
+                    <p><span data-lang-key="previewNotSupported">Preview for file type</span> <strong><?php echo strtoupper($fileType); ?></strong> <span data-lang-key="isNotSupported">is not supported.</span></p>
+                    <p><span data-lang-key="downloadToOpen">Please download the file to open it.</span></p>
                     <a href="download.php?file=<?php echo urlencode($filePath); ?>&new_filename=<?php echo urlencode($fileName); ?>" download="<?php echo htmlspecialchars($fileName); ?>" class="download-button" id="downloadButton2">
-                        <i class="fas fa-download"></i> Download File
+                        <i class="fas fa-download"></i> <span data-lang-key="downloadFile">Download File</span>
                     </a>
                 </div>
             <?php endif; ?>
         </div>
     </div>
     <div class="file-info-pane">
-        <h3>File Details</h3>
+        <h3 data-lang-key="fileDetails">File Details</h3>
         <div class="file-info-item">
-            <strong>File Name</strong>
+            <strong data-lang-key="fileName">File Name</strong>
             <span id="detailFileName"><?php echo htmlspecialchars($fileName); ?></span>
         </div>
         <div class="file-info-item">
-            <strong>File Size</strong>
+            <strong data-lang-key="fileSize">File Size</strong>
             <span id="detailFileSize"><?php echo htmlspecialchars(formatBytes($fileSize)); ?></span>
         </div>
         <div class="file-info-item">
-            <strong>File Type</strong>
+            <strong data-lang-key="fileType">File Type</strong>
             <span id="detailFileType"><?php echo htmlspecialchars(strtoupper($fileType)); ?></span>
         </div>
         <div class="file-info-item">
-            <strong>Uploaded At</strong>
+            <strong data-lang-key="uploadedAt">Uploaded At</strong>
             <span id="detailUploadedAt"><?php echo htmlspecialchars($uploadedAt); ?></span>
         </div>
         <a href="download.php?file=<?php echo urlencode($filePath); ?>&new_filename=<?php echo urlencode($fileName); ?>" download="<?php echo htmlspecialchars($fileName); ?>" class="download-button" style="width: 100%; box-sizing: border-box;" id="detailDownloadButton">
-            <i class="fas fa-download"></i> Download
+            <i class="fas fa-download"></i> <span data-lang-key="download">Download</span>
         </a>
     </div>
 </div>
 
 <script>
+    // --- Translation Data (Global) ---
+    const translations = {
+        // General
+        'filePreview': { 'id': 'Pratinjau File', 'en': 'File Preview' },
+        'guest': { 'id': 'Tamu', 'en': 'Guest' },
+        'home': { 'id': 'Beranda', 'en': 'Home' },
+        'back': { 'id': 'Kembali', 'en': 'Back' },
+        'downloadFile': { 'id': 'Unduh File', 'en': 'Download File' },
+        'download': { 'id': 'Unduh', 'en': 'Download' },
+
+        // File Details
+        'fileDetails': { 'id': 'Detail File', 'en': 'File Details' },
+        'fileName': { 'id': 'Nama File', 'en': 'File Name' },
+        'fileSize': { 'id': 'Ukuran File', 'en': 'File Size' },
+        'fileType': { 'id': 'Tipe File', 'en': 'File Type' },
+        'uploadedAt': { 'id': 'Diunggah Pada', 'en': 'Uploaded At' },
+
+        // Preview Messages
+        'audioNotSupported': { 'id': 'Browser Anda tidak mendukung elemen audio.', 'en': 'Your browser does not support the audio element.' },
+        'videoNotSupported': { 'id': 'Browser Anda tidak mendukung tag video.', 'en': 'Your browser does not support the video tag.' },
+        'archivePreviewNotSupported': { 'id': 'Pratinjau konten file arsip', 'en': 'Previewing the contents of the archive file' },
+        'isNotSupported': { 'id': 'tidak didukung.', 'en': 'is not supported.' },
+        'downloadToView': { 'id': 'Silakan unduh file untuk melihat isinya.', 'en': 'Please download the file to view its contents.' },
+        'officePreviewNotSupported': { 'id': 'Pratinjau lokal untuk', 'en': 'Local preview for' },
+        'isNotSupportedDirectly': { 'id': 'file tidak didukung secara langsung.', 'en': 'files is not supported directly.' },
+        'pleaseDownload': { 'id': 'Silakan', 'en': 'Please' },
+        'downloadFileLink': { 'id': 'unduh file', 'en': 'download the file' },
+        'toViewContents': { 'id': 'untuk melihat isinya.', 'en': 'to view its contents.' },
+        'cadPreviewNotSupported': { 'id': 'Pratinjau untuk tipe file CAD', 'en': 'Preview for CAD file type' },
+        'downloadWithSoftware': { 'id': 'Silakan unduh file untuk membukanya dengan perangkat lunak yang sesuai.', 'en': 'Please download the file to open it with appropriate software.' },
+        'previewNotSupported': { 'id': 'Pratinjau untuk tipe file', 'en': 'Preview for file type' },
+        'downloadToOpen': { 'id': 'Silakan unduh file untuk membukanya.', 'en': 'Please download the file to open it.' },
+    };
+
+    let currentLanguage = localStorage.getItem('lang') || 'id'; // Default to Indonesian
+
+    function applyTranslation(lang) {
+        document.querySelectorAll('[data-lang-key]').forEach(element => {
+            const key = element.getAttribute('data-lang-key');
+            if (translations[key] && translations[key][lang]) {
+                element.textContent = translations[key][lang];
+            }
+        });
+    }
+
     // Helper function to format bytes (replicate from PHP's formatBytes)
     function formatBytes(bytes, precision = 2) {
         const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
@@ -1068,11 +1169,11 @@ function readArchiveContent($filePath, $fileType) {
                 headerProfilePicture.closest('a').href = 'profile.php';
             }
         } else {
-            headerUsername.textContent = 'Guest';
+            headerUsername.textContent = translations['guest'][currentLanguage];
             headerProfilePicture.src = 'img/default_avatar.png';
             // Remove href for guest users if it was set
             if (headerUsername.href) {
-                headerUsername.outerHTML = `<span class="username" id="headerUsername">${headerUsername.textContent}</span>`;
+                headerUsername.outerHTML = `<span class="username" id="headerUsername" data-lang-key="guest">${headerUsername.textContent}</span>`;
                 headerProfilePicture.closest('a').outerHTML = `<img src="img/default_avatar.png" alt="Profile Picture" class="profile-image" id="headerProfilePicture">`;
             }
         }
@@ -1080,7 +1181,7 @@ function readArchiveContent($filePath, $fileType) {
 
         // Update Breadcrumbs
         const breadcrumbsContainer = document.getElementById('breadcrumbsContainer');
-        breadcrumbsContainer.innerHTML = '<a href="index.php"><i class="fas fa-home"></i> Home</a>';
+        breadcrumbsContainer.innerHTML = `<a href="index.php"><i class="fas fa-home"></i> <span data-lang-key="home">${translations['home'][currentLanguage]}</span></a>`;
         // Tampilkan breadcrumbs hanya jika pengguna login
         if (isUserLoggedIn) {
             data.breadcrumbs.forEach(crumb => {
@@ -1097,6 +1198,7 @@ function readArchiveContent($filePath, $fileType) {
         } else {
             backButton.href = `index.php`; // Always redirect to index.php for non-logged in or root
         }
+        backButton.querySelector('span').textContent = translations['back'][currentLanguage];
 
 
         // Update Preview Content
@@ -1125,14 +1227,14 @@ function readArchiveContent($filePath, $fileType) {
             previewHtml += `
                 <audio id="previewElement" controls autoplay>
                     <source src="${htmlspecialchars(data.filePath)}" type="audio/${htmlspecialchars(data.fileType)}">
-                    Your browser does not support the audio element.
+                    <span data-lang-key="audioNotSupported">${translations['audioNotSupported'][currentLanguage]}</span>
                 </audio>
             `;
         } else if (data.fileCategory === 'video') {
             previewHtml += `
                 <video id="previewElement" controls autoplay>
                     <source src="${htmlspecialchars(data.filePath)}" type="video/${htmlspecialchars(data.fileType)}">
-                    Your browser does not support the video tag.
+                    <span data-lang-key="videoNotSupported">${translations['videoNotSupported'][currentLanguage]}</span>
                 </video>
             `;
         } else if (data.fileCategory === 'document' && data.fileType === 'pdf') {
@@ -1157,10 +1259,10 @@ function readArchiveContent($filePath, $fileType) {
                 previewHtml += `
                     <div class="general-file-info">
                         <i class="fas fa-archive icon"></i>
-                        <p>Previewing the contents of the archive file <strong>${data.fileType.toUpperCase()}</strong> is not supported.</p>
-                        <p>Please download the file to view its contents.</p>
+                        <p><span data-lang-key="archivePreviewNotSupported">${translations['archivePreviewNotSupported'][currentLanguage]}</span> <strong>${data.fileType.toUpperCase()}</strong> <span data-lang-key="isNotSupported">${translations['isNotSupported'][currentLanguage]}</span></p>
+                        <p><span data-lang-key="downloadToView">${translations['downloadToView'][currentLanguage]}</span></p>
                         <a href="download.php?file=${encodeURIComponent(data.filePath)}&new_filename=${encodeURIComponent(data.fileName)}" download="${htmlspecialchars(data.fileName)}" class="download-button" id="downloadButton1">
-                            <i class="fas fa-download"></i> Download File
+                            <i class="fas fa-download"></i> <span data-lang-key="downloadFile">${translations['downloadFile'][currentLanguage]}</span>
                         </a>
                     </div>
                 `;
@@ -1177,10 +1279,10 @@ function readArchiveContent($filePath, $fileType) {
             previewHtml += `
                 <div class="general-file-info">
                     <i class="fas fa-file-alt icon"></i>
-                    <p>⚠️ Pratinjau lokal untuk file <strong>${data.fileType.toUpperCase()}</strong> tidak didukung secara langsung.</p>
-                    <p>Silakan <a href="${htmlspecialchars(data.filePath)}" target="_blank" download>download file</a> untuk melihat isinya.</p>
+                    <p>⚠️ <span data-lang-key="officePreviewNotSupported">${translations['officePreviewNotSupported'][currentLanguage]}</span> <strong>${data.fileType.toUpperCase()}</strong> <span data-lang-key="isNotSupportedDirectly">${translations['isNotSupportedDirectly'][currentLanguage]}</span></p>
+                    <p><span data-lang-key="pleaseDownload">${translations['pleaseDownload'][currentLanguage]}</span> <a href="${htmlspecialchars(data.filePath)}" target="_blank" download><span data-lang-key="downloadFileLink">${translations['downloadFileLink'][currentLanguage]}</span></a> <span data-lang-key="toViewContents">${translations['toViewContents'][currentLanguage]}</span></p>
                     <a href="download.php?file=${encodeURIComponent(data.filePath)}&new_filename=${encodeURIComponent(data.fileName)}" download="${htmlspecialchars(data.fileName)}" class="download-button" id="downloadButton3">
-                        <i class="fas fa-download"></i> Download File
+                        <i class="fas fa-download"></i> <span data-lang-key="downloadFile">${translations['downloadFile'][currentLanguage]}</span>
                     </a>
                 </div>
             `;
@@ -1190,10 +1292,10 @@ function readArchiveContent($filePath, $fileType) {
             previewHtml += `
                 <div class="general-file-info">
                     <i class="fas fa-cube icon"></i>
-                    <p>Preview for CAD file type <strong>${data.fileType.toUpperCase()}</strong> is not supported directly in the browser.</p>
-                    <p>Please download the file to open it with appropriate software.</p>
+                    <p><span data-lang-key="cadPreviewNotSupported">${translations['cadPreviewNotSupported'][currentLanguage]}</span> <strong>${data.fileType.toUpperCase()}</strong> <span data-lang-key="isNotSupportedDirectly">${translations['isNotSupportedDirectly'][currentLanguage]}</span></p>
+                    <p><span data-lang-key="downloadWithSoftware">${translations['downloadWithSoftware'][currentLanguage]}</span></p>
                     <a href="download.php?file=${encodeURIComponent(data.filePath)}&new_filename=${encodeURIComponent(data.fileName)}" download="${htmlspecialchars(data.fileName)}" class="download-button" id="downloadButtonCAD">
-                        <i class="fas fa-download"></i> Download File
+                        <i class="fas fa-download"></i> <span data-lang-key="downloadFile">${translations['downloadFile'][currentLanguage]}</span>
                     </a>
                 </div>
             `;
@@ -1203,10 +1305,10 @@ function readArchiveContent($filePath, $fileType) {
             previewHtml += `
                 <div class="general-file-info">
                     <i class="fas fa-exclamation-circle icon"></i>
-                    <p>Preview for file type <strong>${data.fileType.toUpperCase()}</strong> is not supported.</p>
-                    <p>Please download the file to open it.</p>
+                    <p><span data-lang-key="previewNotSupported">${translations['previewNotSupported'][currentLanguage]}</span> <strong>${data.fileType.toUpperCase()}</strong> <span data-lang-key="isNotSupported">${translations['isNotSupported'][currentLanguage]}</span></p>
+                    <p><span data-lang-key="downloadToOpen">${translations['downloadToOpen'][currentLanguage]}</span></p>
                     <a href="download.php?file=${encodeURIComponent(data.filePath)}&new_filename=${encodeURIComponent(data.fileName)}" download="${htmlspecialchars(data.fileName)}" class="download-button" id="downloadButton2">
-                        <i class="fas fa-download"></i> Download File
+                        <i class="fas fa-download"></i> <span data-lang-key="downloadFile">${translations['downloadFile'][currentLanguage]}</span>
                     </a>
                 </div>
             `;
@@ -1236,6 +1338,15 @@ function readArchiveContent($filePath, $fileType) {
         document.getElementById('detailUploadedAt').textContent = htmlspecialchars(data.uploadedAt);
         document.getElementById('detailDownloadButton').href = `download.php?file=${encodeURIComponent(data.filePath)}&new_filename=${encodeURIComponent(data.fileName)}`;
         document.getElementById('detailDownloadButton').download = htmlspecialchars(data.fileName);
+        document.getElementById('detailDownloadButton').querySelector('span').textContent = translations['download'][currentLanguage];
+
+        // Update File Details Pane labels
+        document.querySelector('#file-info-pane h3').textContent = translations['fileDetails'][currentLanguage];
+        document.querySelector('#file-info-pane strong[data-lang-key="fileName"]').textContent = translations['fileName'][currentLanguage];
+        document.querySelector('#file-info-pane strong[data-lang-key="fileSize"]').textContent = translations['fileSize'][currentLanguage];
+        document.querySelector('#file-info-pane strong[data-lang-key="fileType"]').textContent = translations['fileType'][currentLanguage];
+        document.querySelector('#file-info-pane strong[data-lang-key="uploadedAt"]').textContent = translations['uploadedAt'][currentLanguage];
+
 
         // Reset zoom level
         currentZoom = 1.0;
@@ -1343,6 +1454,9 @@ function readArchiveContent($filePath, $fileType) {
                 }
             });
         }
+
+        // Apply initial translation on page load
+        applyTranslation(currentLanguage);
 
         // You can call fetchFileData(fileId) here if you want to always load via AJAX
         // even on first page load, but it's generally better to server-render initial state.

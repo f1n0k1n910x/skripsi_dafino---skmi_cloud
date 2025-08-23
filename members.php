@@ -9,10 +9,9 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-// --- Tambahkan kode ini ---
 // Define $currentUserRole from session
 $currentUserRole = isset($_SESSION['role']) ? $_SESSION['role'] : 'guest'; // Default to 'guest' or 'user' if not set
-// --- Akhir penambahan kode ---
+
 // Current folder ID, default to NULL for root
 $currentFolderId = isset($_GET['folder']) ? (int)$_GET['folder'] : NULL;
 
@@ -25,7 +24,6 @@ function getDashboardData($conn, $currentUserId) {
     $data = [];
 
     // Total Active Users
-    // MODIFIKASI: Menghapus WHERE is_member = 1 agar semua user terhitung
     $stmt = $conn->prepare("SELECT COUNT(id) AS total_users FROM users");
     $stmt->execute();
     $result = $stmt->get_result();
@@ -70,7 +68,6 @@ function getDashboardData($conn, $currentUserId) {
     // Member List (Paginated - Initial Load)
     $members = [];
     $offset = 0;
-    // MODIFIKASI: Menghapus WHERE is_member = 1 agar semua user terhitung
     $stmt = $conn->prepare("SELECT id, username, email, full_name, last_active, last_login FROM users ORDER BY username ASC LIMIT ? OFFSET ?");
     $stmt->bind_param("ii", $membersPerPage, $offset);
     $stmt->execute();
@@ -196,7 +193,6 @@ function getPaginatedMembers($conn, $page, $membersPerPage) {
     $offset = ($page - 1) * $membersPerPage;
     $members = [];
 
-    // MODIFIKASI: Menghapus WHERE is_member = 1 agar semua user terhitung
     $stmt = $conn->prepare("SELECT id, username, email, full_name, last_active, last_login FROM users ORDER BY username ASC LIMIT ? OFFSET ?");
     $stmt->bind_param("ii", $membersPerPage, $offset);
     $stmt->execute();
@@ -233,7 +229,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_members') {
     header('Content-Type: application/json');
     $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
     $totalMembersCount = 0;
-    // MODIFIKASI: Menghapus WHERE is_member = 1 agar semua user terhitung
     $stmt = $conn->prepare("SELECT COUNT(id) AS total_members FROM users");
     $stmt->execute();
     $result = $stmt->get_result();
@@ -371,7 +366,6 @@ $currentUserProfile = $dashboardData['currentUserProfile'];
 
 // Get total member count for pagination
 $totalMembersCount = 0;
-// MODIFIKASI: Menghapus WHERE is_member = 1 agar semua user terhitung
 $stmt = $conn->prepare("SELECT COUNT(id) AS total_members FROM users");
 $stmt->execute();
 $result = $stmt->get_result();
@@ -390,20 +384,28 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* Metro Design (Modern UI) & Windows 7 Animations */
+        /* Material Design Google + Admin LTE */
         :root {
-            --metro-blue: #0078D7; /* Windows 10/Metro accent blue */
-            --metro-dark-blue: #0056b3;
-            --metro-light-gray: #E1E1E1;
-            --metro-medium-gray: #C8C8C8;
-            --metro-dark-gray: #666666;
-            --metro-text-color: #333333;
-            --metro-bg-color: #F0F0F0;
-            --metro-sidebar-bg: #2D2D30; /* Darker sidebar for contrast */
-            --metro-sidebar-text: #F0F0F0;
-            --metro-success: #4CAF50;
-            --metro-error: #E81123; /* Windows 10 error red */
-            --metro-warning: #FF8C00; /* Windows 10 warning orange */
+            --primary-color: #3F51B5; /* Indigo 500 - Material Design */
+            --primary-dark-color: #303F9F; /* Indigo 700 */
+            --accent-color: #FF4081; /* Pink A200 */
+            --text-color: #212121; /* Grey 900 */
+            --secondary-text-color: #757575; /* Grey 600 */
+            --divider-color: #BDBDBD; /* Grey 400 */
+            --background-color: #F5F5F5; /* Grey 100 */
+            --surface-color: #FFFFFF; /* White */
+            --success-color: #4CAF50; /* Green 500 */
+            --error-color: #F44336; /* Red 500 */
+            --warning-color: #FFC107; /* Amber 500 */
+
+            /* AdminLTE specific colors */
+            --adminlte-sidebar-bg: #222d32;
+            --adminlte-sidebar-text: #b8c7ce;
+            --adminlte-sidebar-hover-bg: #1e282c;
+            --adminlte-sidebar-active-bg: #1e282c;
+            --adminlte-sidebar-active-text: #ffffff;
+            --adminlte-header-bg: #ffffff;
+            --adminlte-header-text: #333333;
 
             /* --- LOKASI EDIT UKURAN FONT SIDEBAR --- */
             --sidebar-font-size-desktop: 0.9em; /* Ukuran font default untuk desktop */
@@ -413,51 +415,49 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             /* --- AKHIR LOKASI EDIT UKURAN FONT SIDEBAR --- */
         }
 
-        * {
-            box-sizing: border-box;
-        }
-
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Roboto', sans-serif; /* Material Design font */
             margin: 0;
             display: flex;
             height: 100vh;
-            background-color: var(--metro-bg-color);
-            color: var(--metro-text-color);
+            background-color: var(--background-color);
+            color: var(--text-color);
             overflow: hidden; /* Prevent body scroll, main-content handles it */
         }
 
-        /* Base Sidebar (for Desktop/Tablet Landscape) */
+        /* Base Sidebar (AdminLTE style) */
         .sidebar {
-            width: 250px; /* Wider sidebar for Metro feel */
-            background-color: var(--metro-sidebar-bg);
-            color: var(--metro-sidebar-text);
+            width: 250px;
+            background-color: var(--adminlte-sidebar-bg);
+            color: var(--adminlte-sidebar-text);
             display: flex;
             flex-direction: column;
-            padding: 20px 0;
+            padding: 0; /* No padding at top/bottom */
             transition: width 0.3s ease-in-out, transform 0.3s ease-in-out;
-            flex-shrink: 0; /* Prevent shrinking */
+            flex-shrink: 0;
+            box-shadow: none; /* No box-shadow */
         }
 
         .sidebar-header {
-            padding: 0 20px;
-            margin-bottom: 30px;
+            padding: 15px;
+            margin-bottom: 15px;
             display: flex;
             align-items: center;
-            justify-content: center; /* Center logo */
+            justify-content: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
         }
 
         .sidebar-header img {
-            width: 150px; /* Larger logo */
+            width: 120px; /* Slightly smaller logo */
             height: auto;
             display: block;
         }
 
         .sidebar-header h2 {
             margin: 0;
-            font-size: 1.8em;
-            color: var(--metro-sidebar-text);
-            font-weight: 300; /* Lighter font weight */
+            font-size: 1.5em;
+            color: var(--adminlte-sidebar-text);
+            font-weight: 400;
         }
 
         .sidebar-menu {
@@ -465,136 +465,138 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             padding: 0;
             margin: 0;
             flex-grow: 1;
-            overflow-y: auto; /* Enable vertical scrolling */
-            overflow-x: hidden; /* Hide horizontal scrolling */
+            overflow-y: auto;
+            overflow-x: hidden;
         }
 
         .sidebar-menu li {
-            margin-bottom: 5px; /* Closer spacing */
+            margin-bottom: 0; /* No extra spacing */
         }
 
         .sidebar-menu a {
             display: flex;
             align-items: center;
-            padding: 15px 20px; /* More padding */
-            color: var(--metro-sidebar-text);
+            padding: 12px 15px; /* AdminLTE padding */
+            color: var(--adminlte-sidebar-text);
             text-decoration: none;
-            font-size: var(--sidebar-font-size-desktop); /* Menggunakan variabel untuk desktop */
+            font-size: var(--sidebar-font-size-desktop);
             transition: background-color 0.2s ease-out, color 0.2s ease-out;
-            border-left: 5px solid transparent; /* For active state */
+            border-left: 3px solid transparent; /* For active state */
         }
 
         .sidebar-menu a i {
-            margin-right: 15px;
-            font-size: 1.4em;
-            width: 25px; /* Fixed width for icons */
+            margin-right: 10px;
+            font-size: 1.2em;
+            width: 20px;
             text-align: center;
         }
 
-        /* Perbaikan Animasi Hover dan Active */
         .sidebar-menu a:hover {
-            background-color: rgba(255,255,255,0.15); /* Sedikit lebih terang dari sebelumnya */
-            color: #FFFFFF;
-            transform: translateX(5px); /* Efek geser ke kanan */
-            transition: background-color 0.2s ease-out, color 0.2s ease-out, transform 0.2s ease-out;
+            background-color: var(--adminlte-sidebar-hover-bg);
+            color: var(--adminlte-sidebar-active-text);
+            transform: translateX(0); /* No slide effect */
         }
 
         .sidebar-menu a.active {
-            background-color: var(--metro-blue); /* Metro accent color */
-            border-left: 5px solid var(--metro-blue);
-            color: #FFFFFF;
-            font-weight: 600;
-            transform: translateX(0); /* Pastikan tidak ada geseran saat aktif */
+            background-color: var(--adminlte-sidebar-active-bg);
+            border-left-color: var(--primary-color); /* Material primary color for active */
+            color: var(--adminlte-sidebar-active-text);
+            font-weight: 500;
         }
 
-        /* Storage Info */
+        /* Storage Info (AdminLTE style) */
         .storage-info {
-            padding: 20px;
+            padding: 15px;
             border-top: 1px solid rgba(255,255,255,0.1);
             text-align: center;
-            font-size: 0.9em;
-            /* Posisi dirapikan seperti priority_files.php */
-            margin-top: auto; /* Dorong ke bawah */
-            padding-top: 20px;
+            font-size: 0.85em;
+            margin-top: auto;
+            padding-top: 15px;
         }
 
         .storage-info h4 {
             margin-top: 0;
-            margin-bottom: 15px;
-            color: var(--metro-sidebar-text);
+            margin-bottom: 10px;
+            color: var(--adminlte-sidebar-text);
             font-weight: 400;
         }
 
         .progress-bar-container {
             width: 100%;
             background-color: rgba(255,255,255,0.2);
-            border-radius: 5px;
-            height: 8px;
-            margin-bottom: 10px;
+            border-radius: 0; /* Siku-siku */
+            height: 6px;
+            margin-bottom: 8px;
             overflow: hidden;
-            position: relative; /* Added for text overlay */
+            position: relative;
         }
 
         .progress-bar {
             height: 100%;
-            background-color: var(--metro-success); /* Green for progress */
-            border-radius: 5px;
+            background-color: var(--success-color);
+            border-radius: 0; /* Siku-siku */
             transition: width 0.5s ease-in-out;
             position: relative;
             overflow: hidden;
         }
 
-        /* Progress bar text overlay */
         .progress-bar-text {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            color: #fff; /* White text for contrast */
-            font-size: 0.7em; /* Smaller font size */
+            color: #fff;
+            font-size: 0.6em;
             font-weight: bold;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.5); /* Add shadow for readability */
-            white-space: nowrap; /* Prevent text from wrapping */
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            white-space: nowrap;
         }
 
         .storage-text {
-            font-size: 0.9em;
-            color: var(--metro-light-gray);
+            font-size: 0.8em;
+            color: var(--adminlte-sidebar-text);
         }
 
-        /* Main Content */
+        /* Main Content (Full-width, unique & professional) */
         .main-content {
             flex-grow: 1;
-            padding: 30px;
+            padding: 20px; /* Reduced padding */
             display: flex;
             flex-direction: column;
-            overflow-y: auto; /* Enable scrolling for content */
-            background-color: #FFFFFF; /* White background for content area */
-            border-radius: 0; /* MODIFIED: No rounded corners for full width */
-            margin: 0; /* MODIFIED: Full width */
-            /* box-shadow: 0 5px 15px rgba(0,0,0,0.1); */ /* Removed shadow */
+            overflow-y: auto;
+            background-color: var(--background-color); /* Light grey background */
+            border-radius: 0; /* Siku-siku */
+            margin: 0; /* Full width */
+            box-shadow: none; /* No box-shadow */
+            /* MODIFIED: Initial state for fly-in animation */
+            opacity: 0;
+            transform: translateY(100%);
+            animation: flyInFromBottom 0.5s ease-out forwards; /* Fly In animation from bottom */
         }
 
-        /* Header Main - Now always white */
+        .main-content.fly-out {
+            animation: flyOutToTop 0.5s ease-in forwards; /* Fly Out animation to top */
+        }
+
+        /* Header Main (Full-width, white, no background residue) */
         .header-main {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 25px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid var(--metro-light-gray);
-            background-color: #FFFFFF; /* White header */
-            padding: 15px 30px; /* Add padding for header */
-            margin: -30px -30px 25px -30px; /* Adjust margin to cover full width */
-            border-radius: 0; /* MODIFIED: No rounded top corners for full width */
-            /*box-shadow: 0 2px 5px rgba(0,0,0,0.05); */
+            margin-bottom: 20px; /* Reduced margin */
+            padding: 15px 20px; /* Padding for header */
+            border-bottom: 1px solid var(--divider-color);
+            background-color: var(--adminlte-header-bg); /* White header */
+            margin: -20px -20px 20px -20px; /* Adjust margin to cover full width */
+            border-radius: 0; /* Siku-siku */
+            box-shadow: none; /* No box-shadow */
         }
 
         .header-main h1 {
             margin: 0;
-            color: var(--metro-text-color);
-            font-size: 2.5em;
-            font-weight: 300;
+            color: var(--adminlte-header-text);
+            font-size: 2em; /* Slightly smaller title */
+            font-weight: 400; /* Lighter font weight */
         }
 
         /* Dashboard Specific Styles (from summary.php) */
@@ -607,11 +609,11 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
 
         /* Card styles (from summary.php) */
         .card {
-            background-color: var(--metro-blue);
+            background-color: var(--primary-color); /* Using primary-color for default card */
             color: #FFFFFF;
             padding: 25px;
-            border-radius: 5px;
-            /*box-shadow: 0 4px 12px rgba(0,0,0,0.15);*/
+            border-radius: 0; /* Siku-siku */
+            box-shadow: none; /* No box-shadow */
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -625,8 +627,8 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
         .card:nth-child(4) { animation-delay: 0.4s; }
 
         .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+            transform: translateY(0); /* No lift */
+            box-shadow: none; /* No box-shadow */
         }
 
         .card h3 {
@@ -642,9 +644,9 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             font-weight: 600;
         }
 
-        .card.green { background-color: var(--metro-success); }
-        .card.orange { background-color: var(--metro-warning); }
-        .card.red { background-color: var(--metro-error); }
+        .card.green { background-color: var(--success-color); }
+        .card.orange { background-color: var(--warning-color); }
+        .card.red { background-color: var(--error-color); }
 
         /* Adjust .card p for the count and storage text */
         .card p.count {
@@ -659,85 +661,89 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             margin-top: 5px;
         }
 
-        /* Member Table */
+        /* Member Table (Google Drive Style) */
         .section-title {
             font-size: 1.8em;
-            font-weight: 300;
-            color: var(--metro-text-color);
+            font-weight: 400;
+            color: var(--text-color);
             margin-bottom: 20px;
-            border-bottom: 1px solid var(--metro-light-gray);
+            border-bottom: 1px solid var(--divider-color);
             padding-bottom: 10px;
             animation: slideInFromLeft 0.5s ease-out forwards;
             opacity: 0;
             animation-delay: 0.5s;
         }
 
-        /* MODIFIED: Renamed .member-table-container to .table-container */
         .table-container {
-            background-color: #FFFFFF;
-            border-radius: 8px;
-            /* Removed box-shadow to eliminate shadow */
+            background-color: var(--surface-color);
+            border-radius: 0; /* Siku-siku */
+            box-shadow: none; /* No box-shadow */
             overflow-x: auto;
             margin-bottom: 30px;
             animation: fadeIn 0.6s ease-out forwards;
             opacity: 0;
             animation-delay: 0.6s;
+            border: 1px solid var(--divider-color); /* Subtle border for container */
         }
 
         .member-table {
             width: 100%;
             border-collapse: collapse;
+            table-layout: fixed; /* Kunci utama */
         }
 
         .member-table th, .member-table td {
             text-align: left;
-            padding: 15px 20px;
-            border-bottom: 1px solid var(--metro-light-gray);
-            font-size: 0.95em;
+            padding: 12px 24px; /* Google Drive padding */
+            border-bottom: 1px solid #dadce0; /* Google Drive border color */
+            font-size: 0.875em;
+            color: #3c4043; /* Google Drive text color */
         }
 
         .member-table th {
-            background-color: var(--metro-bg-color);
-            color: var(--metro-dark-gray);
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 0.85em;
+            background-color: #f8f9fa; /* Google Drive header background */
+            color: #5f6368; /* Google Drive header text */
+            font-weight: 500;
+            text-transform: none;
+            position: sticky;
+            top: 0;
+            z-index: 1;
         }
 
         .member-table tbody tr:hover {
-            background-color: var(--metro-light-gray);
+            background-color: #f0f0f0; /* Google Drive hover effect */
         }
 
         .member-table .profile-pic {
-            width: 40px;
-            height: 40px;
+            width: 32px; /* Smaller profile pic */
+            height: 32px;
             border-radius: 50%;
             object-fit: cover;
             margin-right: 10px;
             vertical-align: middle;
-            border: 2px solid var(--metro-medium-gray);
+            border: 1px solid var(--divider-color);
         }
 
         .member-table .status-indicator {
             display: inline-block;
-            width: 10px;
-            height: 10px;
+            width: 8px; /* Smaller indicator */
+            height: 8px;
             border-radius: 50%;
-            margin-right: 8px;
+            margin-right: 6px;
             vertical-align: middle;
         }
 
-        .member-table .status-indicator.online { background-color: var(--metro-success); }
-        .member-table .status-indicator.offline { background-color: var(--metro-error); }
+        .member-table .status-indicator.online { background-color: var(--success-color); }
+        .member-table .status-indicator.offline { background-color: var(--error-color); }
 
         .member-table a {
-            color: var(--metro-blue);
+            color: #3c4043; /* Google Drive text color */
             text-decoration: none;
             transition: color 0.2s ease-out;
         }
         .member-table a:hover {
             text-decoration: underline;
-            color: var(--metro-dark-blue);
+            color: #1a73e8; /* Google Drive blue on hover */
         }
 
         /* Pagination Controls */
@@ -754,24 +760,25 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
         }
 
         .pagination-controls button {
-            background-color: var(--metro-bg-color);
-            color: var(--metro-text-color);
-            border: 1px solid var(--metro-light-gray);
+            background-color: var(--background-color);
+            color: var(--text-color);
+            border: 1px solid var(--divider-color);
             padding: 8px 12px;
-            border-radius: 5px;
+            border-radius: 0; /* Siku-siku */
             cursor: pointer;
             transition: background-color 0.2s ease-out, color 0.2s ease-out;
             font-size: 0.9em;
+            box-shadow: none; /* No box-shadow */
         }
 
         .pagination-controls button:hover:not(.active) {
-            background-color: var(--metro-light-gray);
+            background-color: var(--divider-color);
         }
 
         .pagination-controls button.active {
-            background-color: var(--metro-blue);
+            background-color: var(--primary-color);
             color: #FFFFFF;
-            border-color: var(--metro-blue);
+            border-color: var(--primary-color);
             pointer-events: none; /* Disable click on active button */
         }
         
@@ -789,12 +796,13 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
         }
 
         .chart-card {
-            background-color: #FFFFFF;
+            background-color: var(--surface-color);
             padding: 25px;
-            border-radius: 8px;
-            /* Removed box-shadow to eliminate shadow */
+            border-radius: 0; /* Siku-siku */
+            box-shadow: none; /* No box-shadow */
             animation: fadeIn 0.7s ease-out forwards;
             opacity: 0;
+            border: 1px solid var(--divider-color); /* Subtle border */
         }
         .chart-card:nth-child(1) { animation-delay: 0.7s; }
         .chart-card:nth-child(2) { animation-delay: 0.8s; }
@@ -805,8 +813,8 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             margin-bottom: 20px;
             font-size: 1.4em;
             font-weight: 400;
-            color: var(--metro-text-color);
-            border-bottom: 1px solid var(--metro-light-gray);
+            color: var(--text-color);
+            border-bottom: 1px solid var(--divider-color);
             padding-bottom: 10px;
         }
 
@@ -820,14 +828,15 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
 
         /* Recent Activities */
         .recent-activities {
-            background-color: #FFFFFF;
+            background-color: var(--surface-color);
             padding: 25px;
-            border-radius: 8px;
-            /* Removed box-shadow to eliminate shadow */
+            border-radius: 0; /* Siku-siku */
+            box-shadow: none; /* No box-shadow */
             animation: fadeIn 1.0s ease-out forwards;
             opacity: 0;
             overflow-y: auto; /* Add scrollbar */
             max-height: 400px; /* Max height for scrollbar */
+            border: 1px solid var(--divider-color); /* Subtle border */
         }
 
         .recent-activities ul {
@@ -838,9 +847,9 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
 
         .recent-activities li {
             padding: 12px 0;
-            border-bottom: 1px solid var(--metro-light-gray);
+            border-bottom: 1px solid var(--divider-color);
             font-size: 0.95em;
-            color: var(--metro-text-color);
+            color: var(--text-color);
             display: flex;
             align-items: center;
             white-space: nowrap; /* Prevent text wrapping */
@@ -868,20 +877,20 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
 
         .recent-activities li .timestamp {
             font-size: 0.85em;
-            color: var(--metro-dark-gray);
+            color: var(--secondary-text-color);
             margin-left: auto;
             flex-shrink: 0; /* Prevent timestamp from shrinking */
         }
 
         /* Mini Profile */
         .mini-profile {
-            background-color: #FFFFFF;
+            background-color: var(--surface-color);
             padding: 25px;
-            border-radius: 8px;
-            /* Removed box-shadow to eliminate shadow */
+            border-radius: 0; /* Siku-siku */
+            box-shadow: none; /* No box-shadow */
             animation: fadeIn 1.1s ease-out forwards;
             opacity: 0;
-            /* Adjust height to match recent activities if needed, or let content define */
+            border: 1px solid var(--divider-color); /* Subtle border */
         }
 
         .mini-profile h4 {
@@ -889,19 +898,19 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             margin-bottom: 20px;
             font-size: 1.4em;
             font-weight: 400;
-            color: var(--metro-text-color);
-            border-bottom: 1px solid var(--metro-light-gray);
+            color: var(--text-color);
+            border-bottom: 1px solid var(--divider-color);
             padding-bottom: 10px;
         }
 
         .mini-profile p {
             margin: 8px 0;
             font-size: 1em;
-            color: var(--metro-text-color);
+            color: var(--text-color);
         }
 
         .mini-profile p strong {
-            color: var(--metro-blue);
+            color: var(--primary-color);
         }
 
         /* Animations */
@@ -913,6 +922,29 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
         @keyframes slideInFromLeft {
             from { opacity: 0; transform: translateX(-50px); }
             to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* Fly In/Out Animations for main-content */
+        @keyframes flyInFromBottom {
+            from {
+                opacity: 0;
+                transform: translateY(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes flyOutToTop {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-100%);
+            }
         }
 
         /* Modal Styles (Pop-up CRUD) */
@@ -939,10 +971,10 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
         }
 
         .modal-content {
-            background-color: #FFFFFF;
+            background-color: var(--surface-color);
             padding: 30px;
-            border-radius: 5px;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            border-radius: 0; /* Siku-siku */
+            box-shadow: 0 8px 17px 2px rgba(0,0,0,0.14), 0 3px 14px 2px rgba(0,0,0,0.12), 0 5px 5px -3px rgba(0,0,0,0.2); /* Material Design shadow */
             width: 90%;
             max-width: 550px; /* Slightly larger modals */
             position: relative;
@@ -957,7 +989,7 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
         }
 
         .close-button {
-            color: var(--metro-dark-gray);
+            color: var(--secondary-text-color);
             position: absolute;
             top: 15px;
             right: 20px;
@@ -969,16 +1001,16 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
 
         .close-button:hover,
         .close-button:focus {
-            color: var(--metro-error);
+            color: var(--error-color);
         }
 
         .modal h2 {
             margin-top: 0;
             margin-bottom: 25px;
-            color: var(--metro-text-color);
+            color: var(--text-color);
             font-size: 2em;
             font-weight: 300;
-            border-bottom: 1px solid var(--metro-light-gray);
+            border-bottom: 1px solid var(--divider-color);
             padding-bottom: 15px;
         }
 
@@ -989,17 +1021,17 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
         }
 
         ::-webkit-scrollbar-track {
-            background: var(--metro-light-gray); /* Color of the track */
-            border-radius: 10px;
+            background: var(--background-color); /* Color of the track */
+            border-radius: 0; /* Siku-siku */
         }
 
         ::-webkit-scrollbar-thumb {
-            background: var(--metro-medium-gray); /* Color of the scroll thumb */
-            border-radius: 10px;
+            background: var(--divider-color); /* Color of the scroll thumb */
+            border-radius: 0; /* Siku-siku */
         }
 
         ::-webkit-scrollbar-thumb:hover {
-            background: var(--metro-dark-gray); /* Color of the scroll thumb on hover */
+            background: var(--secondary-text-color); /* Color of the scroll thumb on hover */
         }
 
         /* ========================================================================== */
@@ -1030,7 +1062,7 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             }
             body.tablet-landscape .header-main {
                 padding: 10px 20px;
-                margin: 0; /* MODIFIED: Full width */
+                margin: -20px -20px 20px -20px; /* Adjust margin to cover full width */
             }
             body.tablet-landscape .header-main h1 {
                 font-size: 2em;
@@ -1054,7 +1086,7 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             }
             body.tablet-landscape .member-table th,
             body.tablet-landscape .member-table td {
-                padding: 12px 15px;
+                padding: 10px 15px;
                 font-size: 0.9em; /* Slightly smaller font for table cells */
             }
             body.tablet-landscape .charts-section {
@@ -1091,7 +1123,7 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
                 height: 100%;
                 z-index: 100;
                 transform: translateX(-100%); /* Hidden by default */
-                /*box-shadow: 2px 0 10px rgba(0,0,0,0.2);*/
+                box-shadow: 2px 0 5px rgba(0,0,0,0.2); /* Subtle shadow for mobile sidebar */
             }
             body.tablet-portrait .sidebar.show-mobile-sidebar {
                 transform: translateX(0); /* Show when active */
@@ -1101,7 +1133,7 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
                 background: none;
                 border: none;
                 font-size: 1.8em;
-                color: var(--metro-text-color);
+                color: var(--adminlte-header-text);
                 cursor: pointer;
                 margin-left: 10px; /* Space from logo */
                 order: 0; /* Place on the left */
@@ -1109,7 +1141,7 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             body.tablet-portrait .header-main {
                 justify-content: space-between; /* Align items */
                 padding: 10px 20px;
-                margin: 0; /* MODIFIED: Full width */
+                margin: -20px -20px 20px -20px; /* Adjust margin to cover full width */
             }
             body.tablet-portrait .header-main h1 {
                 font-size: 2em;
@@ -1181,10 +1213,10 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
                 top: 0;
                 left: 0;
                 height: 100%;
-                width: 200px; /* Narrower sidebar for mobile */
+                width: 180px; /* Narrower sidebar for mobile */
                 z-index: 100;
                 transform: translateX(-100%); /* Hidden by default */
-                /*box-shadow: 2px 0 10px rgba(0,0,0,0.2);*/
+                box-shadow: 2px 0 5px rgba(0,0,0,0.2);
             }
             body.mobile .sidebar.show-mobile-sidebar {
                 transform: translateX(0); /* Show when active */
@@ -1194,7 +1226,7 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
                 background: none;
                 border: none;
                 font-size: 1.5em;
-                color: var(--metro-text-color);
+                color: var(--adminlte-header-text);
                 cursor: pointer;
                 margin-left: 10px; /* Space from logo */
                 order: 0; /* Place on the left */
@@ -1202,7 +1234,7 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             body.mobile .header-main {
                 justify-content: space-between; /* Align items */
                 padding: 10px 15px;
-                margin: 0; /* MODIFIED: Full width */
+                margin: -20px -20px 20px -20px; /* Adjust margin to cover full width */
             }
             body.mobile .header-main h1 {
                 font-size: 1.8em;
@@ -1218,7 +1250,7 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
                 overflow-x: hidden; /* Prevent horizontal scrollbar */
             }
             body.mobile .dashboard-grid {
-                grid-template-columns: repeat(2, 1fr) !important; /* 2x2 layout */
+                grid-template-columns: 1fr !important; /* Single column layout */
                 gap: 10px;
             }
             body.mobile .card {
@@ -1240,11 +1272,11 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             body.mobile .member-table tbody tr {
                 display: flex;
                 flex-wrap: wrap;
-                border: 1px solid var(--metro-light-gray);
+                border: 1px solid var(--divider-color);
                 margin-bottom: 10px;
-                border-radius: 5px;
-                background-color: #FFFFFF;
-                /*box-shadow: 0 2px 5px rgba(0,0,0,0.05);*/
+                border-radius: 0; /* Siku-siku */
+                background-color: var(--surface-color);
+                box-shadow: none; /* No box-shadow */
                 position: relative;
             }
             body.mobile .member-table td {
@@ -1263,17 +1295,17 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
                 width: auto;
                 padding: 0;
                 font-weight: bold;
-                color: var(--metro-dark-gray);
+                color: var(--secondary-text-color);
             }
             body.mobile .member-table td:nth-child(2) { /* Full Name */
                 padding-top: 15px;
                 font-weight: 600;
                 font-size: 0.9em;
             }
-            body.mobile .member-table td:nth-child(3)::before { content: "Username: "; font-weight: normal; color: var(--metro-dark-gray); }
-            body.mobile .member-table td:nth-child(4)::before { content: "Email: "; font-weight: normal; color: var(--metro-dark-gray); }
-            body.mobile .member-table td:nth-child(5)::before { content: "Last Login: "; font-weight: normal; color: var(--metro-dark-gray); }
-            body.mobile .member-table td:nth-child(6)::before { content: "Status: "; font-weight: normal; color: var(--metro-dark-gray); }
+            body.mobile .member-table td:nth-child(3)::before { content: "Username: "; font-weight: normal; color: var(--secondary-text-color); }
+            body.mobile .member-table td:nth-child(4)::before { content: "Email: "; font-weight: normal; color: var(--secondary-text-color); }
+            body.mobile .member-table td:nth-child(5)::before { content: "Last Login: "; font-weight: normal; color: var(--secondary-text-color); }
+            body.mobile .member-table td:nth-child(6)::before { content: "Status: "; font-weight: normal; color: var(--secondary-text-color); }
             body.mobile .member-table td:nth-child(3),
             body.mobile .member-table td:nth-child(4),
             body.mobile .member-table td:nth-child(5),
@@ -1359,21 +1391,21 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             font-size: 0.85em;
         }
         .modal-pagination-controls button {
-            background-color: var(--metro-bg-color);
-            color: var(--metro-text-color);
-            border: 1px solid var(--metro-light-gray);
+            background-color: var(--background-color);
+            color: var(--text-color);
+            border: 1px solid var(--divider-color);
             padding: 5px 8px;
-            border-radius: 3px;
+            border-radius: 0; /* Siku-siku */
             cursor: pointer;
             transition: background-color 0.2s ease-out, color 0.2s ease-out;
         }
         .modal-pagination-controls button:hover:not(.active) {
-            background-color: var(--metro-light-gray);
+            background-color: var(--divider-color);
         }
         .modal-pagination-controls button.active {
-            background-color: var(--metro-blue);
+            background-color: var(--primary-color);
             color: #FFFFFF;
-            border-color: var(--metro-blue);
+            border-color: var(--primary-color);
             pointer-events: none;
         }
         .modal-pagination-controls button:disabled {
@@ -1397,20 +1429,20 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
         </div>
         <ul class="sidebar-menu">
             <?php if ($currentUserRole === 'admin' || $currentUserRole === 'moderator'): ?>
-                <li><a href="control_center.php"><i class="fas fa-cogs"></i> Control Center</a></li>
+                <li><a href="control_center.php"><i class="fas fa-cogs"></i> <span data-lang-key="controlCenter">Control Center</span></a></li>
             <?php endif; ?>
             <?php if (in_array($currentUserRole, ['admin', 'moderator', 'user', 'member'])): ?>
-                <li><a href="index.php"><i class="fas fa-folder"></i> My Drive</a></li>
-                <li><a href="priority_files.php"><i class="fas fa-star"></i> Priority File</a></li>
-                <li><a href="recycle_bin.php"><i class="fas fa-trash"></i> Recycle Bin</a></li>
+                <li><a href="index.php"><i class="fas fa-folder"></i> <span data-lang-key="myDrive">My Drive</span></a></li>
+                <li><a href="priority_files.php"><i class="fas fa-star"></i> <span data-lang-key="priorityFile">Priority File</span></a></li>
+                <li><a href="recycle_bin.php"><i class="fas fa-trash"></i> <span data-lang-key="recycleBin">Recycle Bin</span></a></li>
             <?php endif; ?>
-            <li><a href="summary.php"><i class="fas fa-chart-line"></i> Summary</a></li>
-            <li><a href="members.php" class="active"><i class="fas fa-users"></i> Members</a></li>
-            <li><a href="profile.php"><i class="fas fa-user"></i> Profile</a></li>
-            <li><a href="logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+            <li><a href="summary.php"><i class="fas fa-chart-line"></i> <span data-lang-key="summary">Summary</span></a></li>
+            <li><a href="members.php" class="active"><i class="fas fa-users"></i> <span data-lang-key="members">Members</span></a></li>
+            <li><a href="profile.php"><i class="fas fa-user"></i> <span data-lang-key="profile">Profile</span></a></li>
+            <li><a href="logout.php"><i class="fas fa-sign-out-alt"></i> <span data-lang-key="logout">Logout</span></a></li>
         </ul>
         <div class="storage-info">
-            <h4>Storage</h4>
+            <h4 data-lang-key="storage">Storage</h4>
             <div class="progress-bar-container">
                 <div class="progress-bar" style="width: <?php echo round($usedPercentage, 2); ?>%;">
                     <span class="progress-bar-text"><?php echo round($usedPercentage, 2); ?>%</span>
@@ -1418,49 +1450,48 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             </div>
             <p class="storage-text" id="storageText"><?php echo formatBytes($usedStorageBytes); ?> of <?php echo formatBytes($totalStorageBytes); ?> used</p>
             <?php if ($isStorageFull): ?>
-                <p class="storage-text storage-full-message" style="color: var(--metro-error); font-weight: bold;">Storage Full!</p>
+                <p class="storage-text storage-full-message" style="color: var(--error-color); font-weight: bold;" data-lang-key="storageFull">Storage Full!</p>
             <?php endif; ?>
         </div>
     </div>
 
-    <div class="main-content">
+    <div class="main-content" id="mainContent">
         <div class="header-main">
             <button class="sidebar-toggle-btn" id="sidebarToggleBtn"><i class="fas fa-bars"></i></button>
-            <h1 class="members-title">Members Dashboard</h1>
+            <h1 class="members-title" data-lang-key="membersDashboardTitle">Members Dashboard</h1>
         </div>
 
         <div class="dashboard-grid">
             <div class="card" id="totalMembersCard">
-                <h3>Total Members</h3>
-                <p class="count"><?php echo $totalUsers; ?> Active Users</p>
+                <h3 data-lang-key="totalMembers">Total Members</h3>
+                <p class="count"><span id="totalUsersCount"><?php echo $totalUsers; ?></span> <span data-lang-key="activeUsers">Active Users</span></p>
             </div>
             <div class="card green" id="publicFilesCard">
-                <h3>Total Files</h3>
-                <p class="count"><?php echo $totalPublicFiles; ?> Available</p>
+                <h3 data-lang-key="totalFiles">Total Files</h3>
+                <p class="count"><span id="totalPublicFilesCount"><?php echo $totalPublicFiles; ?></span> <span data-lang-key="available">Available</span></p>
             </div>
             <div class="card orange" id="storageUsedCard">
-                <h3>Total Storage Used</h3>
-                <p class="count"><?php echo formatBytes($usedStorageBytes); ?></p>
-                <p class="storage-text-card">of <?php echo formatBytes($totalStorageBytes); ?></p>
+                <h3 data-lang-key="totalStorageUsed">Total Storage Used</h3>
+                <p class="count" id="usedStorageBytesCount"><?php echo formatBytes($usedStorageBytes); ?></p>
+                <p class="storage-text-card" data-lang-key="ofUsed">of <span id="totalStorageBytesCount"><?php echo formatBytes($totalStorageBytes); ?></span> used</p>
             </div>
             <div class="card red" id="weeklyActivitiesCard">
-                <h3>Weekly Activities</h3>
-                <p class="count"><?php echo $weeklyActivities; ?> Activities</p>
+                <h3 data-lang-key="weeklyActivities">Weekly Activities</h3>
+                <p class="count"><span id="weeklyActivitiesCount"><?php echo $weeklyActivities; ?></span> <span data-lang-key="activities">Activities</span></p>
             </div>
         </div>
 
-        <h2 class="section-title">Member List</h2>
+        <h2 class="section-title" data-lang-key="memberList">Member List</h2>
         <div class="">
-        <!--<div class="table-container">-->
             <table class="member-table" id="memberTable">
                 <thead>
                     <tr>
-                        <th>No</th>
-                        <th>Full Name</th>
-                        <th>Username</th>
-                        <th>Email</th>
-                        <th>Last Login Time</th>
-                        <th>Status</th>
+                        <th data-lang-key="no">No</th>
+                        <th data-lang-key="fullName">Full Name</th>
+                        <th data-lang-key="username">Username</th>
+                        <th data-lang-key="email">Email</th>
+                        <th data-lang-key="lastLoginTime">Last Login Time</th>
+                        <th data-lang-key="status">Status</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1472,52 +1503,52 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
                                 <td><?= htmlspecialchars($member['username']) ?></td>
                                 <td><?= htmlspecialchars($member['email']) ?></td>
                                 <td>
-                                    <?= !empty($member['last_login']) ? date('Y-m-d H:i:s', strtotime($member['last_login'])) : 'Never logged in' ?>
+                                    <?= !empty($member['last_login']) ? date('Y-m-d H:i:s', strtotime($member['last_login'])) : '<span data-lang-key="neverLoggedIn">Never logged in</span>' ?>
                                 </td>
                                 <td>
                                     <span class="status-indicator <?= $member['is_online'] ? 'online' : 'offline' ?>"></span>
-                                    <?= $member['is_online'] ? 'Online' : 'Offline' ?>
+                                    <span data-lang-key="<?= $member['is_online'] ? 'online' : 'offline' ?>"><?= $member['is_online'] ? 'Online' : 'Offline' ?></span>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="6" class="text-center">No members found</td>
+                            <td colspan="6" class="text-center" data-lang-key="noMembersFound">No members found</td>
                         </tr>
                     <?php endif; ?>
                 </tbody>
             </table>
         </div>
         <div class="pagination-controls" id="paginationControls">
-            <button id="prevPageBtn" disabled>&laquo; Previous</button>
+            <button id="prevPageBtn" disabled><i class="fas fa-angle-left"></i> <span data-lang-key="previous">Previous</span></button>
             <div id="pageNumbers">
                 <?php for ($i = 1; $i <= $totalPages; $i++): ?>
                     <button class="page-number-btn <?= ($i == 1) ? 'active' : '' ?>" data-page="<?= $i ?>"><?= $i ?></button>
                 <?php endfor; ?>
             </div>
-            <button id="nextPageBtn" <?= ($totalPages <= 1) ? 'disabled' : '' ?>>Next &raquo;</button>
+            <button id="nextPageBtn" <?= ($totalPages <= 1) ? 'disabled' : '' ?>><span data-lang-key="next">Next</span> <i class="fas fa-angle-right"></i></button>
         </div>
 
-        <h2 class="section-title">Activity Overview</h2>
+        <h2 class="section-title" data-lang-key="activityOverview">Activity Overview</h2>
         <div class="charts-section">
             <div class="chart-card">
-                <h4>Activity Distribution</h4>
+                <h4 data-lang-key="activityDistribution">Activity Distribution</h4>
                 <canvas id="activityDistributionChart"></canvas>
             </div>
             <div class="chart-card">
-                <h4>Top Members by Total Files</h4>
+                <h4 data-lang-key="topMembersByTotalFiles">Top Members by Total Files</h4>
                 <canvas id="topMembersPublicFilesChart"></canvas>
             </div>
             <div class="chart-card">
-                <h4>Daily Activity Trend</h4>
+                <h4 data-lang-key="dailyActivityTrend">Daily Activity Trend</h4>
                 <canvas id="dailyActivityChart"></canvas>
             </div>
         </div>
 
-        <h2 class="section-title">User Activity & Profile</h2>
+        <h2 class="section-title" data-lang-key="userActivityProfile">User Activity & Profile</h2>
         <div class="bottom-section">
             <div class="recent-activities" id="recentActivitiesSection">
-                <h4>Recent Activities</h4>
+                <h4 data-lang-key="recentActivities">Recent Activities</h4>
                 <ul>
                     <?php foreach ($recentActivities as $activity): ?>
                         <li>
@@ -1537,20 +1568,20 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
                                 }
                             ?>
                             <i class="<?php echo $icon; ?>"></i>
-                            <span class="activity-text"><strong><?php echo htmlspecialchars($activity['username']); ?></strong> <?php echo htmlspecialchars($activity['description']); ?></span>
-                            <span class="timestamp"><?php echo time_elapsed_string($activity['timestamp']); ?> ago</span>
+                            <span class="activity-text"><strong><?php echo htmlspecialchars($activity['username']); ?></strong> <span data-lang-activity-desc-key="<?= $activity['activity_type'] ?>"><?php echo htmlspecialchars($activity['description']); ?></span></span>
+                            <span class="timestamp" data-timestamp="<?= $activity['timestamp'] ?>"></span>
                         </li>
                     <?php endforeach; ?>
                 </ul>
             </div>
 
             <div class="mini-profile" id="miniProfileSection">
-                <h4>My Mini Profile</h4>
-                <p><strong>Name:</strong> <?php echo htmlspecialchars($currentUserProfile['username']); ?></p>
-                <p><strong>Total Files:</strong> <?php echo $currentUserProfile['total_files']; ?></p>
-                <p><strong>Total Files (Public):</strong> <?php echo $currentUserProfile['public_files']; ?></p>
-                <p><strong>Storage Used:</strong> <?php echo $currentUserProfile['storage_used']; ?></p>
-                <p><strong>Weekly Activities:</strong> <?php echo $currentUserProfile['weekly_activities']; ?></p>
+                <h4 data-lang-key="myMiniProfile">My Mini Profile</h4>
+                <p><strong data-lang-key="name">Name:</strong> <span id="miniProfileUsername"><?php echo htmlspecialchars($currentUserProfile['username']); ?></span></p>
+                <p><strong data-lang-key="totalFilesMini">Total Files:</strong> <span id="miniProfileTotalFiles"><?php echo $currentUserProfile['total_files']; ?></span></p>
+                <p><strong data-lang-key="totalFilesPublicMini">Total Files (Public):</strong> <span id="miniProfilePublicFiles"><?php echo $currentUserProfile['public_files']; ?></span></p>
+                <p><strong data-lang-key="storageUsedMini">Storage Used:</strong> <span id="miniProfileStorageUsed"><?php echo $currentUserProfile['storage_used']; ?></span></p>
+                <p><strong data-lang-key="weeklyActivitiesMini">Weekly Activities:</strong> <span id="miniProfileWeeklyActivities"><?php echo $currentUserProfile['weekly_activities']; ?></span></p>
             </div>
         </div>
 
@@ -1561,27 +1592,27 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             <span class="close-button">&times;</span>
             <h2 id="memberDetailName"></h2>
             <div id="memberDetailContent">
-                <p><strong>Total Files:</strong> <span id="memberTotalFiles"></span></p>
-                <p><strong>Total Files (Public):</strong> <span id="memberTotalPublicFiles"></span></p>
+                <p><strong data-lang-key="totalFilesModal">Total Files:</strong> <span id="memberTotalFiles"></span></p>
+                <p><strong data-lang-key="totalFilesPublicModal">Total Files (Public):</strong> <span id="memberTotalPublicFiles"></span></p>
 
-                <h4>Recent Files:</h4>
+                <h4 data-lang-key="recentFilesModal">Recent Files:</h4>
                 <ul id="recentFilesList">
                     <!-- Recent files will be loaded here -->
                 </ul>
                 <div class="modal-pagination-controls" id="recentFilesPagination">
-                    <button id="prevFilesPageBtn">&laquo; Previous</button>
+                    <button id="prevFilesPageBtn"><i class="fas fa-angle-left"></i> <span data-lang-key="previous">Previous</span></button>
                     <span id="currentFilesPage">1</span> / <span id="totalFilesPages">1</span>
-                    <button id="nextFilesPageBtn">Next &raquo;</button>
+                    <button id="nextFilesPageBtn"><span data-lang-key="next">Next</span> <i class="fas fa-angle-right"></i></button>
                 </div>
 
-                <h4>Recent Activities:</h4>
+                <h4 data-lang-key="recentActivitiesModal">Recent Activities:</h4>
                 <ul id="recentActivitiesList">
                     <!-- Recent activities will be loaded here -->
                 </ul>
                 <div class="modal-pagination-controls" id="recentActivitiesPagination">
-                    <button id="prevActivitiesPageBtn">&laquo; Previous</button>
+                    <button id="prevActivitiesPageBtn"><i class="fas fa-angle-left"></i> <span data-lang-key="previous">Previous</span></button>
                     <span id="currentActivitiesPage">1</span> / <span id="totalActivitiesPages">1</span>
-                    <button id="nextActivitiesPageBtn">Next &raquo;</button>
+                    <button id="nextActivitiesPageBtn"><span data-lang-key="next">Next</span> <i class="fas fa-angle-right"></i></button>
                 </div>
             </div>
         </div>
@@ -1604,6 +1635,194 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
         let currentFilesPage = 1;
         let currentActivitiesPage = 1;
         const itemsPerPageModal = 5; // 5 items per page for recent files/activities
+
+        // --- Translation Data (Global) ---
+        const translations = {
+            // Sidebar
+            'controlCenter': { 'id': 'Control Center', 'en': 'Control Center' },
+            'myDrive': { 'id': 'Drive Saya', 'en': 'My Drive' },
+            'priorityFile': { 'id': 'File Prioritas', 'en': 'Priority File' },
+            'recycleBin': { 'id': 'Tempat Sampah', 'en': 'Recycle Bin' },
+            'summary': { 'id': 'Ringkasan', 'en': 'Summary' },
+            'members': { 'id': 'Anggota', 'en': 'Members' },
+            'profile': { 'id': 'Profil', 'en': 'Profile' },
+            'logout': { 'id': 'Keluar', 'en': 'Logout' },
+            'storage': { 'id': 'Penyimpanan', 'en': 'Storage' },
+            'storageFull': { 'id': 'Penyimpanan Penuh!', 'en': 'Storage Full!' },
+
+            // Members Dashboard
+            'membersDashboardTitle': { 'id': 'Dasbor Anggota', 'en': 'Members Dashboard' },
+            'totalMembers': { 'id': 'Total Anggota', 'en': 'Total Members' },
+            'activeUsers': { 'id': 'Pengguna Aktif', 'en': 'Active Users' },
+            'totalFiles': { 'id': 'Total File', 'en': 'Total Files' },
+            'available': { 'id': 'Tersedia', 'en': 'Available' },
+            'totalStorageUsed': { 'id': 'Total Penyimpanan Terpakai', 'en': 'Total Storage Used' },
+            'ofUsed': { 'id': 'dari', 'en': 'of' }, // "of X used"
+            'weeklyActivities': { 'id': 'Aktivitas Mingguan', 'en': 'Weekly Activities' },
+            'activities': { 'id': 'Aktivitas', 'en': 'Activities' },
+
+            // Member List
+            'memberList': { 'id': 'Daftar Anggota', 'en': 'Member List' },
+            'no': { 'id': 'No', 'en': 'No' },
+            'fullName': { 'id': 'Nama Lengkap', 'en': 'Full Name' },
+            'username': { 'id': 'Nama Pengguna', 'en': 'Username' },
+            'email': { 'id': 'Email', 'en': 'Email' },
+            'lastLoginTime': { 'id': 'Waktu Login Terakhir', 'en': 'Last Login Time' },
+            'status': { 'id': 'Status', 'en': 'Status' },
+            'neverLoggedIn': { 'id': 'Belum pernah login', 'en': 'Never logged in' },
+            'online': { 'id': 'Online', 'en': 'Online' },
+            'offline': { 'id': 'Offline', 'en': 'Offline' },
+            'noMembersFound': { 'id': 'Tidak ada anggota ditemukan', 'en': 'No members found' },
+
+            // Pagination
+            'previous': { 'id': 'Sebelumnya', 'en': 'Previous' },
+            'next': { 'id': 'Berikutnya', 'en': 'Next' },
+
+            // Activity Overview
+            'activityOverview': { 'id': 'Ikhtisar Aktivitas', 'en': 'Activity Overview' },
+            'activityDistribution': { 'id': 'Distribusi Aktivitas', 'en': 'Activity Distribution' },
+            'topMembersByTotalFiles': { 'id': 'Anggota Teratas berdasarkan Total File', 'en': 'Top Members by Total Files' },
+            'dailyActivityTrend': { 'id': 'Tren Aktivitas Harian', 'en': 'Daily Activity Trend' },
+
+            // User Activity & Profile
+            'userActivityProfile': { 'id': 'Aktivitas Pengguna & Profil', 'en': 'User Activity & Profile' },
+            'recentActivities': { 'id': 'Aktivitas Terbaru', 'en': 'Recent Activities' },
+            'myMiniProfile': { 'id': 'Profil Mini Saya', 'en': 'My Mini Profile' },
+            'name': { 'id': 'Nama', 'en': 'Name' },
+            'totalFilesMini': { 'id': 'Total File', 'en': 'Total Files' },
+            'totalFilesPublicMini': { 'id': 'Total File (Publik)', 'en': 'Total Files (Public)' },
+            'storageUsedMini': { 'id': 'Penyimpanan Terpakai', 'en': 'Storage Used' },
+            'weeklyActivitiesMini': { 'id': 'Aktivitas Mingguan', 'en': 'Weekly Activities' },
+
+            // Activity Descriptions (for recent activities)
+            'upload_file': { 'id': 'mengunggah file', 'en': 'uploaded a file' },
+            'delete_file': { 'id': 'menghapus file', 'en': 'deleted a file' },
+            'delete_folder': { 'id': 'menghapus folder', 'en': 'deleted a folder' },
+            'rename_file': { 'id': 'mengganti nama file', 'en': 'renamed a file' },
+            'rename_folder': { 'id': 'mengganti nama folder', 'en': 'renamed a folder' },
+            'create_folder': { 'id': 'membuat folder', 'en': 'created a folder' },
+            'archive': { 'id': 'mengarsipkan', 'en': 'archived' },
+            'download': { 'id': 'mengunduh', 'en': 'downloaded' },
+            'login': { 'id': 'masuk', 'en': 'logged in' },
+            'share_link': { 'id': 'membagikan tautan', 'en': 'shared a link' },
+            // Add more activity types as needed
+
+            // Member Detail Modal
+            'totalFilesModal': { 'id': 'Total File', 'en': 'Total Files' },
+            'totalFilesPublicModal': { 'id': 'Total File (Publik)', 'en': 'Total Files (Public)' },
+            'recentFilesModal': { 'id': 'File Terbaru', 'en': 'Recent Files' },
+            'recentActivitiesModal': { 'id': 'Aktivitas Terbaru', 'en': 'Recent Activities' },
+            'invalidMemberId': { 'id': 'ID anggota tidak valid.', 'en': 'Invalid member ID.' },
+            'memberNotFound': { 'id': 'Anggota tidak ditemukan.', 'en': 'Member not found.' },
+            'loadingRecentFiles': { 'id': 'Memuat file terbaru...', 'en': 'Loading recent files...' },
+            'loadingRecentActivities': { 'id': 'Memuat aktivitas terbaru...', 'en': 'Loading recent activities...' },
+            'noRecentFiles': { 'id': 'Tidak ada file terbaru.', 'en': 'No recent files.' },
+            'noRecentActivities': { 'id': 'Tidak ada aktivitas terbaru.', 'en': 'No recent activities.' },
+            'failedToLoadRecentFiles': { 'id': 'Gagal memuat file terbaru.', 'en': 'Failed to load recent files.' },
+            'failedToLoadRecentActivities': { 'id': 'Gagal memuat aktivitas terbaru.', 'en': 'Failed to load recent activities.' },
+        };
+
+        let currentLanguage = localStorage.getItem('lang') || 'id'; // Default to Indonesian
+
+        function applyTranslation(lang) {
+            document.querySelectorAll('[data-lang-key]').forEach(element => {
+                const key = element.getAttribute('data-lang-key');
+                if (translations[key] && translations[key][lang]) {
+                    element.textContent = translations[key][lang];
+                }
+            });
+
+            // Special handling for "of X used" text
+            const ofUsedElement = document.querySelector('.storage-text-card');
+            if (ofUsedElement) {
+                const totalStorageBytesText = document.getElementById('totalStorageBytesCount').textContent;
+                if (translations['ofUsed'] && translations['ofUsed'][lang]) {
+                    ofUsedElement.innerHTML = `${translations['ofUsed'][lang]} <span id="totalStorageBytesCount">${totalStorageBytesText}</span> ${translations['ofUsed'][lang === 'id' ? 'usedTextId' : 'usedTextEn'] || (lang === 'id' ? 'terpakai' : 'used')}`;
+                }
+            }
+            // Add specific text for "used" in different languages if needed
+            translations['usedTextId'] = 'terpakai';
+            translations['usedTextEn'] = 'used';
+
+
+            // Update dynamic counts and texts
+            document.getElementById('totalUsersCount').textContent = <?php echo $totalUsers; ?>;
+            document.getElementById('totalPublicFilesCount').textContent = <?php echo $totalPublicFiles; ?>;
+            document.getElementById('usedStorageBytesCount').textContent = formatBytes(<?php echo $usedStorageBytes; ?>);
+            document.getElementById('totalStorageBytesCount').textContent = formatBytes(<?php echo $totalStorageBytes; ?>);
+            document.getElementById('weeklyActivitiesCount').textContent = <?php echo $weeklyActivities; ?>;
+
+            // Update sidebar storage text
+            document.getElementById('storageText').textContent = `${formatBytes(<?php echo $usedStorageBytes; ?>)} ${translations['ofUsed'][lang]} ${formatBytes(<?php echo $totalStorageBytes; ?>)} ${translations['usedText' + (lang === 'id' ? 'Id' : 'En')]}`;
+
+
+            // Update recent activities descriptions
+            document.querySelectorAll('[data-lang-activity-desc-key]').forEach(element => {
+                const key = element.getAttribute('data-lang-activity-desc-key');
+                const originalDescription = element.textContent; // Get the original description
+                if (translations[key] && translations[key][lang]) {
+                    // Replace the activity type part of the description with the translated one
+                    // This assumes the original description starts with the activity type
+                    // Example: "uploaded a file: document.pdf" -> "mengunggah file: document.pdf"
+                    const username = element.closest('li').querySelector('strong').textContent; // Get username
+                    const originalActivityType = username.split(' ')[0]; // Assuming username is "User uploaded"
+                    const translatedActivityType = translations[key][lang];
+                    
+                    // A more robust way would be to store the base description without the activity type
+                    // For now, we'll just update the activity type part if it's a simple match
+                    let newDescription = originalDescription;
+                    if (originalDescription.startsWith(originalActivityType)) {
+                        newDescription = originalDescription.replace(originalActivityType, translatedActivityType);
+                    } else {
+                        // Fallback if the description structure is complex, just use the original
+                        newDescription = originalDescription;
+                    }
+                    element.textContent = newDescription;
+                }
+            });
+
+            // Update timestamps in recent activities
+            document.querySelectorAll('.recent-activities .timestamp').forEach(element => {
+                const timestamp = element.getAttribute('data-timestamp');
+                if (timestamp) {
+                    element.textContent = time_elapsed_string(timestamp, lang);
+                }
+            });
+
+            // Update member table status
+            document.querySelectorAll('.member-table tbody tr').forEach(row => {
+                const statusSpan = row.querySelector('.status-indicator + span');
+                if (statusSpan) {
+                    const isOnline = statusSpan.getAttribute('data-lang-key') === 'online';
+                    statusSpan.textContent = translations[isOnline ? 'online' : 'offline'][lang];
+                }
+                const neverLoggedInSpan = row.querySelector('[data-lang-key="neverLoggedIn"]');
+                if (neverLoggedInSpan) {
+                    neverLoggedInSpan.textContent = translations['neverLoggedIn'][lang];
+                }
+            });
+
+            // Update modal content
+            const memberDetailName = document.getElementById('memberDetailName');
+            if (memberDetailName.textContent.includes("'s Profile")) { // Check if it's an English profile name
+                const username = memberDetailName.textContent.replace("'s Profile", "");
+                memberDetailName.textContent = `${username}${lang === 'id' ? "'s Profil" : "'s Profile"}`;
+            } else if (memberDetailName.textContent.includes(" Profil")) { // Check if it's an Indonesian profile name
+                const username = memberDetailName.textContent.replace(" Profil", "");
+                memberDetailName.textContent = `${username}${lang === 'id' ? "'s Profil" : "'s Profile"}`;
+            }
+            
+            // Update modal pagination buttons
+            document.querySelectorAll('#memberDetailModal .modal-pagination-controls button').forEach(button => {
+                const span = button.querySelector('span');
+                if (span) {
+                    const key = span.getAttribute('data-lang-key');
+                    if (translations[key] && translations[key][lang]) {
+                        span.textContent = translations[key][lang];
+                    }
+                }
+            });
+        }
 
         // Function to open modal
         function openModal(modalElement) {
@@ -1650,11 +1869,11 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             const recentFilesList = document.getElementById('recentFilesList');
             const recentActivitiesList = document.getElementById('recentActivitiesList');
 
-            memberDetailName.textContent = 'Loading...';
+            memberDetailName.textContent = translations['loadingRecentFiles'][currentLanguage] || 'Loading...';
             memberTotalFiles.textContent = '...';
             memberTotalPublicFiles.textContent = '...';
-            recentFilesList.innerHTML = '<p>Loading recent files...</p>';
-            recentActivitiesList.innerHTML = '<p>Loading recent activities...</p>';
+            recentFilesList.innerHTML = `<p>${translations['loadingRecentFiles'][currentLanguage] || 'Loading recent files...'}</p>`;
+            recentActivitiesList.innerHTML = `<p>${translations['loadingRecentActivities'][currentLanguage] || 'Loading recent activities...'}</p>`;
             openModal(memberDetailModal);
 
             // Load initial data for both paginated sections
@@ -1675,7 +1894,7 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
 
                 if (data.success) {
                     const member = data.member;
-                    memberDetailName.textContent = htmlspecialchars(member.username) + "'s Profile";
+                    memberDetailName.textContent = `${htmlspecialchars(member.username)}${currentLanguage === 'id' ? "'s Profil" : "'s Profile"}`;
                     memberTotalFiles.textContent = member.total_files;
                     memberTotalPublicFiles.textContent = member.total_public_files;
 
@@ -1686,7 +1905,7 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
                             recentFilesList.innerHTML += `<li><i class="fas ${getFileIconClass(file.file_name)}"></i> ${htmlspecialchars(file.file_name)} (${formatBytes(file.file_size)})</li>`;
                         });
                     } else {
-                        recentFilesList.innerHTML = `<li>No recent files.</li>`;
+                        recentFilesList.innerHTML = `<li data-lang-key="noRecentFiles">${translations['noRecentFiles'][currentLanguage] || 'No recent files.'}</li>`;
                     }
                     updateFilesPagination(filesPage, member.total_files_pages);
 
@@ -1708,10 +1927,11 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
                                 case 'share_link': icon = 'fas fa-share-alt'; break;
                                 default: icon = 'fas fa-info-circle'; break;
                             }
-                            recentActivitiesList.innerHTML += `<li><i class="${icon}"></i> ${htmlspecialchars(activity.description)} <span class="timestamp">${time_elapsed_string(activity.timestamp)} ago</span></li>`;
+                            const activityDescription = translations[activity.activity_type] ? translations[activity.activity_type][currentLanguage] : activity.description;
+                            recentActivitiesList.innerHTML += `<li><i class="${icon}"></i> ${htmlspecialchars(activityDescription)} <span class="timestamp">${time_elapsed_string(activity.timestamp, currentLanguage)}</span></li>`;
                         });
                     } else {
-                        recentActivitiesList.innerHTML = `<li>No recent activities.</li>`;
+                        recentActivitiesList.innerHTML = `<li data-lang-key="noRecentActivities">${translations['noRecentActivities'][currentLanguage] || 'No recent activities.'}</li>`;
                     }
                     updateActivitiesPagination(activitiesPage, member.total_activities_pages);
 
@@ -1719,8 +1939,8 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
                     memberDetailName.textContent = 'Error';
                     memberTotalFiles.textContent = 'N/A';
                     memberTotalPublicFiles.textContent = 'N/A';
-                    recentFilesList.innerHTML = `<p>${data.message}</p>`;
-                    recentActivitiesList.innerHTML = `<p>${data.message}</p>`;
+                    recentFilesList.innerHTML = `<p>${translations['failedToLoadRecentFiles'][currentLanguage] || 'Failed to load recent files.'}</p>`;
+                    recentActivitiesList.innerHTML = `<p>${translations['failedToLoadRecentActivities'][currentLanguage] || 'Failed to load recent activities.'}</p>`;
                     updateFilesPagination(1, 1); // Reset pagination on error
                     updateActivitiesPagination(1, 1); // Reset pagination on error
                 }
@@ -1729,8 +1949,8 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
                 memberDetailName.textContent = 'Error';
                 memberTotalFiles.textContent = 'N/A';
                 memberTotalPublicFiles.textContent = 'N/A';
-                recentFilesList.innerHTML = '<p>Failed to load recent files.</p>';
-                recentActivitiesList.innerHTML = '<p>Failed to load recent activities.</p>';
+                recentFilesList.innerHTML = `<p>${translations['failedToLoadRecentFiles'][currentLanguage] || 'Failed to load recent files.'}</p>`;
+                recentActivitiesList.innerHTML = `<p>${translations['failedToLoadRecentActivities'][currentLanguage] || 'Failed to load recent activities.'}</p>`;
                 updateFilesPagination(1, 1); // Reset pagination on error
                 updateActivitiesPagination(1, 1); // Reset pagination on error
             }
@@ -1794,22 +2014,39 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
         }
 
         // Helper function for time elapsed string (replicate PHP's time_elapsed_string)
-        function time_elapsed_string(datetime) {
+        function time_elapsed_string(datetime, lang = 'en') {
             const now = new Date();
             const then = new Date(datetime.replace(/-/g, '/')); // Handle different date formats
             const seconds = Math.floor((now - then) / 1000);
 
-            let interval = seconds / 31536000;
-            if (interval > 1) return Math.floor(interval) + " years";
-            interval = seconds / 2592000;
-            if (interval > 1) return Math.floor(interval) + " months";
-            interval = seconds / 86400;
-            if (interval > 1) return Math.floor(interval) + " days";
-            interval = seconds / 3600;
-            if (interval > 1) return Math.floor(interval) + " hours";
-            interval = seconds / 60;
-            if (interval > 1) return Math.floor(interval) + " minutes";
-            return Math.floor(seconds) + " seconds";
+            let interval;
+            let unit;
+            let value;
+
+            if (seconds < 60) {
+                value = seconds;
+                unit = lang === 'id' ? 'detik' : 'second';
+            } else if (seconds < 3600) {
+                value = Math.floor(seconds / 60);
+                unit = lang === 'id' ? 'menit' : 'minute';
+            } else if (seconds < 86400) {
+                value = Math.floor(seconds / 3600);
+                unit = lang === 'id' ? 'jam' : 'hour';
+            } else if (seconds < 2592000) { // 30 days
+                value = Math.floor(seconds / 86400);
+                unit = lang === 'id' ? 'hari' : 'day';
+            } else if (seconds < 31536000) { // 365 days
+                value = Math.floor(seconds / 2592000);
+                unit = lang === 'id' ? 'bulan' : 'month';
+            } else {
+                value = Math.floor(seconds / 31536000);
+                unit = lang === 'id' ? 'tahun' : 'year';
+            }
+
+            const plural = (value > 1 && lang === 'en') ? 's' : '';
+            const ago = lang === 'id' ? 'yang lalu' : 'ago';
+
+            return `${value} ${unit}${plural} ${ago}`;
         }
 
         // Function to get file icon class based on extension (replicate PHP's getFileIconClassPhp)
@@ -1845,16 +2082,16 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
         // Function to update dashboard UI with new data
         function updateDashboardUI(data) {
             // Update Summary Statistics Cards
-            document.getElementById('totalMembersCard').querySelector('p.count').textContent = `${data.totalUsers} Active Users`;
-            document.getElementById('publicFilesCard').querySelector('p.count').textContent = `${data.totalPublicFiles} Available`;
-            document.getElementById('storageUsedCard').querySelector('p.count').textContent = `${formatBytes(data.usedStorageBytes)}`;
-            document.getElementById('storageUsedCard').querySelector('p.storage-text-card').textContent = `of ${formatBytes(data.totalStorageBytes)}`;
-            document.getElementById('weeklyActivitiesCard').querySelector('p.count').textContent = `${data.weeklyActivities} Activities`;
+            document.getElementById('totalUsersCount').textContent = data.totalUsers;
+            document.getElementById('totalPublicFilesCount').textContent = data.totalPublicFiles;
+            document.getElementById('usedStorageBytesCount').textContent = formatBytes(data.usedStorageBytes);
+            document.getElementById('totalStorageBytesCount').textContent = formatBytes(data.totalStorageBytes);
+            document.getElementById('weeklyActivitiesCount').textContent = data.weeklyActivities;
 
             // Update Storage Info in Sidebar
             document.querySelector('.progress-bar').style.width = `${data.usedPercentage.toFixed(2)}%`;
             document.querySelector('.progress-bar-text').textContent = `${data.usedPercentage.toFixed(2)}%`; // Update text inside progress bar
-            document.getElementById('storageText').textContent = `${formatBytes(data.usedStorageBytes)} of ${formatBytes(data.totalStorageBytes)} used`;
+            document.getElementById('storageText').textContent = `${formatBytes(data.usedStorageBytes)} ${translations['ofUsed'][currentLanguage]} ${formatBytes(data.totalStorageBytes)} ${translations['usedText' + (currentLanguage === 'id' ? 'Id' : 'En')]}`;
             
             // Update storage full message in sidebar
             const storageInfoDiv = document.querySelector('.storage-info');
@@ -1863,9 +2100,9 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
                 if (!storageFullMessage) {
                     storageFullMessage = document.createElement('p');
                     storageFullMessage.className = 'storage-text storage-full-message';
-                    storageFullMessage.style.color = 'var(--metro-error)';
+                    storageFullMessage.style.color = 'var(--error-color)';
                     storageFullMessage.style.fontWeight = 'bold';
-                    storageFullMessage.textContent = 'Storage Full!';
+                    storageFullMessage.setAttribute('data-lang-key', 'storageFull');
                     storageInfoDiv.appendChild(storageFullMessage);
                 }
             } else {
@@ -1896,26 +2133,30 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
                         case 'share_link': icon = 'fas fa-share-alt'; break;
                         default: icon = 'fas fa-info-circle'; break;
                     }
+                    const activityDescription = translations[activity.activity_type] ? translations[activity.activity_type][currentLanguage] : activity.description;
                     const activityLi = `
                         <li>
                             <i class="${icon}"></i>
-                            <span class="activity-text"><strong>${htmlspecialchars(activity.username)}</strong> ${htmlspecialchars(activity.description)}</span>
-                            <span class="timestamp">${time_elapsed_string(activity.timestamp)} ago</span>
+                            <span class="activity-text"><strong>${htmlspecialchars(activity.username)}</strong> <span data-lang-activity-desc-key="${activity.activity_type}">${htmlspecialchars(activityDescription)}</span></span>
+                            <span class="timestamp" data-timestamp="${activity.timestamp}"></span>
                         </li>
                     `;
                     recentActivitiesUl.innerHTML += activityLi;
                 });
             } else {
-                recentActivitiesUl.innerHTML = '<li>No recent activities.</li>';
+                recentActivitiesUl.innerHTML = `<li data-lang-key="noRecentActivities">${translations['noRecentActivities'][currentLanguage] || 'No recent activities.'}</li>`;
             }
 
             // Update Mini Profile
             const miniProfileSection = document.getElementById('miniProfileSection');
-            miniProfileSection.querySelector('p:nth-child(2)').innerHTML = `<strong>Name:</strong> ${htmlspecialchars(data.currentUserProfile.username)}`;
-            miniProfileSection.querySelector('p:nth-child(3)').innerHTML = `<strong>Total Files:</strong> ${data.currentUserProfile.total_files}`;
-            miniProfileSection.querySelector('p:nth-child(4)').innerHTML = `<strong>Total Files (Public):</strong> ${data.currentUserProfile.public_files}`;
-            miniProfileSection.querySelector('p:nth-child(5)').innerHTML = `<strong>Storage Used:</strong> ${data.currentUserProfile.storage_used}`;
-            miniProfileSection.querySelector('p:nth-child(6)').innerHTML = `<strong>Weekly Activities:</strong> ${data.currentUserProfile.weekly_activities}`;
+            miniProfileSection.querySelector('#miniProfileUsername').textContent = htmlspecialchars(data.currentUserProfile.username);
+            miniProfileSection.querySelector('#miniProfileTotalFiles').textContent = data.currentUserProfile.total_files;
+            miniProfileSection.querySelector('#miniProfilePublicFiles').textContent = data.currentUserProfile.public_files;
+            miniProfileSection.querySelector('#miniProfileStorageUsed').textContent = data.currentUserProfile.storage_used;
+            miniProfileSection.querySelector('#miniProfileWeeklyActivities').textContent = data.currentUserProfile.weekly_activities;
+
+            // Re-apply translation after UI update
+            applyTranslation(currentLanguage);
         }
         
         // --- PAGINATION FUNCTIONS ---
@@ -1930,6 +2171,7 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
                     currentPage = page;
                     renderMemberTable(data.members);
                     updatePaginationControls();
+                    applyTranslation(currentLanguage); // Apply translation after rendering table
                 }
             } catch (error) {
                 console.error("Could not fetch members data:", error);
@@ -1949,18 +2191,18 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
                             <td>${htmlspecialchars(member.username)}</td>
                             <td>${htmlspecialchars(member.email)}</td>
                             <td>
-                                ${member.last_login ? new Date(member.last_login.replace(/-/g, '/')).toLocaleString() : 'Never logged in'}
+                                ${member.last_login ? new Date(member.last_login.replace(/-/g, '/')).toLocaleString() : `<span data-lang-key="neverLoggedIn">${translations['neverLoggedIn'][currentLanguage]}</span>`}
                             </td>
                             <td>
                                 <span class="status-indicator ${member.is_online ? 'online' : 'offline'}"></span>
-                                ${member.is_online ? 'Online' : 'Offline'}
+                                <span data-lang-key="${member.is_online ? 'online' : 'offline'}">${translations[member.is_online ? 'online' : 'offline'][currentLanguage]}</span>
                             </td>
                         </tr>
                     `;
                     memberTableBody.innerHTML += row;
                 });
             } else {
-                memberTableBody.innerHTML = `<tr><td colspan="6" class="text-center">No members found</td></tr>`;
+                memberTableBody.innerHTML = `<tr><td colspan="6" class="text-center" data-lang-key="noMembersFound">${translations['noMembersFound'][currentLanguage]}</td></tr>`;
             }
             attachMemberRowClickListeners();
         }
@@ -2005,10 +2247,10 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             // Activity Distribution Pie Chart
             const activityCtx = document.getElementById('activityDistributionChart').getContext('2d');
             const activityData = Object.values(activityDistribution);
-            const activityLabels = Object.keys(activityDistribution);
+            const activityLabels = Object.keys(activityDistribution).map(key => translations[key] ? translations[key][currentLanguage] : key);
             const activityColors = [
-                '#0078D7', '#4CAF50', '#FF8C00', '#E81123', '#8E24AA', '#00B294', '#FFB900', '#505050'
-            ];
+                '#3F51B5', '#4CAF50', '#FFC107', '#F44336', '#9C27B0', '#00BCD4', '#FFEB3B', '#607D8B'
+            ]; // Material Design colors
 
             if (activityChartInstance) {
                 activityChartInstance.data.labels = activityLabels;
@@ -2032,15 +2274,15 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
                             legend: {
                                 position: 'right',
                                 labels: {
-                                    color: 'var(--metro-text-color)',
+                                    color: 'var(--text-color)',
                                     font: {
-                                        family: 'Segoe UI'
+                                        family: 'Roboto'
                                     }
                                 }
                             },
                             title: {
                                 display: false,
-                                text: 'Activity Distribution'
+                                text: translations['activityDistribution'][currentLanguage] || 'Activity Distribution'
                             }
                         }
                     }
@@ -2062,10 +2304,10 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
                     data: {
                         labels: membersLabels,
                         datasets: [{
-                            label: 'Total Files',
+                            label: translations['totalFiles'][currentLanguage] || 'Total Files',
                             data: membersData,
-                            backgroundColor: 'var(--metro-blue)',
-                            borderColor: 'var(--metro-dark-blue)',
+                            backgroundColor: 'var(--primary-color)',
+                            borderColor: 'var(--primary-dark-color)',
                             borderWidth: 1
                         }]
                     },
@@ -2077,24 +2319,24 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
                             },
                             title: {
                                 display: false,
-                                text: 'Top Members by Total Files'
+                                text: translations['topMembersByTotalFiles'][currentLanguage] || 'Top Members by Total Files'
                             }
                         },
                         scales: {
                             y: {
                                 beginAtZero: true,
                                 ticks: {
-                                    color: 'var(--metro-text-color)',
+                                    color: 'var(--text-color)',
                                     font: {
-                                        family: 'Segoe UI'
+                                        family: 'Roboto'
                                     }
                                 }
                             },
                             x: {
                                 ticks: {
-                                    color: 'var(--metro-text-color)',
+                                    color: 'var(--text-color)',
                                     font: {
-                                        family: 'Segoe UI'
+                                        family: 'Roboto'
                                     }
                                 }
                             }
@@ -2118,9 +2360,9 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
                     data: {
                         labels: dailyLabels,
                         datasets: [{
-                            label: 'Activities',
+                            label: translations['activities'][currentLanguage] || 'Activities',
                             data: dailyData,
-                            borderColor: 'var(--metro-success)',
+                            borderColor: 'var(--success-color)',
                             backgroundColor: 'rgba(76, 175, 80, 0.2)',
                             tension: 0.3,
                             fill: true
@@ -2134,24 +2376,24 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
                             },
                             title: {
                                 display: false,
-                                text: 'Daily Activity Trend'
+                                text: translations['dailyActivityTrend'][currentLanguage] || 'Daily Activity Trend'
                             }
                         },
                         scales: {
                             y: {
                                 beginAtZero: true,
                                 ticks: {
-                                    color: 'var(--metro-text-color)',
+                                    color: 'var(--text-color)',
                                     font: {
-                                        family: 'Segoe UI'
+                                        family: 'Roboto'
                                     }
                                 }
                             },
                             x: {
                                 ticks: {
-                                    color: 'var(--metro-text-color)',
+                                    color: 'var(--text-color)',
                                     font: {
-                                        family: 'Segoe UI'
+                                        family: 'Roboto'
                                     }
                                 }
                             }
@@ -2221,6 +2463,9 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
 
         // Initial load and setup
         document.addEventListener('DOMContentLoaded', function() {
+            // Get language from localStorage
+            currentLanguage = localStorage.getItem('lang') || 'id';
+
             // Initial chart rendering with data from PHP
             updateCharts(
                 <?php echo json_encode($activityDistribution); ?>,
@@ -2246,7 +2491,6 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
                 }
             });
 
-
             // Attach click listeners to member table rows
             attachMemberRowClickListeners();
 
@@ -2262,11 +2506,30 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
             const sidebar = document.querySelector('.sidebar');
             const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
             const mobileOverlay = document.getElementById('mobileOverlay');
+            const mainContent = document.getElementById('mainContent'); // Get main-content for animations
 
             // --- Mobile Sidebar Toggle ---
             sidebarToggleBtn.addEventListener('click', () => {
                 sidebar.classList.toggle('show-mobile-sidebar');
                 mobileOverlay.classList.toggle('show');
+            });
+
+            // --- Sidebar Menu Navigation with Fly Out Animation ---
+            document.querySelectorAll('.sidebar-menu a').forEach(item => {
+                item.addEventListener('click', function(event) {
+                    // Only apply animation if it's a navigation link and not the current active page
+                    if (this.getAttribute('href') && !this.classList.contains('active')) {
+                        event.preventDefault(); // Prevent default navigation immediately
+                        const targetUrl = this.getAttribute('href');
+
+                        mainContent.classList.add('fly-out'); // Start fly-out animation
+
+                        mainContent.addEventListener('animationend', function handler() {
+                            mainContent.removeEventListener('animationend', handler);
+                            window.location.href = targetUrl; // Navigate after animation
+                        });
+                    }
+                });
             });
 
             // Set active class for current page in sidebar
@@ -2278,6 +2541,9 @@ $totalPages = ceil($totalMembersCount / $membersPerPage);
                     item.classList.add('active');
                 }
             });
+
+            // Apply initial translation
+            applyTranslation(currentLanguage);
         });
     </script>
 </body>

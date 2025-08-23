@@ -157,20 +157,28 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
     <title>Priority Files - SKMI Cloud Storage</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        /* Metro Design (Modern UI) & Windows 7 Animations */
+        /* Material Design Google + Admin LTE */
         :root {
-            --metro-blue: #0078D7; /* Windows 10/Metro accent blue */
-            --metro-dark-blue: #0056b3;
-            --metro-light-gray: #E1E1E1;
-            --metro-medium-gray: #C8C8C8;
-            --metro-dark-gray: #666666;
-            --metro-text-color: #333333;
-            --metro-bg-color: #F0F0F0;
-            --metro-sidebar-bg: #2D2D30; /* Darker sidebar for contrast */
-            --metro-sidebar-text: #F0F0F0;
-            --metro-success: #4CAF50;
-            --metro-error: #E81123; /* Windows 10 error red */
-            --metro-warning: #FF8C00; /* Windows 10 warning orange */
+            --primary-color: #3F51B5; /* Indigo 500 - Material Design */
+            --primary-dark-color: #303F9F; /* Indigo 700 */
+            --accent-color: #FF4081; /* Pink A200 */
+            --text-color: #212121; /* Grey 900 */
+            --secondary-text-color: #757575; /* Grey 600 */
+            --divider-color: #BDBDBD; /* Grey 400 */
+            --background-color: #F5F5F5; /* Grey 100 */
+            --surface-color: #FFFFFF; /* White */
+            --success-color: #4CAF50; /* Green 500 */
+            --error-color: #F44336; /* Red 500 */
+            --warning-color: #FFC107; /* Amber 500 */
+
+            /* AdminLTE specific colors */
+            --adminlte-sidebar-bg: #222d32;
+            --adminlte-sidebar-text: #b8c7ce;
+            --adminlte-sidebar-hover-bg: #1e282c;
+            --adminlte-sidebar-active-bg: #1e282c;
+            --adminlte-sidebar-active-text: #ffffff;
+            --adminlte-header-bg: #ffffff;
+            --adminlte-header-text: #333333;
 
             /* --- LOKASI EDIT UKURAN FONT SIDEBAR --- */
             --sidebar-font-size-desktop: 0.9em; /* Ukuran font default untuk desktop */
@@ -181,39 +189,48 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Roboto', sans-serif; /* Material Design font */
             margin: 0;
             display: flex;
             height: 100vh;
-            background-color: var(--metro-bg-color);
-            color: var(--metro-text-color);
+            background-color: var(--background-color);
+            color: var(--text-color);
             overflow: hidden; /* Prevent body scroll, main-content handles it */
         }
 
-        /* Base Sidebar */
+        /* Base Sidebar (AdminLTE style) */
         .sidebar {
             width: 250px;
-            background-color: var(--metro-sidebar-bg);
-            color: var(--metro-sidebar-text);
+            background-color: var(--adminlte-sidebar-bg);
+            color: var(--adminlte-sidebar-text);
             display: flex;
             flex-direction: column;
-            padding: 20px 0;
+            padding: 0; /* No padding at top/bottom */
             transition: width 0.3s ease-in-out, transform 0.3s ease-in-out;
             flex-shrink: 0;
+            box-shadow: none; /* No box-shadow */
         }
 
         .sidebar-header {
-            padding: 0 20px;
-            margin-bottom: 30px;
+            padding: 15px;
+            margin-bottom: 15px;
             display: flex;
             align-items: center;
             justify-content: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
         }
 
         .sidebar-header img {
-            width: 150px;
+            width: 120px; /* Slightly smaller logo */
             height: auto;
             display: block;
+        }
+
+        .sidebar-header h2 {
+            margin: 0;
+            font-size: 1.5em;
+            color: var(--adminlte-sidebar-text);
+            font-weight: 400;
         }
 
         .sidebar-menu {
@@ -221,77 +238,76 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             padding: 0;
             margin: 0;
             flex-grow: 1;
-            overflow-y: auto; /* Enable vertical scrolling */
-            overflow-x: hidden; /* Hide horizontal scrolling */
+            overflow-y: auto;
+            overflow-x: hidden;
         }
 
         .sidebar-menu li {
-            margin-bottom: 5px;
+            margin-bottom: 0; /* No extra spacing */
         }
 
         .sidebar-menu a {
             display: flex;
             align-items: center;
-            padding: 15px 20px;
-            color: var(--metro-sidebar-text);
+            padding: 12px 15px; /* AdminLTE padding */
+            color: var(--adminlte-sidebar-text);
             text-decoration: none;
-            font-size: var(--sidebar-font-size-desktop); /* Menggunakan variabel untuk desktop */
+            font-size: var(--sidebar-font-size-desktop);
             transition: background-color 0.2s ease-out, color 0.2s ease-out;
-            border-left: 5px solid transparent;
+            border-left: 3px solid transparent; /* For active state */
         }
 
         .sidebar-menu a i {
-            margin-right: 15px;
-            font-size: 1.4em;
-            width: 25px;
+            margin-right: 10px;
+            font-size: 1.2em;
+            width: 20px;
             text-align: center;
         }
 
-        /* Perbaikan Animasi Hover dan Active (Diambil dari index.php terbaru) */
         .sidebar-menu a:hover {
-            background-color: rgba(255,255,255,0.15); /* Sedikit lebih terang dari sebelumnya */
-            color: #FFFFFF;
-            transform: translateX(5px); /* Efek geser ke kanan */
-            transition: background-color 0.2s ease-out, color 0.2s ease-out, transform 0.2s ease-out;
+            background-color: var(--adminlte-sidebar-hover-bg);
+            color: var(--adminlte-sidebar-active-text);
+            transform: translateX(0); /* No slide effect */
         }
 
         .sidebar-menu a.active {
-            background-color: var(--metro-blue); /* Metro accent color */
-            border-left: 5px solid var(--metro-blue);
-            color: #FFFFFF;
-            font-weight: 600;
-            transform: translateX(0); /* Pastikan tidak ada geseran saat aktif */
+            background-color: var(--adminlte-sidebar-active-bg);
+            border-left-color: var(--primary-color); /* Material primary color for active */
+            color: var(--adminlte-sidebar-active-text);
+            font-weight: 500;
         }
 
-        /* Storage Info */
+        /* Storage Info (AdminLTE style) */
         .storage-info {
-            padding: 20px;
+            padding: 15px;
             border-top: 1px solid rgba(255,255,255,0.1);
             text-align: center;
-            font-size: 0.9em;
+            font-size: 0.85em;
+            margin-top: auto;
+            padding-top: 15px;
         }
 
         .storage-info h4 {
             margin-top: 0;
-            margin-bottom: 15px;
-            color: var(--metro-sidebar-text);
+            margin-bottom: 10px;
+            color: var(--adminlte-sidebar-text);
             font-weight: 400;
         }
 
         .progress-bar-container {
             width: 100%;
             background-color: rgba(255,255,255,0.2);
-            border-radius: 5px;
-            height: 8px;
-            margin-bottom: 10px;
+            border-radius: 0; /* Siku-siku */
+            height: 6px;
+            margin-bottom: 8px;
             overflow: hidden;
             position: relative;
         }
 
         .progress-bar {
             height: 100%;
-            background-color: var(--metro-success);
-            border-radius: 5px;
+            background-color: var(--success-color);
+            border-radius: 0; /* Siku-siku */
             transition: width 0.5s ease-in-out;
             position: relative;
             overflow: hidden;
@@ -303,83 +319,94 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             left: 50%;
             transform: translate(-50%, -50%);
             color: #fff;
-            font-size: 0.7em;
+            font-size: 0.6em;
             font-weight: bold;
             text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
             white-space: nowrap;
         }
 
         .storage-text {
-            font-size: 0.9em;
-            color: var(--metro-light-gray);
+            font-size: 0.8em;
+            color: var(--adminlte-sidebar-text);
         }
 
-        /* Main Content */
+        /* Main Content (Full-width, unique & professional) */
         .main-content {
             flex-grow: 1;
-            padding: 30px;
+            padding: 20px; /* Reduced padding */
             display: flex;
             flex-direction: column;
             overflow-y: auto;
-            background-color: #FFFFFF;
-            border-radius: 8px;
-            margin: 0; /* MODIFIED: Full width for all devices */
+            background-color: var(--background-color); /* Light grey background */
+            border-radius: 0; /* Siku-siku */
+            margin: 0; /* Full width */
+            box-shadow: none; /* No box-shadow */
+            /* MODIFIED: Initial state for fly-in animation */
+            opacity: 0;
+            transform: translateY(100%);
+            animation: flyInFromBottom 0.5s ease-out forwards; /* Fly In animation from bottom */
         }
 
-        /* Header Main */
+        .main-content.fly-out {
+            animation: flyOutToTop 0.5s ease-in forwards; /* Fly Out animation to top */
+        }
+
+        /* Header Main (Full-width, white, no background residue) */
         .header-main {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 25px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid var(--metro-light-gray);
-            background-color: #FFFFFF; /* Consistent white header */
-            padding: 15px 30px;
-            margin: -30px -30px 25px -30px; /* MODIFIED: Full width for all devices */
-            border-radius: 0; /* MODIFIED: No rounded top corners for full width */
-            /*box-shadow: 0 2px 5px rgba(0,0,0,0.05);*/
+            margin-bottom: 20px; /* Reduced margin */
+            padding: 15px 20px; /* Padding for header */
+            border-bottom: 1px solid var(--divider-color);
+            background-color: var(--adminlte-header-bg); /* White header */
+            margin: -20px -20px 20px -20px; /* Adjust margin to cover full width */
+            border-radius: 0; /* Siku-siku */
+            box-shadow: none; /* No box-shadow */
         }
 
         .header-main h1 {
             margin: 0;
-            color: var(--metro-text-color);
-            font-size: 2.5em;
-            font-weight: 300;
+            color: var(--adminlte-header-text);
+            font-size: 2em; /* Slightly smaller title */
+            font-weight: 400; /* Lighter font weight */
         }
 
-        /* User Grid Profile */
+        /* User Grid Profile (Google Drive Style) */
         .user-grid-container {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-            gap: 20px;
-            padding: 20px;
-            background-color: var(--metro-bg-color);
-            border-radius: 8px;
+            gap: 16px; /* Reduced gap */
+            padding: 16px; /* Padding for the grid container */
+            background-color: var(--surface-color); /* White background */
+            border-radius: 0; /* Siku-siku */
             margin-bottom: 20px;
+            border: 1px solid var(--divider-color); /* Subtle border */
         }
 
         .user-profile-card {
-            background-color: #FFFFFF;
-            border: 1px solid var(--metro-light-gray);
-            border-radius: 5px;
-            padding: 15px;
+            background-color: var(--background-color); /* Light grey background */
+            border: 1px solid #dadce0; /* Google Drive border color */
+            border-radius: 8px; /* Rounded corners */
+            padding: 12px;
             display: flex;
             flex-direction: column;
             align-items: center;
             text-align: center;
             cursor: pointer;
-            transition: transform 0.2s ease-out, border-color 0.2s ease-out;
+            transition: all 0.2s ease-out;
+            box-shadow: none; /* No box-shadow */
         }
 
         .user-profile-card:hover {
-            transform: translateY(-3px);
-            border-color: var(--metro-blue);
+            box-shadow: 0 1px 3px rgba(60,64,67,.3), 0 4px 8px rgba(60,64,67,.15); /* Google Drive hover shadow */
+            transform: translateY(0); /* No lift */
+            border-color: transparent; /* Border disappears on hover */
         }
 
         .user-profile-card.active {
-            border: 2px solid var(--metro-blue);
-            background-color: var(--metro-light-gray);
+            border: 2px solid var(--primary-color); /* Material primary color for active */
+            background-color: var(--surface-color); /* White background when active */
         }
 
         .user-profile-card img {
@@ -388,23 +415,24 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             border-radius: 50%;
             object-fit: cover;
             margin-bottom: 10px;
-            border: 2px solid var(--metro-medium-gray);
+            border: 2px solid var(--divider-color); /* Subtle border */
         }
 
         .user-profile-card h3 {
             margin: 0;
             font-size: 1.1em;
-            color: var(--metro-text-color);
+            color: var(--text-color);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             width: 100%;
+            font-weight: 500; /* Medium font weight */
         }
 
         .user-profile-card p {
             margin: 5px 0 0;
             font-size: 0.9em;
-            color: var(--metro-dark-gray);
+            color: var(--secondary-text-color);
         }
 
         /* Pagination for User Grid */
@@ -416,87 +444,107 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
         }
 
         .user-pagination button {
-            background-color: var(--metro-blue);
+            background-color: var(--primary-color);
             color: white;
             border: none;
-            padding: 8px 15px;
-            border-radius: 3px;
+            padding: 9px 18px; /* Reduced padding */
+            border-radius: 0; /* Siku-siku */
             cursor: pointer;
             font-size: 0.9em;
             margin: 0 5px;
             transition: background-color 0.2s ease-out;
+            box-shadow: none; /* No box-shadow */
         }
 
         .user-pagination button:hover:not(:disabled) {
-            background-color: var(--metro-dark-blue);
+            background-color: var(--primary-dark-color);
         }
 
         .user-pagination button:disabled {
-            background-color: var(--metro-medium-gray);
+            background-color: var(--divider-color);
             cursor: not-allowed;
         }
 
-        /* Starred Items List */
+        /* Starred Items List (Google Drive Table Style) */
         .starred-items-list {
-            background-color: #FFFFFF;
-            border-radius: 8px;
-            padding: 20px;
+            background-color: var(--surface-color); /* White background */
+            border-radius: 0; /* Siku-siku */
+            padding: 0; /* No padding here, table handles it */
+            border: 1px solid var(--divider-color); /* Subtle border */
+            overflow: auto; /* For responsive table */
         }
 
         .starred-items-list h2 {
             font-size: 1.8em;
-            color: var(--metro-text-color);
-            margin-top: 0;
-            margin-bottom: 20px;
-            border-bottom: 1px solid var(--metro-light-gray);
-            padding-bottom: 10px;
+            color: var(--text-color);
+            margin: 0;
+            padding: 15px 20px; /* Padding for title */
+            border-bottom: 1px solid var(--divider-color);
+            font-weight: 400; /* Lighter font weight */
         }
 
         .starred-table {
             width: 100%;
             border-collapse: collapse;
+            table-layout: fixed; /* Google Drive table layout */
+            margin-top: 0;
+            border: none; /* Remove outer border */
         }
 
         .starred-table th, .starred-table td {
             text-align: left;
-            padding: 12px 15px;
-            border-bottom: 1px solid var(--metro-light-gray);
-            font-size: 0.95em;
+            padding: 12px 24px; /* Google Drive padding */
+            border-bottom: 1px solid #dadce0; /* Google Drive border color */
+            font-size: 0.875em;
+            color: #3c4043; /* Google Drive text color */
+            vertical-align: middle;
         }
 
         .starred-table th {
-            background-color: var(--metro-bg-color);
-            color: var(--metro-dark-gray);
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 0.85em;
+            background-color: #f8f9fa; /* Google Drive header background */
+            color: #5f6368; /* Google Drive header text */
+            font-weight: 500;
+            text-transform: none;
+            position: sticky;
+            top: 0;
+            z-index: 1;
         }
 
         .starred-table tbody tr:hover {
-            background-color: var(--metro-light-gray);
+            background-color: #f0f0f0; /* Google Drive hover effect */
         }
 
         .starred-table .file-icon {
-            margin-right: 10px;
+            margin-right: 16px; /* Google Drive spacing */
             font-size: 1.2em;
-            width: 25px;
+            width: auto;
             text-align: center;
+            flex-shrink: 0;
         }
+        .starred-table .file-icon.folder { color: #fbc02d; } /* Google Drive folder color */
 
         .starred-table .file-name-cell {
             display: flex;
             align-items: center;
+            max-width: 400px; /* Adjusted max-width */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .starred-table .file-name-cell a {
-            color: var(--metro-text-color);
+            color: #3c4043; /* Google Drive text color */
             text-decoration: none;
             font-weight: 400;
+            display: block;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
             transition: color 0.2s ease-out;
         }
 
         .starred-table .file-name-cell a:hover {
-            color: var(--metro-blue);
+            color: #1a73e8; /* Google Drive blue on hover */
         }
 
         .starred-actions button {
@@ -504,21 +552,22 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             border: none;
             font-size: 1.1em;
             cursor: pointer;
-            color: var(--metro-dark-gray);
+            color: var(--secondary-text-color);
             margin-left: 5px;
             transition: color 0.2s ease-out;
+            box-shadow: none; /* No box-shadow */
         }
 
         .starred-actions button:hover {
-            color: var(--metro-blue);
+            color: var(--primary-color);
         }
 
         .starred-actions button.unstar-btn:hover {
-            color: var(--metro-warning); /* Orange for unstar */
+            color: var(--warning-color); /* Amber for unstar */
         }
 
         .starred-actions button.delete-btn:hover {
-            color: var(--metro-error);
+            color: var(--error-color);
         }
 
         /* Pagination for Starred Items */
@@ -526,40 +575,44 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             display: flex;
             justify-content: center;
             margin-top: 20px;
+            padding: 15px 0;
+            border-top: 1px solid var(--divider-color);
+            background-color: var(--background-color); /* Light grey background */
         }
 
         .starred-pagination button {
-            background-color: var(--metro-blue);
+            background-color: var(--primary-color);
             color: white;
             border: none;
-            padding: 8px 15px;
-            border-radius: 3px;
+            padding: 9px 18px; /* Reduced padding */
+            border-radius: 0; /* Siku-siku */
             cursor: pointer;
             font-size: 0.9em;
             margin: 0 5px;
             transition: background-color 0.2s ease-out;
+            box-shadow: none; /* No box-shadow */
         }
 
         .starred-pagination button:hover:not(:disabled) {
-            background-color: var(--metro-dark-blue);
+            background-color: var(--primary-dark-color);
         }
 
         .starred-pagination button:disabled {
-            background-color: var(--metro-medium-gray);
+            background-color: var(--divider-color);
             cursor: not-allowed;
         }
 
-        /* Custom Notification Styles */
+        /* Custom Notification Styles (Material Design) */
         .notification {
             position: fixed;
             top: 20px;
             right: 20px;
-            padding: 15px 25px;
-            border-radius: 5px;
+            padding: 12px 20px; /* Reduced padding */
+            border-radius: 0; /* Siku-siku */
             color: white;
-            font-weight: bold;
+            font-weight: 500;
             z-index: 1001;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2); /* Subtle shadow */
             opacity: 0;
             transform: translateY(-20px);
             transition: opacity 0.3s ease-out, transform 0.3s ease-out;
@@ -571,15 +624,23 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
         }
 
         .notification.success {
-            background-color: var(--metro-success);
+            background-color: var(--success-color);
         }
 
         .notification.error {
-            background-color: var(--metro-error);
+            background-color: var(--error-color);
         }
 
         .notification.info {
-            background-color: var(--metro-blue);
+            background-color: var(--primary-color);
+        }
+
+        /* General button focus effects */
+        button {
+            outline: none;
+        }
+        button:focus {
+            box-shadow: 0 0 0 2px rgba(63,81,181,0.5); /* Material Design focus ring */
         }
 
         /* Custom Scrollbar for Webkit browsers (Chrome, Safari) */
@@ -589,93 +650,54 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
         }
 
         ::-webkit-scrollbar-track {
-            background: var(--metro-light-gray);
-            border-radius: 10px;
+            background: var(--background-color);
+            border-radius: 0; /* Siku-siku */
         }
 
         ::-webkit-scrollbar-thumb {
-            background: var(--metro-medium-gray);
-            border-radius: 10px;
+            background: var(--divider-color);
+            border-radius: 0; /* Siku-siku */
         }
 
         ::-webkit-scrollbar-thumb:hover {
-            background: var(--metro-dark-gray);
-        }
-
-        /* Sidebar Toggle Button (for mobile/tablet) */
-        .sidebar-toggle-btn {
-            display: none; /* Hidden by default on desktop */
-            background: none;
-            border: none;
-            font-size: 1.5em;
-            color: var(--metro-text-color);
-            cursor: pointer;
-            margin-right: 15px;
-        }
-
-        /* Overlay for mobile sidebar */
-        .overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 99;
-        }
-        .overlay.show {
-            display: block;
+            background: var(--secondary-text-color);
         }
 
         /* ========================================================================== */
         /* Responsive Classes for iPad, Tablet, HP (Android & iOS) */
         /* ========================================================================== */
 
-        /* Default for Desktop/Windows */
-        body.desktop .sidebar {
-            width: 250px;
-            transform: translateX(0);
-        }
-        body.desktop .sidebar-toggle-btn {
+        /* Default for Desktop */
+        .sidebar-toggle-btn {
             display: none;
         }
-        body.desktop .main-content {
-            margin: 0; /* Full width */
-            padding: 30px;
+        .sidebar.mobile-hidden {
+            display: flex;
+            transform: translateX(0);
         }
-        body.desktop .header-main {
-            padding: 15px 30px;
-            margin: -30px -30px 25px -30px;
-        }
-        body.desktop .header-main h1 {
-            font-size: 2.5em;
+        .header-main .priority-files-title {
+            display: block;
         }
 
         /* Class for iPad & Tablet (Landscape: min-width 768px, max-width 1024px) */
         @media (min-width: 768px) and (max-width: 1024px) {
             body.tablet-landscape .sidebar {
                 width: 220px; /* Slightly narrower sidebar */
-                transform: translateX(0);
-            }
-            body.tablet-landscape .sidebar-toggle-btn {
-                display: none;
             }
             body.tablet-landscape .main-content {
-                margin: 0; /* Full width */
-                padding: 20px;
+                padding: 15px;
             }
             body.tablet-landscape .header-main {
-                padding: 10px 20px;
-                margin: -20px -20px 25px -20px; /* Adjusted margin for full width */
+                padding: 10px 15px;
+                margin: -15px -15px 15px -15px;
             }
             body.tablet-landscape .header-main h1 {
-                font-size: 2em;
+                font-size: 1.8em;
             }
             body.tablet-landscape .user-grid-container {
                 grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-                gap: 15px;
-                padding: 15px;
+                gap: 12px;
+                padding: 12px;
             }
             body.tablet-landscape .user-profile-card img {
                 width: 70px;
@@ -686,14 +708,14 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             }
             body.tablet-landscape .starred-table th,
             body.tablet-landscape .starred-table td {
-                padding: 10px 12px;
-                font-size: 0.9em;
+                padding: 10px 20px;
+                font-size: 0.85em;
             }
             body.tablet-landscape .starred-actions button {
                 font-size: 1em;
             }
             body.tablet-landscape .sidebar-menu a {
-                font-size: var(--sidebar-font-size-tablet-landscape); /* Menggunakan variabel untuk tablet landscape */
+                font-size: var(--sidebar-font-size-tablet-landscape);
             }
         }
 
@@ -705,30 +727,38 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 left: 0;
                 height: 100%;
                 z-index: 100;
-                transform: translateX(-100%); /* Hidden by default */
-                /*box-shadow: 2px 0 10px rgba(0,0,0,0.2);*/
+                transform: translateX(-100%);
+                box-shadow: 2px 0 5px rgba(0,0,0,0.2); /* Subtle shadow for mobile sidebar */
             }
             body.tablet-portrait .sidebar.show-mobile-sidebar {
-                transform: translateX(0); /* Show when active */
+                transform: translateX(0);
             }
             body.tablet-portrait .sidebar-toggle-btn {
-                display: block; /* Show toggle button */
-                order: -1; /* Place on the left */
+                display: block;
+                background: none;
+                border: none;
+                font-size: 1.6em;
+                color: var(--adminlte-header-text);
+                cursor: pointer;
+                margin-left: 0;
+                order: 0;
             }
             body.tablet-portrait .header-main {
                 justify-content: flex-start; /* Align items to start */
-                padding: 10px 20px;
-                margin: -20px -20px 25px -20px; /* Adjusted margin for full width */
+                padding: 10px 15px;
+                margin: -15px -15px 15px -15px;
             }
             body.tablet-portrait .header-main h1 {
-                font-size: 2em;
-                flex-grow: 1; /* Allow title to take space */
-                text-align: center; /* Center title */
-                margin-right: 15px; /* Space for toggle button */
+                font-size: 1.6em;
+                flex-grow: 1;
+                text-align: center;
+                margin-left: -30px; /* Counteract toggle button space */
+            }
+            body.tablet-portrait .header-main .priority-files-title {
+                display: none;
             }
             body.tablet-portrait .main-content {
-                margin: 0; /* Full width */
-                padding: 20px;
+                padding: 15px;
             }
             body.tablet-portrait .user-grid-container {
                 grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
@@ -742,16 +772,59 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             body.tablet-portrait .user-profile-card h3 {
                 font-size: 0.9em;
             }
-            body.tablet-portrait .starred-table th,
-            body.tablet-portrait .starred-table td {
-                padding: 8px 10px;
-                font-size: 0.85em;
+            body.tablet-portrait .starred-table thead {
+                display: none; /* Hide table header on mobile for better stacking */
             }
-            body.tablet-portrait .starred-actions button {
+            body.tablet-portrait .starred-table tbody tr {
+                display: flex;
+                flex-wrap: wrap;
+                border: 1px solid #dadce0; /* Google Drive border color */
+                margin-bottom: 8px;
+                border-radius: 8px;
+                background-color: var(--surface-color);
+                box-shadow: none;
+                position: relative;
+            }
+            body.tablet-portrait .starred-table td {
+                display: block;
+                width: 100%;
+                padding: 8px 16px;
+                font-size: 0.875em;
+                border-bottom: none;
+                white-space: normal;
+                text-align: left;
+            }
+            body.tablet-portrait .starred-table td:nth-child(1) { /* Name */
+                padding-left: 48px;
+                font-weight: 500;
                 font-size: 0.9em;
             }
+            body.tablet-portrait .starred-table td:nth-child(1) .file-icon {
+                position: absolute;
+                left: 16px;
+                top: 12px;
+            }
+            body.tablet-portrait .starred-table td:nth-child(2)::before { content: "Type: "; font-weight: normal; color: #5f6368; }
+            body.tablet-portrait .starred-table td:nth-child(3)::before { content: "Size: "; font-weight: normal; color: #5f6368; }
+            body.tablet-portrait .starred-table td:nth-child(4)::before { content: "Modified: "; font-weight: normal; color: #5f6368; }
+            body.tablet-portrait .starred-table td:nth-child(5) { /* Actions */
+                display: flex;
+                justify-content: flex-end;
+                padding-top: 0;
+                padding-bottom: 8px;
+            }
+            body.tablet-portrait .starred-table td:nth-child(2),
+            body.tablet-portrait .starred-table td:nth-child(3),
+            body.tablet-portrait .starred-table td:nth-child(4) {
+                display: inline-block;
+                width: 50%;
+                box-sizing: border-box;
+                padding-top: 4px;
+                padding-bottom: 4px;
+                color: #5f6368;
+            }
             body.tablet-portrait .sidebar-menu a {
-                font-size: var(--sidebar-font-size-tablet-portrait); /* Menggunakan variabel untuk tablet portrait */
+                font-size: var(--sidebar-font-size-tablet-portrait);
             }
         }
 
@@ -762,32 +835,41 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 top: 0;
                 left: 0;
                 height: 100%;
-                width: 200px; /* Narrower sidebar for mobile */
+                width: 180px; /* Even narrower sidebar for mobile */
                 z-index: 100;
-                transform: translateX(-100%); /* Hidden by default */
-                /*box-shadow: 2px 0 10px rgba(0,0,0,0.2);*/
+                transform: translateX(-100%);
+                box-shadow: 2px 0 5px rgba(0,0,0,0.2);
             }
             body.mobile .sidebar.show-mobile-sidebar {
-                transform: translateX(0); /* Show when active */
+                transform: translateX(0);
             }
             body.mobile .sidebar-toggle-btn {
-                display: block; /* Show toggle button */
-                order: -1; /* Place on the left */
+                display: block;
+                background: none;
+                border: none;
+                font-size: 1.4em;
+                color: var(--adminlte-header-text);
+                cursor: pointer;
+                margin-left: 0;
+                order: 0;
             }
             body.mobile .header-main {
-                justify-content: flex-start; /* Align items to start */
-                padding: 10px 15px;
-                margin: -15px -15px 20px -15px; /* Adjusted margin for full width */
+                justify-content: flex-start;
+                padding: 10px 10px;
+                margin: -15px -15px 15px -15px;
             }
             body.mobile .header-main h1 {
-                font-size: 1.8em;
-                flex-grow: 1; /* Allow title to take space */
-                text-align: center; /* Center title */
-                margin-right: 10px; /* Space for toggle button */
+                font-size: 1.5em;
+                flex-grow: 1;
+                text-align: center;
+                margin-left: -25px; /* Counteract toggle button space */
+            }
+            body.mobile .header-main .priority-files-title {
+                display: none;
             }
             body.mobile .main-content {
-                margin: 0; /* Full width */
-                padding: 15px;
+                padding: 10px;
+                overflow-x: hidden;
             }
             body.mobile .user-grid-container {
                 grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
@@ -801,27 +883,59 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             body.mobile .user-profile-card h3 {
                 font-size: 0.8em;
             }
-            body.mobile .starred-table th,
+            body.mobile .starred-table thead {
+                display: none;
+            }
+            body.mobile .starred-table tbody tr {
+                display: flex;
+                flex-wrap: wrap;
+                border: 1px solid #dadce0;
+                margin-bottom: 8px;
+                border-radius: 8px;
+                background-color: var(--surface-color);
+                box-shadow: none;
+                position: relative;
+            }
             body.mobile .starred-table td {
-                padding: 6px 8px;
-                font-size: 0.8em;
+                display: block;
+                width: 100%;
+                padding: 8px 16px;
+                font-size: 0.875em;
+                border-bottom: none;
+                white-space: normal;
+                text-align: left;
             }
-            body.mobile .starred-actions button {
-                font-size: 0.8em;
+            body.mobile .starred-table td:nth-child(1) { /* Name */
+                padding-left: 48px;
+                font-weight: 500;
+                font-size: 0.9em;
             }
-            .header-main .priority-files-title {
-                display: block; /* "My Drive" visible on desktop */
+            body.mobile .starred-table td:nth-child(1) .file-icon {
+                position: absolute;
+                left: 16px;
+                top: 12px;
             }
-            
-            body.tablet-portrait .header-main .priority-files-title {
-                    display: none; /* Hide "My Drive" */
+            body.mobile .starred-table td:nth-child(2)::before { content: "Type: "; font-weight: normal; color: #5f6368; }
+            body.mobile .starred-table td:nth-child(3)::before { content: "Size: "; font-weight: normal; color: #5f6368; }
+            body.mobile .starred-table td:nth-child(4)::before { content: "Modified: "; font-weight: normal; color: #5f6368; }
+            body.mobile .starred-table td:nth-child(5) { /* Actions */
+                display: flex;
+                justify-content: flex-end;
+                padding-top: 0;
+                padding-bottom: 8px;
             }
-                
-            body.mobile .header-main .priority-files-title {
-                    display: none; /* Hide "My Drive" */
+            body.mobile .starred-table td:nth-child(2),
+            body.mobile .starred-table td:nth-child(3),
+            body.mobile .starred-table td:nth-child(4) {
+                display: inline-block;
+                width: 50%;
+                box-sizing: border-box;
+                padding-top: 4px;
+                padding-bottom: 4px;
+                color: #5f6368;
             }
             body.mobile .sidebar-menu a {
-                font-size: var(--sidebar-font-size-mobile); /* Menggunakan variabel untuk mobile */
+                font-size: var(--sidebar-font-size-mobile);
             }
         }
         /* Overlay for mobile sidebar */
@@ -838,66 +952,89 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
         .overlay.show {
             display: block;
         }
+
+        /* Animations */
+        @keyframes flyInFromBottom {
+            from {
+                opacity: 0;
+                transform: translateY(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes flyOutToTop {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-100%);
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="sidebar">
+    <div class="sidebar mobile-hidden">
         <div class="sidebar-header">
             <img src="img/logo.png" alt="Dafino Logo">
         </div>
         <ul class="sidebar-menu">
             <?php if ($currentUserRole === 'admin' || $currentUserRole === 'moderator'): ?>
-                <li><a href="control_center.php"><i class="fas fa-cogs"></i> Control Center</a></li>
+                <li><a href="control_center.php"><i class="fas fa-cogs"></i> <span data-lang-key="controlCenter">Control Center</span></a></li>
             <?php endif; ?>
             <?php if (in_array($currentUserRole, ['admin', 'moderator', 'user', 'member'])): ?>
-                <li><a href="index.php"><i class="fas fa-folder"></i> My Drive</a></li>
-                <li><a href="priority_files.php" class="active"><i class="fas fa-star"></i> Priority File</a></li>
-                <li><a href="recycle_bin.php"><i class="fas fa-trash"></i> Recycle Bin</a></li>
+                <li><a href="index.php"><i class="fas fa-folder"></i> <span data-lang-key="myDrive">My Drive</span></a></li>
+                <li><a href="priority_files.php" class="active"><i class="fas fa-star"></i> <span data-lang-key="priorityFile">Priority File</span></a></li>
+                <li><a href="recycle_bin.php"><i class="fas fa-trash"></i> <span data-lang-key="recycleBin">Recycle Bin</span></a></li>
             <?php endif; ?>
-            <li><a href="summary.php"><i class="fas fa-chart-line"></i> Summary</a></li>
-            <li><a href="members.php"><i class="fas fa-users"></i> Members</a></li>
-            <li><a href="profile.php"><i class="fas fa-user"></i> Profile</a></li>
-            <li><a href="logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+            <li><a href="summary.php"><i class="fas fa-chart-line"></i> <span data-lang-key="summary">Summary</span></a></li>
+            <li><a href="members.php"><i class="fas fa-users"></i> <span data-lang-key="members">Members</span></a></li>
+            <li><a href="profile.php"><i class="fas fa-user"></i> <span data-lang-key="profile">Profile</span></a></li>
+            <li><a href="logout.php"><i class="fas fa-sign-out-alt"></i> <span data-lang-key="logout">Logout</span></a></li>
         </ul>
         <div class="storage-info">
-            <h4>Storage</h4>
+            <h4 data-lang-key="storage">Storage</h4>
             <div class="progress-bar-container">
                 <div class="progress-bar" style="width: <?php echo round($usedPercentage, 2); ?>%;">
                     <span class="progress-bar-text"><?php echo round($usedPercentage, 2); ?>%</span>
                 </div>
             </div>
-            <p class="storage-text"><?php echo formatBytes($usedStorageBytes); ?> of <?php echo formatBytes($totalStorageBytes); ?> used</p>
+            <p class="storage-text" id="storageText"><?php echo formatBytes($usedStorageBytes); ?> of <?php echo formatBytes($totalStorageBytes); ?> used</p>
             <?php if ($isStorageFull): ?>
-                <p class="storage-text" style="color: var(--metro-error); font-weight: bold;">Storage Full! Cannot upload more files.</p>
+                <p class="storage-text storage-full-message" style="color: var(--error-color); font-weight: bold;" data-lang-key="storageFull">Storage Full!</p>
             <?php endif; ?>
         </div>
     </div>
 
-    <div class="main-content">
+    <div class="main-content" id="mainContent">
         <div class="header-main">
             <button class="sidebar-toggle-btn" id="sidebarToggleBtn"><i class="fas fa-bars"></i></button>
-            <h1 class="priority-files-title">Priority Files</h1>
+            <h1 class="priority-files-title" data-lang-key="priorityFilesTitle">Priority Files</h1>
         </div>
 
         <div class="user-grid-container" id="userGridContainer">
             <!-- User profiles will be loaded here -->
         </div>
         <div class="user-pagination" id="userPagination">
-            <button id="prevUserPage" disabled>Previous</button>
-            <span id="currentUserPage">Page 1</span> / <span id="totalUserPages"></span>
-            <button id="nextUserPage">Next</button>
+            <button id="prevUserPage" disabled><span data-lang-key="previous">Previous</span></button>
+            <span id="currentUserPage"><span data-lang-key="page">Page</span> 1</span> / <span id="totalUserPages"></span>
+            <button id="nextUserPage"><span data-lang-key="next">Next</span></button>
         </div>
 
         <div class="starred-items-list" id="starredItemsList" style="display: none;">
-            <h2 id="starredItemsTitle">Starred Items for <span id="selectedUserName"></span></h2>
+            <h2 id="starredItemsTitle"><span data-lang-key="starredItemsFor">Starred Items for</span> <span id="selectedUserName"></span></h2>
             <table class="starred-table">
                 <thead>
                     <tr>
-                        <th>Name</th>
-                        <th>Type</th>
-                        <th>Size</th>
-                        <th>Last Modified</th>
-                        <th>Actions</th>
+                        <th data-lang-key="name">Name</th>
+                        <th data-lang-key="type">Type</th>
+                        <th data-lang-key="size">Size</th>
+                        <th data-lang-key="lastModified">Last Modified</th>
+                        <th data-lang-key="actions">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="starredItemsTableBody">
@@ -905,9 +1042,9 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 </tbody>
             </table>
             <div class="starred-pagination" id="starredPagination">
-                <button id="prevStarredPage" disabled>Previous</button>
-                <span id="currentStarredPage">Page 1</span> / <span id="totalStarredPages"></span>
-                <button id="nextStarredPage">Next</button>
+                <button id="prevStarredPage" disabled><span data-lang-key="previous">Previous</span></button>
+                <span id="currentStarredPage"><span data-lang-key="page">Page</span> 1</span> / <span id="totalStarredPages"></span>
+                <button id="nextStarredPage"><span data-lang-key="next">Next</span></button>
             </div>
         </div>
     </div>
@@ -936,9 +1073,9 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
 
             // Mobile sidebar elements
             const sidebar = document.querySelector('.sidebar');
-            const myDriveTitle = document.querySelector('.priority-files-title');
             const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
             const mobileOverlay = document.getElementById('mobileOverlay');
+            const mainContent = document.getElementById('mainContent'); // Get main-content for animations
 
             // Sidebar menu items for active state management
             const sidebarMenuItems = document.querySelectorAll('.sidebar-menu a');
@@ -949,22 +1086,133 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             let currentStarredPage = 1;
             let totalStarredPages = 1;
 
+            // Get current user role from PHP (passed via a hidden input or directly in JS)
+            const currentUserRole = "<?php echo $currentUserRole; ?>";
+
+            // Define restricted file extensions
+            const restrictedExtensions = {
+                'p2p': ['torrent', 'nzb', 'ed2k', 'part', '!ut'],
+                'code': ['html', 'htm', 'css', 'js', 'php', 'py', 'java', 'json', 'xml', 'ts', 'tsx', 'jsx', 'vue', 'cpp', 'c', 'cs', 'rb', 'go', 'swift', 'sql', 'sh', 'bat', 'ini', 'yml', 'yaml', 'md', 'pl', 'r'],
+                'installation': ['exe', 'msi', 'apk', 'ipa', 'sh', 'bat', 'jar', 'appimage', 'dmg', 'bin']
+            };
+
+            // --- Translation Data (Global) ---
+            const translations = {
+                // Sidebar
+                'controlCenter': { 'id': 'Control Center', 'en': 'Control Center' },
+                'myDrive': { 'id': 'Drive Saya', 'en': 'My Drive' },
+                'priorityFile': { 'id': 'File Prioritas', 'en': 'Priority File' },
+                'recycleBin': { 'id': 'Tempat Sampah', 'en': 'Recycle Bin' },
+                'summary': { 'id': 'Ringkasan', 'en': 'Summary' },
+                'members': { 'id': 'Anggota', 'en': 'Members' },
+                'profile': { 'id': 'Profil', 'en': 'Profile' },
+                'logout': { 'id': 'Keluar', 'en': 'Logout' },
+                'storage': { 'id': 'Penyimpanan', 'en': 'Storage' },
+                'storageFull': { 'id': 'Penyimpanan Penuh!', 'en': 'Storage Full!' },
+
+                // Priority Files Page
+                'priorityFilesTitle': { 'id': 'File Prioritas', 'en': 'Priority Files' },
+                'previous': { 'id': 'Sebelumnya', 'en': 'Previous' },
+                'next': { 'id': 'Berikutnya', 'en': 'Next' },
+                'page': { 'id': 'Halaman', 'en': 'Page' },
+                'starredItemsFor': { 'id': 'Item Prioritas untuk', 'en': 'Starred Items for' },
+                'name': { 'id': 'Nama', 'en': 'Name' },
+                'type': { 'id': 'Tipe', 'en': 'Type' },
+                'size': { 'id': 'Ukuran', 'en': 'Size' },
+                'lastModified': { 'id': 'Terakhir Dimodifikasi', 'en': 'Last Modified' },
+                'actions': { 'id': 'Tindakan', 'en': 'Actions' },
+                'noStarredItems': { 'id': 'Tidak ada item prioritas untuk pengguna ini.', 'en': 'No starred items for this user.' },
+                'unpinFromPriority': { 'id': 'Hapus dari Prioritas', 'en': 'Unpin from Priority' },
+                'download': { 'id': 'Unduh', 'en': 'Download' },
+                'delete': { 'id': 'Hapus', 'en': 'Delete' },
+                'confirmDelete': { 'id': 'Apakah Anda yakin ingin menghapus {type} ini secara permanen?', 'en': 'Are you sure you want to permanently delete this {type}?' },
+                'failedToLoadUsers': { 'id': 'Gagal memuat profil pengguna.', 'en': 'Failed to load user profiles.' },
+                'failedToLoadStarredItems': { 'id': 'Gagal memuat item prioritas.', 'en': 'Failed to load starred items.' },
+                'failedToToggleStar': { 'id': 'Gagal mengubah status prioritas:', 'en': 'Failed to toggle star:' },
+                'failedToDelete': { 'id': 'Gagal menghapus:', 'en': 'Failed to delete:' },
+                'anErrorOccurredToggleStar': { 'id': 'Terjadi kesalahan saat mengubah status prioritas.', 'en': 'An error occurred while toggling star.' },
+                'anErrorOccurredDelete': { 'id': 'Terjadi kesalahan saat menghapus item.', 'en': 'An error occurred while deleting item.' },
+                'starToggledSuccess': { 'id': 'Status prioritas berhasil diubah.', 'en': 'Star status toggled successfully.' },
+                'deleteSuccess': { 'id': 'Berhasil dihapus.', 'en': 'Successfully deleted.' },
+                'usedTextId': 'terpakai',
+                'usedTextEn': 'used',
+            };
+
+            let currentLanguage = localStorage.getItem('lang') || 'id'; // Default to Indonesian
+
+            function applyTranslation(lang) {
+                document.querySelectorAll('[data-lang-key]').forEach(element => {
+                    const key = element.getAttribute('data-lang-key');
+                    if (translations[key] && translations[key][lang]) {
+                        element.textContent = translations[key][lang];
+                    }
+                });
+
+                // Special handling for "of X used" text in sidebar
+                const storageTextElement = document.getElementById('storageText');
+                if (storageTextElement) {
+                    const usedBytes = <?php echo $usedStorageBytes; ?>;
+                    const totalBytes = <?php echo $totalStorageBytes; ?>;
+                    storageTextElement.textContent = `${formatBytes(usedBytes)} ${translations['usedText' + (lang === 'id' ? 'Id' : 'En')]} ${formatBytes(totalBytes)} ${translations['usedText' + (lang === 'id' ? 'Id' : 'En')]}`;
+                }
+
+                // Update pagination text
+                currentUserPageSpan.innerHTML = `<span data-lang-key="page">${translations['page'][lang]}</span> ${currentUserPage}`;
+                currentStarredPageSpan.innerHTML = `<span data-lang-key="page">${translations['page'][lang]}</span> ${currentStarredPage}`;
+
+                // Update starred items title
+                if (selectedUserNameSpan.textContent) {
+                    document.getElementById('starredItemsTitle').innerHTML = `<span data-lang-key="starredItemsFor">${translations['starredItemsFor'][lang]}</span> <span id="selectedUserName">${selectedUserNameSpan.textContent}</span>`;
+                }
+
+                // Update table headers
+                document.querySelector('.starred-table th[data-lang-key="name"]').textContent = translations['name'][lang];
+                document.querySelector('.starred-table th[data-lang-key="type"]').textContent = translations['type'][lang];
+                document.querySelector('.starred-table th[data-lang-key="size"]').textContent = translations['size'][lang];
+                document.querySelector('.starred-table th[data-lang-key="lastModified"]').textContent = translations['lastModified'][lang];
+                document.querySelector('.starred-table th[data-lang-key="actions"]').textContent = translations['actions'][lang];
+
+                // Update button titles
+                document.querySelectorAll('.unstar-btn').forEach(btn => {
+                    btn.title = translations['unpinFromPriority'][lang];
+                });
+                document.querySelectorAll('.starred-actions a[download]').forEach(btn => {
+                    btn.title = translations['download'][lang];
+                });
+                document.querySelectorAll('.delete-btn').forEach(btn => {
+                    btn.title = translations['delete'][lang];
+                });
+
+                // Update "No starred items" message
+                const noStarredItemsRow = starredItemsTableBody.querySelector('tr td[colspan="5"]');
+                if (noStarredItemsRow && noStarredItemsRow.getAttribute('data-lang-key') === 'noStarredItems') {
+                    noStarredItemsRow.textContent = translations['noStarredItems'][lang];
+                }
+            }
+
             /*** Device detection & body class toggling ***/
             function setDeviceClass() {
                 const ua = navigator.userAgent || '';
-                const isIPad = /iPad/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
                 const w = window.innerWidth;
                 document.body.classList.remove('mobile', 'tablet-portrait', 'tablet-landscape', 'desktop'); // Clear all
                 if (w <= 767) {
                     document.body.classList.add('mobile');
+                    sidebar.classList.add('mobile-hidden'); // Ensure sidebar is hidden by default on mobile
                 } else if (w >= 768 && w <= 1024) {
                     if (window.matchMedia("(orientation: portrait)").matches) {
                         document.body.classList.add('tablet-portrait');
+                        sidebar.classList.add('mobile-hidden'); // Ensure sidebar is hidden by default on tablet portrait
                     } else {
                         document.body.classList.add('tablet-landscape');
+                        sidebar.classList.remove('mobile-hidden'); // Sidebar visible on tablet landscape
+                        sidebar.classList.remove('show-mobile-sidebar');
+                        mobileOverlay.classList.remove('show');
                     }
                 } else {
                     document.body.classList.add('desktop');
+                    sidebar.classList.remove('mobile-hidden'); // Sidebar visible on desktop
+                    sidebar.classList.remove('show-mobile-sidebar');
+                    mobileOverlay.classList.remove('show');
                 }
             }
             window.addEventListener('resize', setDeviceClass);
@@ -1089,6 +1337,13 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 return colorClasses[extension] || colorClasses['default'];
             }
 
+            // Function to check if an extension is restricted for non-admin/moderator
+            function isRestrictedExtension(fileName) {
+                const extension = fileName.split('.').pop().toLowerCase();
+                const isRestricted = Object.values(restrictedExtensions).some(arr => arr.includes(extension));
+                return isRestricted;
+            }
+
             // Load Users Grid
             async function loadUsers(page) {
                 try {
@@ -1117,7 +1372,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
 
                     currentUserPage = page;
                     totalUserPages = Math.ceil(data.total_users / data.per_page);
-                    currentUserPageSpan.textContent = `Page ${currentUserPage}`;
+                    currentUserPageSpan.innerHTML = `<span data-lang-key="page">${translations['page'][currentLanguage]}</span> ${currentUserPage}`;
                     totalUserPagesSpan.textContent = totalUserPages;
 
                     prevUserPageBtn.disabled = currentUserPage === 1;
@@ -1125,7 +1380,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
 
                 } catch (error) {
                     console.error('Error loading users:', error);
-                    showNotification('Failed to load user profiles.', 'error');
+                    showNotification(translations['failedToLoadUsers'][currentLanguage], 'error');
                 }
             }
 
@@ -1136,55 +1391,52 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                     const data = await response.json();
 
                     starredItemsTableBody.innerHTML = '';
+                    let itemsDisplayedCount = 0;
+
                     if (data.items.length === 0) {
-                        starredItemsTableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px;">No starred items for this user.</td></tr>`;
+                        starredItemsTableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px;" data-lang-key="noStarredItems">${translations['noStarredItems'][currentLanguage]}</td></tr>`;
                     } else {
                         data.items.forEach(item => {
-                            const row = document.createElement('tr');
                             const itemData = item.data;
-                            const iconClass = item.type === 'folder' ? 'fas fa-folder' : `fas ${getFileIconClass(itemData.file_name)}`;
-                            const colorClass = item.type === 'folder' ? 'folder' : getFileColorClass(itemData.file_name);
                             const itemName = item.type === 'folder' ? itemData.folder_name : itemData.file_name;
-                            const itemLink = item.type === 'folder' ? `index.php?folder=${itemData.id}` : `view.php?file_id=${itemData.id}`;
+                            const isFileRestricted = item.type === 'file' && isRestrictedExtension(itemName);
 
-                            row.innerHTML = `
-                                <td class="file-name-cell">
-                                    <i class="fas ${iconClass} file-icon ${colorClass}"></i>
-                                    <a href="${itemLink}">${itemName}</a>
-                                </td>
-                                <td>${itemData.display_type}</td>
-                                <td>${itemData.display_size}</td>
-                                <td>${itemData.display_date}</td>
-                                <td class="starred-actions">
-                                    <button class="unstar-btn" data-id="${itemData.id}" data-type="${item.type}" data-name="${itemName}" title="Unpin from Priority"><i class="fas fa-star"></i></button>
-                                    ${item.type === 'file' ? `<a href="${itemData.file_path}" download="${itemData.file_name}" title="Download"><button><i class="fas fa-download"></i></button></a>` : ''}
-                                    <button class="delete-btn" data-id="${itemData.id}" data-type="${item.type}" title="Delete"><i class="fas fa-trash"></i></button>
-                                </td>
-                            `;
-                            starredItemsTableBody.appendChild(row);
+                            // Only display if user is admin/moderator OR if the file is not restricted
+                            if (currentUserRole === 'admin' || currentUserRole === 'moderator' || !isFileRestricted) {
+                                const row = document.createElement('tr');
+                                const iconClass = item.type === 'folder' ? 'fas fa-folder' : `fas ${getFileIconClass(itemName)}`;
+                                const colorClass = item.type === 'folder' ? 'folder' : getFileColorClass(itemName);
+                                const itemLink = item.type === 'folder' ? `index.php?folder=${itemData.id}` : `view.php?file_id=${itemData.id}`;
+
+                                row.innerHTML = `
+                                    <td class="file-name-cell">
+                                        <i class="fas ${iconClass} file-icon ${colorClass}"></i>
+                                        <a href="${itemLink}">${itemName}</a>
+                                    </td>
+                                    <td>${itemData.display_type}</td>
+                                    <td>${itemData.display_size}</td>
+                                    <td>${itemData.display_date}</td>
+                                    <td class="starred-actions">
+                                        <button class="unstar-btn" data-id="${itemData.id}" data-type="${item.type}" data-name="${itemName}" title="${translations['unpinFromPriority'][currentLanguage]}"><i class="fas fa-star"></i></button>
+                                        ${item.type === 'file' ? `<a href="${itemData.file_path}" download="${itemData.file_name}" title="${translations['download'][currentLanguage]}"><button><i class="fas fa-download"></i></button></a>` : ''}
+                                        <button class="delete-btn" data-id="${itemData.id}" data-type="${item.type}" title="${translations['delete'][currentLanguage]}"><i class="fas fa-trash"></i></button>
+                                    </td>
+                                `;
+                                starredItemsTableBody.appendChild(row);
+                                itemsDisplayedCount++;
+                            }
                         });
 
-                        // Add event listeners for unstar and delete buttons
-                        starredItemsTableBody.querySelectorAll('.unstar-btn').forEach(button => {
-                            button.addEventListener('click', (e) => {
-                                const id = e.currentTarget.dataset.id;
-                                const type = e.currentTarget.dataset.type;
-                                const name = e.currentTarget.dataset.name;
-                                toggleStar(id, type, name, true); // true means unstar
-                            });
-                        });
-                        starredItemsTableBody.querySelectorAll('.delete-btn').forEach(button => {
-                            button.addEventListener('click', (e) => {
-                                const id = e.currentTarget.dataset.id;
-                                const type = e.currentTarget.dataset.type;
-                                deleteItem(id, type);
-                            });
-                        });
+                        if (itemsDisplayedCount === 0) {
+                            starredItemsTableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px;" data-lang-key="noStarredItems">${translations['noStarredItems'][currentLanguage]}</td></tr>`;
+                        }
                     }
 
                     currentStarredPage = page;
+                    // Note: totalStarredPages calculation here is based on total items from backend,
+                    // not just displayed items. This is fine as pagination is handled by backend.
                     totalStarredPages = Math.ceil(data.total_items / data.per_page);
-                    currentStarredPageSpan.textContent = `Page ${currentStarredPage}`;
+                    currentStarredPageSpan.innerHTML = `<span data-lang-key="page">${translations['page'][currentLanguage]}</span> ${currentStarredPage}`;
                     totalStarredPagesSpan.textContent = totalStarredPages;
 
                     prevStarredPageBtn.disabled = currentStarredPage === 1;
@@ -1192,7 +1444,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
 
                 } catch (error) {
                     console.error('Error loading starred items:', error);
-                    showNotification('Failed to load starred items.', 'error');
+                    showNotification(translations['failedToLoadStarredItems'][currentLanguage], 'error');
                 }
             }
 
@@ -1225,20 +1477,21 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                     });
                     const data = await response.json();
                     if (data.success) {
-                        showNotification(data.message, 'success');
+                        showNotification(translations['starToggledSuccess'][currentLanguage], 'success');
                         loadStarredItems(selectedUserId, currentStarredPage); // Reload current page
                     } else {
-                        showNotification('Failed to toggle star: ' + data.message, 'error');
+                        showNotification(`${translations['failedToToggleStar'][currentLanguage]} ${data.message}`, 'error');
                     }
                 } catch (error) {
                     console.error('Error toggling star:', error);
-                    showNotification('An error occurred while toggling star.', 'error');
+                    showNotification(translations['anErrorOccurredToggleStar'][currentLanguage], 'error');
                 }
             }
 
             // Delete Item function (from this page)
             async function deleteItem(id, type) {
-                if (!confirm(`Are you sure you want to permanently delete this ${type}?`)) {
+                const confirmMessage = translations['confirmDelete'][currentLanguage].replace('{type}', type);
+                if (!confirm(confirmMessage)) {
                     return;
                 }
                 try {
@@ -1251,16 +1504,16 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                     });
                     const data = await response.json();
                     if (data.success) {
-                        showNotification(data.message, 'success');
+                        showNotification(translations['deleteSuccess'][currentLanguage], 'success');
                         // Also unstar the item after deletion
                         toggleStar(id, type, '', true); // Unstar it from starred.json, name not needed for unstar
                         loadStarredItems(selectedUserId, currentStarredPage); // Reload current page
                     } else {
-                        showNotification('Failed to delete: ' + data.message, 'error');
+                        showNotification(`${translations['failedToDelete'][currentLanguage]} ${data.message}`, 'error');
                     }
                 } catch (error) {
                     console.error('Error deleting item:', error);
-                    showNotification('An error occurred while deleting item.', 'error');
+                    showNotification(translations['anErrorOccurredDelete'][currentLanguage], 'error');
                 }
             }
 
@@ -1303,17 +1556,36 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             });
 
             // Set active class for current page in sidebar
-            const currentPage = window.location.pathname.split('/').pop();
+            const currentPagePath = window.location.pathname.split('/').pop();
             sidebarMenuItems.forEach(item => {
                 item.classList.remove('active');
                 const itemHref = item.getAttribute('href');
-                if (itemHref === currentPage || (currentPage === 'priority_files.php' && itemHref === 'priority_files.php')) {
+                if (itemHref === currentPagePath) {
                     item.classList.add('active');
                 }
             });
 
+            // --- Sidebar Menu Navigation with Fly Out Animation ---
+            sidebarMenuItems.forEach(item => {
+                item.addEventListener('click', function(event) {
+                    // Only apply animation if it's a navigation link and not the current active page
+                    if (this.getAttribute('href') && !this.classList.contains('active')) {
+                        event.preventDefault(); // Prevent default navigation immediately
+                        const targetUrl = this.getAttribute('href');
+
+                        mainContent.classList.add('fly-out'); // Start fly-out animation
+
+                        mainContent.addEventListener('animationend', function handler() {
+                            mainContent.removeEventListener('animationend', handler);
+                            window.location.href = targetUrl; // Navigate after animation
+                        });
+                    }
+                });
+            });
+
             // Initial load
             loadUsers(currentUserPage);
+            applyTranslation(currentLanguage); // Apply translation on initial load
         });
     </script>
 </body>

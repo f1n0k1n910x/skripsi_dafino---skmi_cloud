@@ -9,38 +9,38 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-// --- Tambahkan kode ini ---
 // Define $currentUserRole from session
 $currentUserRole = isset($_SESSION['role']) ? $_SESSION['role'] : 'guest'; // Default to 'guest' or 'user' if not set
-// --- Akhir penambahan kode ---
-// Current folder ID, default to NULL for root
+
+// Current folder ID, default to NULL for root (not directly used in recycle bin, but kept for consistency)
 $currentFolderId = isset($_GET['folder']) ? (int)$_GET['folder'] : NULL;
 
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
     
-
 $userId = $_SESSION['user_id'];
 
 // Get search query
 $searchQuery = isset($_GET['search']) ? $_GET['search'] : '';
 
 // Get sorting parameters
-$releaseFilter = isset($_GET['release']) ? $_GET['release'] : 'newest'; // Default to newest for trash
-$sortOrder = isset($_GET['sort']) ? $_GET['sort'] : 'asc'; // 'asc', 'desc'
+$sizeFilter = isset($_GET['size']) ? $_GET['size'] : 'none'; // 'none', 'largest', 'smallest'
+$sortOrder = isset($_GET['sort']) ? $_GET['sort'] : 'asc'; // 'asc', 'desc' (for alphabetical if size filter is 'none')
 $fileTypeFilter = isset($_GET['file_type']) ? $_GET['file_type'] : 'all'; // 'all', 'document', 'music', etc.
 
 // Define file categories for filtering (same as index.php)
 $docExt = ['doc','docx','pdf','ppt','pptx','xls','xlsx','txt','odt','odp','rtf','md','log','csv','tex'];
 $musicExt = ['mp3','wav','aac','ogg','flac','m4a','alac','wma','opus','amr','mid'];
 $videoExt = ['mp4','mkv','avi','mov','wmv','flv','webm','3gp','m4v','mpg','mpeg','ts','ogv'];
+$imageExt = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'tiff'];
+$cadExt = ['dwg', 'dxf', 'dgn', 'iges', 'igs', 'step', 'stp', 'stl', '3ds', 'obj', 'sldprt', 'sldasm', 'ipt', 'iam', 'catpart', 'catproduct', 'prt', 'asm', 'fcstd', 'skp', 'x_t', 'x_b'];
+
+// Restricted file types for admin/moderator only
 $codeExt = ['html','htm','css','js','php','py','java','json','xml','ts','tsx','jsx','vue','cpp','c','cs','rb','go','swift','sql','sh','bat','ini','yml','yaml','md','pl','r'];
 $archiveExt = ['zip','rar','7z','tar','gz','bz2','xz','iso','cab','arj'];
 $instExt = ['exe','msi','apk','ipa','sh','bat','jar','appimage','dmg','bin'];
 $ptpExt = ['torrent','nzb','ed2k','part','!ut'];
-$imageExt = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'tiff'];
-$cadExt = ['dwg', 'dxf', 'dgn', 'iges', 'igs', 'step', 'stp', 'stl', '3ds', 'obj', 'sldprt', 'sldasm', 'ipt', 'iam', 'catpart', 'catproduct', 'prt', 'asm', 'fcstd', 'skp', 'x_t', 'x_b'];
 
 // Map filter types to actual extensions
 $filterExtensions = [];
@@ -48,12 +48,29 @@ switch ($fileTypeFilter) {
     case 'document': $filterExtensions = $docExt; break;
     case 'music': $filterExtensions = $musicExt; break;
     case 'video': $filterExtensions = $videoExt; break;
-    case 'code': $filterExtensions = $codeExt; break;
-    case 'archive': $filterExtensions = $archiveExt; break;
-    case 'installation': $filterExtensions = $instExt; break;
-    case 'p2p': $filterExtensions = $ptpExt; break;
     case 'image': $filterExtensions = $imageExt; break;
     case 'cad': $filterExtensions = $cadExt; break;
+    // Only include restricted types if user is admin or moderator
+    case 'code': 
+        if ($currentUserRole === 'admin' || $currentUserRole === 'moderator') {
+            $filterExtensions = $codeExt;
+        }
+        break;
+    case 'archive': 
+        if ($currentUserRole === 'admin' || $currentUserRole === 'moderator') {
+            $filterExtensions = $archiveExt;
+        }
+        break;
+    case 'installation': 
+        if ($currentUserRole === 'admin' || $currentUserRole === 'moderator') {
+            $filterExtensions = $instExt;
+        }
+        break;
+    case 'p2p': 
+        if ($currentUserRole === 'admin' || $currentUserRole === 'moderator') {
+            $filterExtensions = $ptpExt;
+        }
+        break;
     case 'all': default: $filterExtensions = []; break; // No specific filter
 }
 
@@ -81,13 +98,13 @@ if (!empty($filterExtensions)) {
     }
 }
 
-// Apply release date filter (using deleted_at for trash)
-if ($releaseFilter === 'newest') {
-    $sqlFiles .= " ORDER BY deleted_at DESC";
-} elseif ($releaseFilter === 'oldest') {
-    $sqlFiles .= " ORDER BY deleted_at ASC";
+// Apply sorting based on size or alphabetical
+if ($sizeFilter === 'largest') {
+    $sqlFiles .= " ORDER BY file_size DESC";
+} elseif ($sizeFilter === 'smallest') {
+    $sqlFiles .= " ORDER BY file_size ASC";
 } else {
-    // Apply alphabetical sorting if no release filter or 'all'
+    // Apply alphabetical sorting if no size filter or 'none'
     if ($sortOrder === 'asc') {
         $sqlFiles .= " ORDER BY file_name ASC";
     } else {
@@ -105,7 +122,7 @@ while ($row = $resultFiles->fetch_assoc()) {
 }
 $stmtFiles->close();
 
-// SQL for deleted folders
+// SQL for deleted folders (folders don't have size, so only alphabetical sorting applies)
 $sqlFolders = "SELECT id, folder_name, deleted_at FROM deleted_folders WHERE user_id = ?";
 $paramsFolders = [$userId];
 $typesFolders = "i";
@@ -117,18 +134,11 @@ if (!empty($searchQuery)) {
     $typesFolders .= "s";
 }
 
-// Apply release date filter (using deleted_at for trash)
-if ($releaseFilter === 'newest') {
-    $sqlFolders .= " ORDER BY deleted_at DESC";
-} elseif ($releaseFilter === 'oldest') {
-    $sqlFolders .= " ORDER BY deleted_at ASC";
+// Apply alphabetical sorting for folders
+if ($sortOrder === 'asc') {
+    $sqlFolders .= " ORDER BY folder_name ASC";
 } else {
-    // Apply alphabetical sorting if no release filter or 'all'
-    if ($sortOrder === 'asc') {
-        $sqlFolders .= " ORDER BY folder_name ASC";
-    } else {
-        $sqlFolders .= " ORDER BY folder_name DESC";
-    }
+    $sqlFolders .= " ORDER BY folder_name DESC";
 }
 
 $stmtFolders = $conn->prepare($sqlFolders);
@@ -141,14 +151,18 @@ while ($row = $resultFolders->fetch_assoc()) {
 }
 $stmtFolders->close();
 
-// Sort all deleted items by deleted_at if releaseFilter is newest/oldest, otherwise by name
-if ($releaseFilter === 'newest') {
+// Final sorting of all deleted items (files and folders)
+if ($sizeFilter === 'largest') {
     usort($deletedItems, function($a, $b) {
-        return strtotime($b['deleted_at']) - strtotime($a['deleted_at']);
+        $sizeA = $a['item_type'] === 'file' ? $a['file_size'] : 0; // Folders treated as 0 size for sorting
+        $sizeB = $b['item_type'] === 'file' ? $b['file_size'] : 0;
+        return $sizeB - $sizeA;
     });
-} elseif ($releaseFilter === 'oldest') {
+} elseif ($sizeFilter === 'smallest') {
     usort($deletedItems, function($a, $b) {
-        return strtotime($a['deleted_at']) - strtotime($b['deleted_at']);
+        $sizeA = $a['item_type'] === 'file' ? $a['file_size'] : 0;
+        $sizeB = $b['item_type'] === 'file' ? $b['file_size'] : 0;
+        return $sizeA - $sizeB;
     });
 } else {
     usort($deletedItems, function($a, $b) use ($sortOrder) {
@@ -196,20 +210,28 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="css/internal.css"> <!-- Import CSS -->
     <style>
-        /* Metro Design (Modern UI) & Windows 7 Animations */
+        /* Material Design Google + Admin LTE */
         :root {
-            --metro-blue: #0078D7; /* Windows 10/Metro accent blue */
-            --metro-dark-blue: #0056b3;
-            --metro-light-gray: #E1E1E1;
-            --metro-medium-gray: #C8C8C8;
-            --metro-dark-gray: #666666;
-            --metro-text-color: #333333;
-            --metro-bg-color: #F0F0F0;
-            --metro-sidebar-bg: #2D2D30; /* Darker sidebar for contrast */
-            --metro-sidebar-text: #F0F0F0;
-            --metro-success: #4CAF50;
-            --metro-error: #E81123; /* Windows 10 error red */
-            --metro-warning: #FF8C00; /* Windows 10 warning orange */
+            --primary-color: #3F51B5; /* Indigo 500 - Material Design */
+            --primary-dark-color: #303F9F; /* Indigo 700 */
+            --accent-color: #FF4081; /* Pink A200 */
+            --text-color: #212121; /* Grey 900 */
+            --secondary-text-color: #757575; /* Grey 600 */
+            --divider-color: #BDBDBD; /* Grey 400 */
+            --background-color: #F5F5F5; /* Grey 100 */
+            --surface-color: #FFFFFF; /* White */
+            --success-color: #4CAF50; /* Green 500 */
+            --error-color: #F44336; /* Red 500 */
+            --warning-color: #FFC107; /* Amber 500 */
+
+            /* AdminLTE specific colors */
+            --adminlte-sidebar-bg: #222d32;
+            --adminlte-sidebar-text: #b8c7ce;
+            --adminlte-sidebar-hover-bg: #1e282c;
+            --adminlte-sidebar-active-bg: #1e282c;
+            --adminlte-sidebar-active-text: #ffffff;
+            --adminlte-header-bg: #ffffff;
+            --adminlte-header-text: #333333;
 
             /* --- LOKASI EDIT UKURAN FONT SIDEBAR --- */
             --sidebar-font-size-desktop: 0.9em; /* Ukuran font default untuk desktop */
@@ -220,46 +242,48 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Roboto', sans-serif; /* Material Design font */
             margin: 0;
             display: flex;
             height: 100vh;
-            background-color: var(--metro-bg-color);
-            color: var(--metro-text-color);
+            background-color: var(--background-color);
+            color: var(--text-color);
             overflow: hidden; /* Prevent body scroll, main-content handles it */
         }
 
-        /* Base Sidebar (for Desktop/Tablet Landscape) */
+        /* Base Sidebar (AdminLTE style) */
         .sidebar {
-            width: 250px; /* Wider sidebar for Metro feel */
-            background-color: var(--metro-sidebar-bg);
-            color: var(--metro-sidebar-text);
+            width: 250px;
+            background-color: var(--adminlte-sidebar-bg);
+            color: var(--adminlte-sidebar-text);
             display: flex;
             flex-direction: column;
-            padding: 20px 0;
+            padding: 0; /* No padding at top/bottom */
             transition: width 0.3s ease-in-out, transform 0.3s ease-in-out;
-            flex-shrink: 0; /* Prevent shrinking */
+            flex-shrink: 0;
+            box-shadow: none; /* No box-shadow */
         }
 
         .sidebar-header {
-            padding: 0 20px;
-            margin-bottom: 30px;
+            padding: 15px;
+            margin-bottom: 15px;
             display: flex;
             align-items: center;
-            justify-content: center; /* Center logo */
+            justify-content: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
         }
 
         .sidebar-header img {
-            width: 150px; /* Larger logo */
+            width: 120px; /* Slightly smaller logo */
             height: auto;
             display: block;
         }
 
         .sidebar-header h2 {
             margin: 0;
-            font-size: 1.8em;
-            color: var(--metro-sidebar-text);
-            font-weight: 300; /* Lighter font weight */
+            font-size: 1.5em;
+            color: var(--adminlte-sidebar-text);
+            font-weight: 400;
         }
 
         .sidebar-menu {
@@ -267,165 +291,169 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             padding: 0;
             margin: 0;
             flex-grow: 1;
-            overflow-y: auto; /* Enable vertical scrolling */
-            overflow-x: hidden; /* Hide horizontal scrolling */
+            overflow-y: auto;
+            overflow-x: hidden;
         }
 
         .sidebar-menu li {
-            margin-bottom: 5px; /* Closer spacing */
+            margin-bottom: 0; /* No extra spacing */
         }
 
         .sidebar-menu a {
             display: flex;
             align-items: center;
-            padding: 15px 20px; /* More padding */
-            color: var(--metro-sidebar-text);
+            padding: 12px 15px; /* AdminLTE padding */
+            color: var(--adminlte-sidebar-text);
             text-decoration: none;
-            font-size: var(--sidebar-font-size-desktop); /* Menggunakan variabel untuk desktop */
+            font-size: var(--sidebar-font-size-desktop);
             transition: background-color 0.2s ease-out, color 0.2s ease-out;
-            border-left: 5px solid transparent; /* For active state */
+            border-left: 3px solid transparent; /* For active state */
         }
 
         .sidebar-menu a i {
-            margin-right: 15px;
-            font-size: 1.4em;
-            width: 25px; /* Fixed width for icons */
+            margin-right: 10px;
+            font-size: 1.2em;
+            width: 20px;
             text-align: center;
         }
 
-        /* Perbaikan Animasi Hover dan Active */
         .sidebar-menu a:hover {
-            background-color: rgba(255,255,255,0.15); /* Sedikit lebih terang dari sebelumnya */
-            color: #FFFFFF;
-            transform: translateX(5px); /* Efek geser ke kanan */
-            transition: background-color 0.2s ease-out, color 0.2s ease-out, transform 0.2s ease-out;
+            background-color: var(--adminlte-sidebar-hover-bg);
+            color: var(--adminlte-sidebar-active-text);
+            transform: translateX(0); /* No slide effect */
         }
 
         .sidebar-menu a.active {
-            background-color: var(--metro-blue); /* Metro accent color */
-            border-left: 5px solid var(--metro-blue);
-            color: #FFFFFF;
-            font-weight: 600;
-            transform: translateX(0); /* Pastikan tidak ada geseran saat aktif */
+            background-color: var(--adminlte-sidebar-active-bg);
+            border-left-color: var(--primary-color); /* Material primary color for active */
+            color: var(--adminlte-sidebar-active-text);
+            font-weight: 500;
         }
 
-        /* Storage Info */
+        /* Storage Info (AdminLTE style) */
         .storage-info {
-            padding: 20px;
+            padding: 15px;
             border-top: 1px solid rgba(255,255,255,0.1);
             text-align: center;
-            font-size: 0.9em;
-            /* Posisi dirapikan seperti priority_files.php */
-            margin-top: auto; /* Dorong ke bawah */
-            padding-top: 20px;
+            font-size: 0.85em;
+            margin-top: auto;
+            padding-top: 15px;
         }
 
         .storage-info h4 {
             margin-top: 0;
-            margin-bottom: 15px;
-            color: var(--metro-sidebar-text);
+            margin-bottom: 10px;
+            color: var(--adminlte-sidebar-text);
             font-weight: 400;
         }
 
         .progress-bar-container {
             width: 100%;
             background-color: rgba(255,255,255,0.2);
-            border-radius: 5px;
-            height: 8px;
-            margin-bottom: 10px;
+            border-radius: 0; /* Siku-siku */
+            height: 6px;
+            margin-bottom: 8px;
             overflow: hidden;
-            position: relative; /* Added for text overlay */
+            position: relative;
         }
 
         .progress-bar {
             height: 100%;
-            background-color: var(--metro-success); /* Green for progress */
-            border-radius: 5px;
+            background-color: var(--success-color);
+            border-radius: 0; /* Siku-siku */
             transition: width 0.5s ease-in-out;
             position: relative;
             overflow: hidden;
         }
 
-        /* Progress bar text overlay */
         .progress-bar-text {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            color: #fff; /* White text for contrast */
-            font-size: 0.7em; /* Smaller font size */
+            color: #fff;
+            font-size: 0.6em;
             font-weight: bold;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.5); /* Add shadow for readability */
-            white-space: nowrap; /* Prevent text from wrapping */
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            white-space: nowrap;
         }
 
         .storage-text {
-            font-size: 0.9em;
-            color: var(--metro-light-gray);
+            font-size: 0.8em;
+            color: var(--adminlte-sidebar-text);
         }
 
-        /* Main Content */
+        /* Main Content (Full-width, unique & professional) */
         .main-content {
             flex-grow: 1;
-            padding: 30px;
+            padding: 20px; /* Reduced padding */
             display: flex;
             flex-direction: column;
-            overflow-y: auto; /* Enable scrolling for content */
-            background-color: #FFFFFF; /* White background for content area */
-            border-radius: 8px;
-            margin: 0; /* MODIFIED: Full width */
-            /* box-shadow: 0 5px 15px rgba(0,0,0,0.1); */ /* Removed shadow */
+            overflow-y: auto;
+            background-color: var(--background-color); /* Light grey background */
+            border-radius: 0; /* Siku-siku */
+            margin: 0; /* Full width */
+            box-shadow: none; /* No box-shadow */
+            /* MODIFIED: Initial state for fly-in animation */
+            opacity: 0;
+            transform: translateY(100%);
+            animation: flyInFromBottom 0.5s ease-out forwards; /* Fly In animation from bottom */
         }
 
-        /* Header Main - Now always white */
+        .main-content.fly-out {
+            animation: flyOutToTop 0.5s ease-in forwards; /* Fly Out animation to top */
+        }
+
+        /* Header Main (Full-width, white, no background residue) */
         .header-main {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 25px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid var(--metro-light-gray);
-            background-color: #FFFFFF; /* White header */
-            padding: 15px 30px; /* Add padding for header */
-            margin: -30px -30px 25px -30px; /* Adjust margin to cover full width */
-            border-radius: 0; /* MODIFIED: No rounded top corners for full width */
-            /*box-shadow: 0 2px 5px rgba(0,0,0,0.05); /* Subtle shadow for header */
+            margin-bottom: 20px; /* Reduced margin */
+            padding: 15px 20px; /* Padding for header */
+            border-bottom: 1px solid var(--divider-color);
+            background-color: var(--adminlte-header-bg); /* White header */
+            margin: -20px -20px 20px -20px; /* Adjust margin to cover full width */
+            border-radius: 0; /* Siku-siku */
+            box-shadow: none; /* No box-shadow */
         }
 
         .header-main h1 {
             margin: 0;
-            color: var(--metro-text-color);
-            font-size: 2.5em;
-            font-weight: 300;
+            color: var(--adminlte-header-text);
+            font-size: 2em; /* Slightly smaller title */
+            font-weight: 400; /* Lighter font weight */
         }
 
         .search-bar {
             display: flex;
             align-items: center;
-            background-color: var(--metro-light-gray);
-            border-radius: 5px;
-            padding: 8px 15px;
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); /* Subtle inner shadow */
-            transition: background-color 0.2s ease-out, box-shadow 0.2s ease-out;
+            background-color: var(--background-color); /* Light grey for search bar */
+            border-radius: 0; /* Siku-siku */
+            padding: 8px 12px;
+            box-shadow: none; /* No box-shadow */
+            border: 1px solid var(--divider-color); /* Subtle border */
+            transition: border-color 0.2s ease-out;
         }
 
         .search-bar:focus-within {
-            background-color: #FFFFFF;
-            box-shadow: 0 0 0 2px var(--metro-blue); /* Focus highlight */
+            background-color: var(--surface-color);
+            border-color: var(--primary-color); /* Material primary color on focus */
+            box-shadow: none; /* No box-shadow */
         }
 
         .search-bar input {
             border: none;
             outline: none;
             padding: 5px;
-            font-size: 1em;
-            width: 280px;
+            font-size: 0.95em;
+            width: 250px; /* Slightly narrower */
             background: transparent;
-            color: var(--metro-text-color);
+            color: var(--text-color);
         }
 
         .search-bar i {
-            color: var(--metro-dark-gray);
+            color: var(--secondary-text-color);
             margin-right: 10px;
         }
 
@@ -434,90 +462,81 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid var(--metro-light-gray);
+            margin-bottom: 15px; /* Reduced margin */
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--divider-color);
         }
 
-        .toolbar-left {
+        .toolbar-left, .toolbar-right {
             display: flex;
-            gap: 10px; /* Space between buttons */
+            gap: 8px; /* Reduced gap */
         }
 
-        .toolbar-right {
-            display: flex;
-            gap: 10px; /* Space between buttons */
-        }
-
-        .toolbar-left button,
-        .toolbar-right button {
-            background-color: var(--metro-blue);
+        .toolbar-left button, .toolbar-right button {
+            background-color: var(--primary-color);
             color: white;
             border: none;
-            padding: 10px 20px;
-            border-radius: 3px; /* Sharper corners */
+            padding: 9px 18px; /* Reduced padding */
+            border-radius: 0; /* Siku-siku */
             cursor: pointer;
-            font-size: 1em;
+            font-size: 0.9em;
             transition: background-color 0.2s ease-out, transform 0.1s ease-in-out;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            white-space: nowrap; /* Prevent text wrapping */
+            box-shadow: none; /* No box-shadow */
+            white-space: nowrap;
         }
 
-        .toolbar-left button:hover,
-        .toolbar-right button:hover {
-            background-color: var(--metro-dark-blue);
-            transform: translateY(-1px); /* Subtle lift */
+        .toolbar-left button:hover, .toolbar-right button:hover {
+            background-color: var(--primary-dark-color);
+            transform: translateY(0); /* No lift */
         }
 
-        .toolbar-left button:active,
-        .toolbar-right button:active {
-            transform: translateY(0); /* Press effect */
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        .toolbar-left button:active, .toolbar-right button:active {
+            transform: translateY(0);
+            box-shadow: none; /* No box-shadow */
         }
 
         .toolbar-left button i {
-            margin-right: 8px;
+            margin-right: 6px; /* Reduced margin */
         }
 
         /* Archive button specific style */
         #archiveSelectedBtn {
-            background-color: var(--metro-warning); /* Orange for archive */
-            color: #FFFFFF;
-            font-weight: normal;
+            background-color: var(--warning-color); /* Amber for archive */
         }
         #archiveSelectedBtn:hover {
-            background-color: #E67A00; /* Darker orange on hover */
+            background-color: #FFB300; /* Darker amber on hover */
         }
 
         .view-toggle button {
-            background-color: var(--metro-light-gray);
-            border: 1px solid var(--metro-medium-gray);
-            padding: 8px 12px;
-            border-radius: 3px;
+            background-color: var(--background-color);
+            border: 1px solid var(--divider-color);
+            padding: 7px 10px; /* Reduced padding */
+            border-radius: 0; /* Siku-siku */
             cursor: pointer;
-            font-size: 1.1em;
-            color: var(--metro-text-color);
-            transition: background-color 0.2s ease-out, color 0.2s ease-out;
+            font-size: 1em;
+            color: var(--secondary-text-color);
+            transition: background-color 0.2s ease-out, color 0.2s ease-out, border-color 0.2s ease-out;
         }
 
         .view-toggle button.active {
-            background-color: var(--metro-blue);
+            background-color: var(--primary-color);
             color: white;
-            border-color: var(--metro-blue);
+            border-color: var(--primary-color);
         }
 
-        /* Breadcrumbs */
+        /* Breadcrumbs (Material Design style) */
         .breadcrumbs {
-            margin-bottom: 20px;
-            font-size: 0.95em;
-            color: var(--metro-dark-gray);
+            margin-bottom: 15px;
+            font-size: 0.9em;
+            color: var(--secondary-text-color);
             display: flex;
             align-items: center;
             flex-wrap: wrap;
+            padding: 8px 0;
         }
 
         .breadcrumbs a {
-            color: var(--metro-blue);
+            color: var(--primary-color);
             text-decoration: none;
             margin-right: 5px;
             transition: color 0.2s ease-out;
@@ -525,90 +544,95 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
 
         .breadcrumbs a:hover {
             text-decoration: underline;
-            color: var(--metro-dark-blue);
+            color: var(--primary-dark-color);
         }
 
         .breadcrumbs span {
             margin-right: 5px;
-            color: var(--metro-medium-gray);
+            color: var(--divider-color);
         }
 
         /* File and Folder Display */
         .file-list-container {
             flex-grow: 1;
-            background-color: #FFFFFF;
-            border-radius: 8px;
-            /* box-shadow: 0 2px 10px rgba(0,0,0,0.05); */ /* Removed as main-content has shadow */
-            padding: 0; /* Removed padding as table handles it */
-            overflow: auto; /* Allow horizontal scrolling for wide tables */
-            -webkit-overflow-scrolling: touch; /* momentum scrolling on iOS */
-            touch-action: pan-y; /* allow vertical scrolling by default */
+            background-color: var(--surface-color);
+            border-radius: 0; /* Siku-siku */
+            box-shadow: none; /* No box-shadow */
+            padding: 0;
+            overflow: auto;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-y;
+            border: 1px solid var(--divider-color); /* Subtle border for container */
         }
 
-        /* List View */
+        /* List View (Google Drive Style) */
         .file-table {
             width: 100%;
-            border-collapse: collapse;
+            border-collapse: collapse; /* Kunci utama */
+            table-layout: fixed; /* Kunci utama */
             margin-top: 0;
+            border: none; /* Remove outer border, container has it */
         }
 
         .file-table th, .file-table td {
-            text-align: left;
-            padding: 15px 20px; /* More padding */
-            border-bottom: 1px solid var(--metro-light-gray);
-            font-size: 0.95em;
+            border-bottom: 1px solid #dadce0; /* Google Drive border color */
+            border-top: none;
+            border-left: none;
+            border-right: none;
+            padding: 12px 24px;
+            vertical-align: middle; /* Pastikan konten vertikal rata tengah */
+            font-size: 0.875em;
+            color: #3c4043; /* Google Drive text color */
         }
 
         .file-table th {
-            background-color: var(--metro-bg-color); /* Light gray header */
-            color: var(--metro-dark-gray);
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 0.85em;
+            background-color: #f8f9fa; /* Google Drive header background */
+            color: #5f6368; /* Google Drive header text */
+            font-weight: 500;
+            text-transform: none;
             position: sticky;
             top: 0;
             z-index: 1;
+            text-align: left; /* Biar header selalu rata */
+        }
+
+        .file-table tbody tr:last-child td {
+            border-bottom: none;
         }
 
         .file-table tbody tr:hover {
-            background-color: var(--metro-light-gray); /* Subtle hover */
+            background-color: #f0f0f0; /* Google Drive hover effect */
+        }
+
+        /* Hilangkan efek patah di icon atau checkbox */
+        .file-table td:first-child,
+        .file-table th:first-child {
+            width: 40px; /* Lebar tetap untuk checkbox/icon */
+            text-align: center;
         }
 
         .file-icon {
-            margin-right: 12px;
-            font-size: 1.3em; /* Slightly larger icons */
-            width: 28px; /* Fixed width for icons */
+            margin-right: 16px; /* Google Drive spacing */
+            font-size: 1.2em;
+            width: auto;
             text-align: center;
-            flex-shrink: 0; /* Prevent icon from shrinking */
+            flex-shrink: 0;
         }
 
-        /* Icon colors for list view (Metro-inspired) */
-        /* These are now handled by internal.css via file-color-xxx classes */
-        /* .file-icon.pdf { color: #E81123; } */
-        /* .file-icon.doc { color: #2B579A; } */
-        /* .file-icon.xls { color: #107C10; } */
-        /* .file-icon.ppt { color: #D24726; } */
-        /* .file-icon.jpg, .file-icon.png, .file-icon.gif { color: #8E24AA; } */
-        /* .file-icon.zip { color: #F7B500; } */
-        /* .file-icon.txt { color: #666666; } */
-        /* .file-icon.exe, .file-icon.apk { color: #0078D7; } */
-        /* .file-icon.mp3, .file-icon.wav { color: #00B294; } */
-        /* .file-icon.mp4, .file-icon.avi { color: #FFB900; } */
-        /* .file-icon.html, .file-icon.css, .file-icon.js, .file-icon.php, .file-icon.py, .file-icon.json, .file-icon.sql, .file-icon.java, .file-icon.c { color: #505050; } */
-        .file-icon.folder { color: #FFD700; } /* Gold for folders */
-        /* .file-icon.default { color: #999999; } */
+        .file-icon.folder { color: #fbc02d; } /* Google Drive folder color */
+        /* Other file icon colors are handled by internal.css */
 
         .file-name-cell {
             display: flex;
             align-items: center;
-            max-width: 350px; /* Increased max-width */
+            max-width: 400px; /* Adjusted max-width */
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
         .file-name-cell a {
-            color: var(--metro-text-color);
+            color: #3c4043; /* Google Drive text color */
             text-decoration: none;
             font-weight: 400;
             display: block;
@@ -619,26 +643,20 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
         }
 
         .file-name-cell a:hover {
-            color: var(--metro-blue);
+            color: #1a73e8; /* Google Drive blue on hover */
         }
 
-        .file-checkbox {
-            margin-right: 10px;
-            transform: scale(1.2); /* Slightly larger checkbox */
-            accent-color: var(--metro-blue); /* Metro accent color for checkbox */
-        }
-
-        /* Context Menu Styles */
+        /* Context Menu Styles (Material Design) */
         .context-menu {
             position: fixed;
-            z-index: 12000; /* Higher z-index for context menu */
-            background: #FFFFFF;
-            border: 1px solid var(--metro-medium-gray);
-            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-            border-radius: 5px;
+            z-index: 12000;
+            background: var(--surface-color);
+            border: 1px solid var(--divider-color);
+            box-shadow: 0px 2px 4px rgba(0,0,0,0.2); /* Subtle shadow */
+            border-radius: 0; /* Siku-siku */
             overflow: hidden;
             min-width: 180px;
-            display: none; /* Hidden by default */
+            display: none;
             animation: fadeInScale 0.2s ease-out forwards;
             transform-origin: top left;
         }
@@ -653,14 +671,15 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
         }
 
         .context-menu li {
-            color: var(--metro-text-color);
+            color: var(--text-color);
             padding: 10px 15px;
             text-decoration: none;
             display: flex;
             align-items: center;
-            font-size: 0.95em;
+            font-size: 0.9em;
             transition: background-color 0.2s ease-out, color 0.2s ease-out;
             cursor: pointer;
+            border-bottom: none !important; /* No border-bottom */
         }
 
         .context-menu li i {
@@ -670,89 +689,96 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
         }
 
         .context-menu li:hover {
-            background-color: var(--metro-blue);
+            background-color: var(--primary-color);
             color: #FFFFFF;
         }
 
         .context-menu .separator {
             height: 1px;
-            background-color: var(--metro-light-gray);
+            background-color: var(--divider-color);
             margin: 5px 0;
         }
 
-
-        /* Grid View */
+        /* Grid View (Google Drive Style) */
         .file-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); /* Adjusted minmax for better preview */
-            gap: 25px; /* Increased gap */
-            padding: 20px;
-            overflow: auto; /* Allow horizontal scrolling for wide tables */
-            -webkit-overflow-scrolling: touch; /* momentum scrolling on iOS */
-            touch-action: pan-y; /* allow vertical scrolling by default */
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 16px; /* Reduced gap */
+            padding: 16px; /* Padding for the grid container */
         }
 
         .grid-item {
-            background-color: #FFFFFF;
-            border: 1px solid var(--metro-light-gray);
-            border-radius: 5px;
-            padding: 15px;
+            background-color: var(--surface-color);
+            border: 1px solid #dadce0; /* Google Drive border color */
+            border-radius: 8px; /* Rounded corners */
+            padding: 12px;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            text-align: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+            align-items: flex-start; /* Align content to start */
+            text-align: left; /* Align text to left */
+            box-shadow: none; /* No box-shadow */
+            transition: all 0.2s ease-out;
             position: relative;
-            overflow: hidden; /* Ensure content stays within bounds */
-            user-select: none; /* Prevent text selection on long press */
-            cursor: pointer; /* Indicate clickable */
-             /* For keyboard navigation */
+            overflow: hidden;
+            user-select: none;
+            cursor: pointer;
         }
 
         .grid-item:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+            box-shadow: 0 1px 3px rgba(60,64,67,.3), 0 4px 8px rgba(60,64,67,.15); /* Google Drive hover shadow */
+            transform: translateY(0); /* No lift */
+            border-color: transparent; /* Border disappears on hover */
         }
 
         .grid-item .file-checkbox {
             position: absolute;
-            top: 10px;
-            left: 10px;
-            z-index: 1;
+            top: 8px;
+            left: 8px;
+            z-index: 2;
+            transform: scale(1.0);
+            accent-color: #1a73e8;
         }
 
-        .grid-item .file-icon {
-            font-size: 3.5em; /* Larger icon for grid */
-            margin-bottom: 10px;
-            width: auto;
-            /* color: var(--metro-dark-gray); */ /* Default icon color for grid - now handled by internal.css */
+        .grid-item .item-more {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            z-index: 2;
+            background-color: rgba(255,255,255,0.8);
+            border-radius: 50%;
+            padding: 4px;
+            font-size: 1em;
+            color: #5f6368;
+            opacity: 0; /* Hidden by default */
+            transition: opacity 0.2s ease-out;
         }
 
-        /* Thumbnail Grid Specific Styles */
+        .grid-item:hover .item-more {
+            opacity: 1; /* Show on hover */
+        }
+
         .grid-thumbnail {
             width: 100%;
-            height: 140px; /* Fixed height for consistent grid */
-            object-fit: contain;
-            margin-bottom: 10px;
-            border-radius: 3px;
-            border: 1px solid var(--metro-medium-gray);
-            background-color: var(--metro-bg-color);
+            height: 120px;
+            margin-bottom: 8px;
+            border: none;
+            background-color: #e8f0fe; /* Light blue background for folders/generic files */
+            border-radius: 4px;
             display: flex;
             justify-content: center;
             align-items: center;
             overflow: hidden;
             position: relative;
             font-size: 12px;
-            color: var(--metro-text-color);
+            color: var(--text-color);
             text-align: left;
             padding: 5px;
             box-sizing: border-box;
         }
 
         .grid-thumbnail i {
-            font-size: 4.5em; /* Larger icon for thumbnail placeholder */
-            color: var(--metro-medium-gray);
+            font-size: 3.5em;
+            color: #1a73e8; /* Google Drive blue for icons */
         }
 
         .grid-thumbnail img {
@@ -761,14 +787,8 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             object-fit: contain;
         }
 
-        .grid-thumbnail video, .grid-thumbnail audio {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
-
         .grid-thumbnail pre {
-            font-size: 10px;
+            font-size: 9px;
             white-space: pre-wrap;
             word-break: break-all;
             margin: 0;
@@ -778,112 +798,73 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
         }
 
         .grid-thumbnail .file-type-label {
-            font-size: 0.8em;
-            color: #FFFFFF;
-            position: absolute;
-            bottom: 5px;
-            right: 5px;
-            background-color: rgba(0,0,0,0.5);
-            padding: 3px 6px;
-            border-radius: 3px;
+            display: none; /* Hide file type label in grid thumbnail */
         }
 
         .file-name {
-            font-weight: 500;
-            color: var(--metro-text-color);
+            font-weight: 400;
+            color: #3c4043;
             text-decoration: none;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             max-width: 100%;
             display: block;
-            margin-top: 5px;
-            font-size: 1.05em;
+            margin-top: 0;
+            padding-left: 4px;
+            padding-right: 4px;
+            font-size: 0.9375em;
             transition: color 0.2s ease-out;
         }
         
         .file-name:hover {
-            color: var(--metro-blue);
+            color: #1a73e8;
         }
 
         .file-size {
-            font-size: 0.85em;
-            color: var(--metro-dark-gray);
-            margin-top: 5px;
+            font-size: 0.8125em;
+            color: #5f6368;
+            margin-top: 4px;
+            padding-left: 4px;
         }
 
         .action-buttons {
             display: flex;
             justify-content: center;
-            margin-top: 15px;
-            gap: 8px;
+            margin-top: 10px;
+            gap: 6px;
             width: 100%;
         }
 
-        /* MODIFIED: Smaller action buttons for grid view */
         .action-buttons button {
-            background-color: var(--metro-blue);
+            background-color: var(--primary-color);
             color: white;
             border: none;
-            padding: 6px 10px; /* Reduced padding */
-            border-radius: 3px;
+            padding: 5px 9px;
+            border-radius: 0; /* Siku-siku */
             cursor: pointer;
-            font-size: 0.8em; /* Reduced font size */
-            transition: background-color 0.2s ease-out, transform 0.1s ease-in-out;
+            font-size: 0.75em;
+            transition: background-color 0.2s ease-out;
+            box-shadow: none; /* No box-shadow */
         }
 
         .action-buttons button:hover {
-            background-color: var(--metro-dark-blue);
-            transform: translateY(-1px);
-        }
-        .action-buttons button:active {
-            transform: translateY(0);
+            background-color: var(--primary-dark-color);
         }
         .action-buttons button.delete-button {
-            background-color: var(--metro-error);
+            background-color: var(--error-color);
         }
         .action-buttons button.delete-button:hover {
-            background-color: #C4001A;
+            background-color: #D32F2F;
         }
-        /* Custom style for extract button hover in grid view */
         .action-buttons button.extract-button:hover {
-            background-color: #ff3399; /* Custom hover color */
-            color: #FFFFFF; /* Text color on hover */
+            background-color: #FF8F00; /* Darker amber on hover */
+            color: #FFFFFF;
         }
 
-        /* Item More Button (three dots) */
-        .item-more {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: none;
-            border: none;
-            font-size: 1.2em;
-            color: var(--metro-dark-gray);
-            cursor: pointer;
-            padding: 5px;
-            border-radius: 50%;
-            transition: background-color 0.2s ease-out, color 0.2s ease-out;
-            z-index: 10; /* Ensure it's above other elements */
-        }
-        .item-more:hover {
-            background-color: rgba(0,0,0,0.1);
-            color: var(--metro-text-color);
-        }
-        .file-table .item-more {
-            position: static; /* Reset position for table view */
-            margin-left: auto; /* Push to right in table cell */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 30px; /* Fixed width for alignment */
-            height: 30px; /* Fixed height for alignment */
-        }
-
-
-        /* Modal Styles (Pop-up CRUD) */
+        /* Modal Styles (Material Design) */
         .modal {
-            display: flex; /* Changed to flex for centering */
+            display: flex;
             position: fixed;
             z-index: 1000;
             left: 0;
@@ -891,11 +872,11 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             width: 100%;
             height: 100%;
             overflow: auto;
-            background-color: rgba(0,0,0,0.6); /* Darker overlay */
+            background-color: rgba(0,0,0,0.6);
             justify-content: center;
             align-items: center;
             opacity: 0;
-            visibility: hidden; /* Hidden by default */
+            visibility: hidden;
             transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
         }
 
@@ -905,14 +886,14 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
         }
 
         .modal-content {
-            background-color: #FFFFFF;
+            background-color: var(--surface-color);
             padding: 30px;
-            border-radius: 5px;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            border-radius: 0; /* Siku-siku */
+            box-shadow: 0 8px 17px 2px rgba(0,0,0,0.14), 0 3px 14px 2px rgba(0,0,0,0.12), 0 5px 5px -3px rgba(0,0,0,0.2); /* Material Design shadow */
             width: 90%;
-            max-width: 550px; /* Slightly larger modals */
+            max-width: 550px;
             position: relative;
-            transform: translateY(-20px); /* Initial position for animation */
+            transform: translateY(-20px);
             opacity: 0;
             transition: transform 0.3s ease-out, opacity 0.3s ease-out;
         }
@@ -923,100 +904,88 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
         }
 
         .close-button {
-            color: var(--metro-dark-gray);
+            color: var(--secondary-text-color);
             position: absolute;
             top: 15px;
             right: 20px;
-            font-size: 30px;
+            font-size: 28px; /* Slightly smaller */
             font-weight: normal;
             cursor: pointer;
             transition: color 0.2s ease-out;
         }
 
-        .close-button:hover,
-        .close-button:focus {
-            color: var(--metro-error);
+        .close-button:hover, .close-button:focus {
+            color: var(--error-color);
         }
 
         .modal h2 {
             margin-top: 0;
-            margin-bottom: 25px;
-            color: var(--metro-text-color);
-            font-size: 2em;
-            font-weight: 300;
-            border-bottom: 1px solid var(--metro-light-gray);
+            margin-bottom: 20px; /* Reduced margin */
+            color: var(--text-color);
+            font-size: 1.8em; /* Slightly smaller */
+            font-weight: 400;
+            border-bottom: 1px solid var(--divider-color);
             padding-bottom: 15px;
         }
 
         .modal label {
             display: block;
-            margin-bottom: 10px;
-            font-weight: 600;
-            color: var(--metro-text-color);
-            font-size: 1.05em;
+            margin-bottom: 8px; /* Reduced margin */
+            font-weight: 500;
+            color: var(--text-color);
+            font-size: 1em;
         }
 
-        .modal input[type="text"],
-        .modal input[type="file"] {
-            width: calc(100% - 20px);
-            padding: 12px;
-            margin-bottom: 20px;
-            border: 1px solid var(--metro-medium-gray);
-            border-radius: 3px;
-            font-size: 1em;
-            color: var(--metro-text-color);
-            background-color: #F9F9F9;
+        .modal input[type="text"], .modal input[type="file"] {
+            width: calc(100% - 24px); /* Adjust for padding and border */
+            padding: 10px; /* Reduced padding */
+            margin-bottom: 15px; /* Reduced margin */
+            border: 1px solid var(--divider-color);
+            border-radius: 0; /* Siku-siku */
+            font-size: 0.95em;
+            color: var(--text-color);
+            background-color: var(--background-color);
             transition: border-color 0.2s ease-out, box-shadow 0.2s ease-out;
         }
         
-        .modal input[type="text"]:focus,
-        .modal input[type="file"]:focus {
-            border-color: var(--metro-blue);
-            box-shadow: 0 0 0 2px rgba(0,120,215,0.3);
+        .modal input[type="text"]:focus, .modal input[type="file"]:focus {
+            border-color: var(--primary-color);
+            box-shadow: none; /* No box-shadow */
             outline: none;
-            background-color: #FFFFFF;
-        }
-
-        .modal input[type="file"] {
-            border: 1px solid var(--metro-medium-gray); /* Keep border for file input */
-            padding: 10px;
+            background-color: var(--surface-color);
         }
 
         .modal button[type="submit"] {
-            background-color: var(--metro-blue);
+            background-color: var(--primary-color);
             color: white;
             border: none;
-            padding: 12px 25px;
-            border-radius: 3px;
+            padding: 10px 20px; /* Reduced padding */
+            border-radius: 0; /* Siku-siku */
             cursor: pointer;
-            font-size: 1.1em;
-            transition: background-color 0.2s ease-out, transform 0.1s ease-in-out;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            font-size: 1em;
+            transition: background-color 0.2s ease-out;
+            box-shadow: none; /* No box-shadow */
         }
 
         .modal button[type="submit"]:hover {
-            background-color: var(--metro-dark-blue);
-            transform: translateY(-1px);
-        }
-        .modal button[type="submit"]:active {
-            transform: translateY(0);
+            background-color: var(--primary-dark-color);
         }
 
         .hidden {
             display: none !important;
         }
 
-        /* Custom Notification Styles */
+        /* Custom Notification Styles (Material Design) */
         .notification {
             position: fixed;
             top: 20px;
             right: 20px;
-            padding: 15px 25px;
-            border-radius: 5px;
+            padding: 12px 20px; /* Reduced padding */
+            border-radius: 0; /* Siku-siku */
             color: white;
-            font-weight: bold;
+            font-weight: 500;
             z-index: 1001;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2); /* Subtle shadow */
             opacity: 0;
             transform: translateY(-20px);
             transition: opacity 0.3s ease-out, transform 0.3s ease-out;
@@ -1028,65 +997,65 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
         }
 
         .notification.success {
-            background-color: var(--metro-success);
+            background-color: var(--success-color);
         }
 
         .notification.error {
-            background-color: var(--metro-error);
+            background-color: var(--error-color);
         }
 
         .notification.info {
-            background-color: var(--metro-blue);
+            background-color: var(--primary-color);
         }
 
         /* Upload Preview Modal Specific Styles */
         #uploadPreviewModal .modal-content {
-            max-width: 650px;
-            padding: 25px;
+            max-width: 600px; /* Slightly smaller */
+            padding: 20px;
         }
 
         #uploadPreviewModal .modal-header {
             display: flex;
             align-items: center;
-            margin-bottom: 20px;
-            border-bottom: 1px solid var(--metro-light-gray);
-            padding-bottom: 15px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--divider-color);
+            padding-bottom: 10px;
         }
 
         #uploadPreviewModal .modal-header h2 {
             flex-grow: 1;
             margin: 0;
-            font-size: 2.2em;
-            font-weight: 300;
-            border-bottom: none; /* Remove double border */
+            font-size: 1.8em;
+            font-weight: 400;
+            border-bottom: none;
             padding-bottom: 0;
         }
 
         #uploadPreviewModal .modal-header .back-button {
             background: none;
             border: none;
-            font-size: 1.8em;
+            font-size: 1.5em;
             cursor: pointer;
-            margin-right: 15px;
-            color: var(--metro-dark-gray);
+            margin-right: 10px;
+            color: var(--secondary-text-color);
             transition: color 0.2s ease-out;
         }
         #uploadPreviewModal .modal-header .back-button:hover {
-            color: var(--metro-blue);
+            color: var(--primary-color);
         }
 
         #uploadPreviewList {
-            max-height: 450px; /* Increased height */
+            max-height: 400px; /* Reduced height */
             overflow-y: auto;
-            margin-bottom: 20px;
-            padding-right: 10px; /* For scrollbar */
+            margin-bottom: 15px;
+            padding-right: 8px;
         }
 
         .upload-item {
             display: flex;
             align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px solid var(--metro-light-gray);
+            padding: 10px 0;
+            border-bottom: 1px solid var(--divider-color);
             transition: background-color 0.2s ease-out;
         }
 
@@ -1094,16 +1063,15 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             border-bottom: none;
         }
         .upload-item:hover {
-            background-color: var(--metro-bg-color);
+            background-color: var(--background-color);
         }
 
         .upload-item .file-icon {
-            font-size: 2.8em; /* Larger icons */
-            margin-right: 20px;
+            font-size: 2.2em; /* Reduced icon size */
+            margin-right: 15px;
             flex-shrink: 0;
-            width: 45px;
+            width: 40px;
             text-align: center;
-            /* color: var(--metro-dark-gray); */ /* Default color - now handled by internal.css */
         }
 
         .upload-item-info {
@@ -1112,65 +1080,65 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
 
         .upload-item-info strong {
             display: block;
-            font-weight: 600;
-            color: var(--metro-text-color);
+            font-weight: 500;
+            color: var(--text-color);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             max-width: 100%;
-            font-size: 1.05em;
+            font-size: 1em;
         }
 
         .upload-progress-container {
             width: 100%;
-            background-color: var(--metro-light-gray);
-            border-radius: 5px;
-            height: 8px;
-            margin-top: 8px;
+            background-color: var(--divider-color);
+            border-radius: 0; /* Siku-siku */
+            height: 6px;
+            margin-top: 6px;
             overflow: hidden;
             position: relative;
         }
 
         .upload-progress-bar {
             height: 100%;
-            background-color: var(--metro-success);
-            border-radius: 5px;
+            background-color: var(--success-color);
+            border-radius: 0; /* Siku-siku */
             width: 0%;
             transition: width 0.3s ease-out;
         }
 
         .upload-status-icon {
-            font-size: 1.6em; /* Larger status icons */
-            margin-left: 20px;
+            font-size: 1.4em; /* Reduced status icon size */
+            margin-left: 15px;
             flex-shrink: 0;
-            width: 30px;
+            width: 25px;
             text-align: center;
         }
 
-        .upload-status-icon.processing { color: var(--metro-blue); }
-        .upload-status-icon.success { color: var(--metro-success); }
-        .upload-status-icon.error { color: var(--metro-error); }
-        .upload-status-icon.cancelled { color: var(--metro-warning); }
+        .upload-status-icon.processing { color: var(--primary-color); }
+        .upload-status-icon.success { color: var(--success-color); }
+        .upload-status-icon.error { color: var(--error-color); }
+        .upload-status-icon.cancelled { color: var(--warning-color); }
         
         .upload-action-button {
             background: none;
             border: none;
-            font-size: 1.4em; /* Larger action button */
+            font-size: 1.2em; /* Reduced action button size */
             cursor: pointer;
-            color: var(--metro-dark-gray);
-            margin-left: 15px;
+            color: var(--secondary-text-color);
+            margin-left: 10px;
             transition: color 0.2s ease-out;
         }
 
         .upload-action-button:hover {
-            color: var(--metro-error);
+            color: var(--error-color);
         }
 
         .upload-item.complete .upload-action-button {
             display: none;
         }
 
-        /* Styles for the dropdown containers */
+        /* Styles for the dropdown containers (Material Design) */
         .dropdown-container {
             position: relative;
             display: inline-block;
@@ -1179,29 +1147,28 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
         .dropdown-content {
             display: none;
             position: absolute;
-            background-color: #FFFFFF;
-            min-width: 180px; /* Wider dropdowns */
-            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            background-color: var(--surface-color);
+            min-width: 180px;
+            box-shadow: 0px 2px 4px rgba(0,0,0,0.2); /* Subtle shadow */
             z-index: 10;
-            border-radius: 3px;
-            /*top: 50%;*/
-            /*left: 0;*/
-            margin-top: 8px; /* Space between button and dropdown */
-            animation: fadeInScale 0.2s ease-out forwards; /* Windows 7 like animation */
+            border-radius: 0; /* Siku-siku */
+            margin-top: 8px;
+            animation: fadeInScale 0.2s ease-out forwards;
             transform-origin: top left;
         }
 
         .dropdown-content a {
-            color: var(--metro-text-color);
-            padding: 12px 18px;
+            color: var(--text-color);
+            padding: 10px 15px;
             text-decoration: none;
             display: block;
-            font-size: 0.95em;
+            font-size: 0.9em;
             transition: background-color 0.2s ease-out, color 0.2s ease-out;
+            border-bottom: none !important; /* No border-bottom */
         }
 
         .dropdown-content a:hover {
-            background-color: var(--metro-blue);
+            background-color: var(--primary-color);
             color: #FFFFFF;
         }
 
@@ -1211,72 +1178,67 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
 
         /* Style for filter buttons (icons only) */
         .filter-button {
-            background-color: var(--metro-blue);
+            background-color: var(--primary-color);
             color: white;
             border: none;
-            padding: 10px 12px;
-            border-radius: 3px;
+            padding: 9px 11px; /* Adjusted padding */
+            border-radius: 0; /* Siku-siku */
             cursor: pointer;
-            font-size: 1.2em; /* Slightly larger icon */
-            transition: background-color 0.2s ease-out, transform 0.1s ease-in-out;
+            font-size: 1.1em;
+            transition: background-color 0.2s ease-out;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            box-shadow: none; /* No box-shadow */
         }
 
         .filter-button:hover {
-            background-color: var(--metro-dark-blue);
-            transform: translateY(-1px);
-        }
-        .filter-button:active {
-            transform: translateY(0);
+            background-color: var(--primary-dark-color);
         }
 
         /* Share Link Modal */
         #shareLinkModal .modal-content {
-            max-width: 500px;
+            max-width: 450px;
         }
         #shareLinkModal input[type="text"] {
-            width: calc(100% - 120px); /* Adjust width for copy button */
-            margin-right: 10px;
+            width: calc(100% - 110px); /* Adjust width for copy button */
+            margin-right: 8px;
             display: inline-block;
             vertical-align: middle;
-            background-color: var(--metro-bg-color);
-            border: 1px solid var(--metro-medium-gray);
+            background-color: var(--background-color);
+            border: 1px solid var(--divider-color);
             cursor: text;
         }
         #shareLinkModal button {
             display: inline-block;
             vertical-align: middle;
-            padding: 10px 18px;
-            font-size: 0.95em;
-            background-color: var(--metro-blue);
+            padding: 9px 16px;
+            font-size: 0.9em;
+            background-color: var(--primary-color);
             color: white;
             border: none;
-            border-radius: 3px;
+            border-radius: 0; /* Siku-siku */
             cursor: pointer;
-            transition: background-color 0.2s ease-out, transform 0.1s ease-in-out;
+            transition: background-color 0.2s ease-out;
         }
         #shareLinkModal button:hover {
-            background-color: var(--metro-dark-blue);
-            transform: translateY(-1px);
+            background-color: var(--primary-dark-color);
         }
         #shareLinkModal .share-link-container {
             display: flex;
             align-items: center;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
         #shareLinkModal .share-link-container button {
-            margin-left: 0; /* No extra margin */
+            margin-left: 0;
         }
         #shareLinkModal p.small-text {
-            font-size: 0.85em;
-            color: var(--metro-dark-gray);
-            margin-top: 10px;
+            font-size: 0.8em;
+            color: var(--secondary-text-color);
+            margin-top: 8px;
         }
 
-        /* Windows 7-like Animations */
+        /* Animations */
         @keyframes fadeInScale {
             from {
                 opacity: 0;
@@ -1303,139 +1265,135 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             animation: slideInFromTop 0.3s ease-out forwards;
         }
 
-        /* General button hover/active effects */
+        /* Fly In/Out Animations for main-content */
+        @keyframes flyInFromBottom {
+            from {
+                opacity: 0;
+                transform: translateY(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes flyOutToTop {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-100%);
+            }
+        }
+
+        /* General button focus effects */
         button {
             outline: none;
         }
         button:focus {
-            box-shadow: 0 0 0 2px rgba(0,120,215,0.5); /* Focus ring */
+            box-shadow: 0 0 0 2px rgba(63,81,181,0.5); /* Material Design focus ring */
         }
 
         /* ========================================================================== */
         /* Responsive Classes for iPad, Tablet, HP (Android & iOS) */
         /* ========================================================================== */
 
-        /* Default for Desktop/Windows */
+        /* Default for Desktop */
         .sidebar-toggle-btn {
-            display: none; /* Hidden on desktop */
+            display: none;
         }
         .sidebar.mobile-hidden {
-            display: flex; /* Always visible on desktop */
+            display: flex;
             transform: translateX(0);
         }
-        /* MODIFIED: Hide desktop search bar and profile user */
-        .desktop-only {
-            display: none !important;
-        }
-        .search-bar-desktop {
-            display: none !important;
-        }
-        /* END MODIFIED */
-
         .header-main .my-drive-title {
-            display: block; /* "My Drive" visible on desktop */
+            display: block;
+        }
+        .header-main .search-bar-desktop {
+            display: flex;
         }
         .search-bar-mobile {
-            display: none; /* Mobile search bar hidden on desktop */
+            display: none;
         }
-        /* MODIFIED: Hide toolbar-filter-buttons by default on desktop */
         .toolbar-filter-buttons { 
             display: none;
         }
 
         /* Custom Scrollbar for Webkit browsers (Chrome, Safari) */
         ::-webkit-scrollbar {
-            width: 8px; /* Width of the scrollbar */
-            height: 8px; /* Height of horizontal scrollbar */
+            width: 8px;
+            height: 8px;
         }
 
         ::-webkit-scrollbar-track {
-            background: var(--metro-light-gray); /* Color of the track */
-            border-radius: 10px;
+            background: var(--background-color);
+            border-radius: 0; /* Siku-siku */
         }
 
         ::-webkit-scrollbar-thumb {
-            background: var(--metro-medium-gray); /* Color of the scroll thumb */
-            border-radius: 10px;
+            background: var(--divider-color);
+            border-radius: 0; /* Siku-siku */
         }
 
         ::-webkit-scrollbar-thumb:hover {
-            background: var(--metro-dark-gray); /* Color of the scroll thumb on hover */
+            background: var(--secondary-text-color);
         }
 
-        /* Class for iPad & Tablet (Landscape: min-width 768px, max-width 1024px) */
+        /* Tablet Landscape */
         @media (min-width: 768px) and (max-width: 1024px) {
             body.tablet-landscape .sidebar {
-                width: 220px; /* Slightly narrower sidebar */
+                width: 200px; /* Narrower sidebar */
+            }
+            body.tablet-landscape .sidebar-header img {
+                width: 100px;
             }
             body.tablet-landscape .main-content {
-                margin: 0; /* MODIFIED: Full width */
-                padding: 20px;
+                padding: 15px;
             }
             body.tablet-landscape .header-main {
-                padding: 10px 20px;
-                margin: 0; /* MODIFIED: Full width */
+                padding: 10px 15px;
+                margin: -15px -15px 15px -15px;
             }
             body.tablet-landscape .header-main h1 {
-                font-size: 2em;
+                font-size: 1.8em;
             }
             body.tablet-landscape .search-bar input {
-                width: 200px;
-            }
-            body.tablet-landscape .file-table th,
-            body.tablet-landscape .file-table td {
-                padding: 12px 15px;
-                font-size: 0.9em; /* Slightly smaller font for table cells */
-            }
-            body.tablet-landscape .grid-item {
-                padding: 10px;
-            }
-            body.tablet-landscape .grid-thumbnail {
-                height: 120px;
-            }
-            body.tablet-landscape .file-grid {
-                grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-                gap: 20px;
+                width: 180px;
             }
             body.tablet-landscape .toolbar-left button,
             body.tablet-landscape .toolbar-right button {
-                padding: 8px 15px; /* Slightly smaller buttons */
-                font-size: 0.9em;
+                padding: 8px 15px;
+                font-size: 0.85em;
             }
             body.tablet-landscape .filter-button {
-                padding: 8px 10px; /* Smaller filter buttons */
-                font-size: 1.1em;
+                padding: 8px 10px;
+                font-size: 1em;
             }
-            /* MODIFIED: Hide toolbar-filter-buttons in header on desktop/tablet landscape */
-            body.tablet-landscape .toolbar-filter-buttons { 
-                display: none;
+            body.tablet-landscape .file-table th,
+            body.tablet-landscape .file-table td {
+                padding: 10px 20px;
+                font-size: 0.85em;
             }
-            /* MODIFIED: Ukuran pop-up disamakan dengan pop-up Edit Profile */
+            body.tablet-landscape .file-grid {
+                grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+                gap: 12px;
+                padding: 12px;
+            }
+            body.tablet-landscape .grid-thumbnail {
+                height: 100px;
+            }
             body.tablet-landscape .modal-content {
-                max-width: 550px; /* Consistent with profile.php */
-                padding: 30px; /* Consistent with profile.php */
-            }
-            body.tablet-landscape .modal h2 {
-                font-size: 2em; /* Consistent with profile.php */
-            }
-            body.tablet-landscape .modal label {
-                font-size: 1.05em; /* Consistent with profile.php */
-            }
-            body.tablet-landscape .modal input[type="text"],
-            body.tablet-landscape .modal input[type="file"] {
-                padding: 12px; /* Consistent with profile.php */
-                font-size: 1em; /* Consistent with profile.php */
-            }
-            body.tablet-landscape .modal button[type="submit"] {
-                padding: 12px 25px; /* Consistent with profile.php */
-                font-size: 1.1em; /* Consistent with profile.php */
+                max-width: 500px;
+                padding: 25px;
             }
             body.tablet-landscape .sidebar-menu a {
-                font-size: var(--sidebar-font-size-tablet-landscape); /* Menggunakan variabel untuk tablet landscape */
+                font-size: var(--sidebar-font-size-tablet-landscape);
             }
         }
 
-        /* Class for iPad & Tablet (Portrait: min-width 768px, max-width 1024px) */
+        /* Tablet Portrait */
         @media (min-width: 768px) and (max-width: 1024px) and (orientation: portrait) {
             body.tablet-portrait .sidebar {
                 position: fixed;
@@ -1443,258 +1401,229 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 left: 0;
                 height: 100%;
                 z-index: 100;
-                transform: translateX(-100%); /* Hidden by default */
-                /*box-shadow: 2px 0 10px rgba(0,0,0,0.2);*/
+                transform: translateX(-100%);
+                box-shadow: 2px 0 5px rgba(0,0,0,0.2); /* Subtle shadow for mobile sidebar */
             }
             body.tablet-portrait .sidebar.show-mobile-sidebar {
-                transform: translateX(0); /* Show when active */
+                transform: translateX(0);
             }
             body.tablet-portrait .sidebar-toggle-btn {
-                display: block; /* Show toggle button */
+                display: block;
                 background: none;
                 border: none;
-                font-size: 1.8em;
-                color: var(--metro-text-color);
+                font-size: 1.6em;
+                color: var(--adminlte-header-text);
                 cursor: pointer;
-                margin-left: 10px; /* Space from logo */
-                order: 0; /* Place on the left */
+                margin-left: 0;
+                order: 0;
             }
             body.tablet-portrait .header-main {
-                justify-content: space-between; /* Align items */
-                padding: 10px 20px;
-                margin: 0; /* MODIFIED: Full width */
+                justify-content: flex-start; /* Align items to start */
+                padding: 10px 15px;
+                margin: -15px -15px 15px -15px;
             }
             body.tablet-portrait .header-main h1 {
-                font-size: 2em;
-                flex-grow: 1; /* Allow title to take space */
-                text-align: center; /* Center title */
+                font-size: 1.6em;
+                flex-grow: 1;
+                text-align: center;
+                margin-left: -30px; /* Counteract toggle button space */
             }
             body.tablet-portrait .header-main .my-drive-title {
-                display: none; /* Hide "My Drive" */
+                display: none;
             }
             body.tablet-portrait .header-main .search-bar-desktop {
-                display: none; /* Hide desktop search bar */
+                display: none;
             }
             body.tablet-portrait .search-bar-mobile {
-                display: flex; /* Show mobile search bar */
-                margin: 0 auto 20px auto; /* Centered below header */
-                width: calc(100% - 40px);
+                display: flex;
+                margin: 0 auto 15px auto;
+                width: calc(100% - 30px);
             }
             body.tablet-portrait .main-content {
-                margin: 0; /* MODIFIED: Full width */
-                padding: 20px;
+                padding: 15px;
             }
             body.tablet-portrait .toolbar {
                 flex-wrap: wrap;
-                gap: 10px;
+                gap: 8px;
                 justify-content: center;
             }
             body.tablet-portrait .toolbar-left,
             body.tablet-portrait .toolbar-right {
                 width: 100%;
                 justify-content: center;
-                margin-bottom: 10px;
-                flex-wrap: wrap; /* Allow buttons to wrap */
+                margin-bottom: 8px;
+                flex-wrap: wrap;
             }
             body.tablet-portrait .toolbar-left button,
             body.tablet-portrait .toolbar-right button {
-                padding: 8px 15px; /* Smaller buttons */
-                font-size: 0.9em;
+                padding: 7px 12px;
+                font-size: 0.8em;
             }
-            /* MODIFIED: Show toolbar-filter-buttons for tablet portrait */
             body.tablet-portrait .toolbar-filter-buttons { 
-                display: grid; /* Changed to grid for better control */
-                grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); /* Responsive grid columns */
-                gap: 10px; /* Space between buttons */
-                justify-content: center; /* Center buttons */
-                margin-top: 15px; /* Space from toolbar */
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+                gap: 8px;
+                justify-content: center;
+                margin-top: 10px;
                 width: 100%;
             }
-            /* MODIFIED: Adjust filter button size for tablet portrait */
             body.tablet-portrait .toolbar-filter-buttons .filter-button {
-                padding: 8px 10px; /* Smaller filter buttons */
-                font-size: 1.1em;
+                padding: 7px 9px;
+                font-size: 1em;
             }
-            /* MODIFIED: Hide filter and view buttons in main toolbar for tablet portrait */
             body.tablet-portrait .toolbar .dropdown-container,
             body.tablet-portrait .toolbar .view-toggle { 
                 display: none;
             }
             body.tablet-portrait .file-table th,
             body.tablet-portrait .file-table td {
-                padding: 10px 12px;
-                font-size: 0.85em; /* Smaller font for table cells */
-            }
-            body.tablet-portrait .grid-item {
-                padding: 8px;
-            }
-            body.tablet-portrait .grid-thumbnail {
-                height: 100px;
-            }
-            body.tablet-portrait .grid-thumbnail i {
-                font-size: 3em;
+                padding: 8px 18px;
+                font-size: 0.8em;
             }
             body.tablet-portrait .file-grid {
-                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-                gap: 15px;
+                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+                gap: 10px;
+                padding: 10px;
             }
-            /* MODIFIED: Ukuran pop-up disamakan dengan pop-up Edit Profile */
+            body.tablet-portrait .grid-thumbnail {
+                height: 90px;
+            }
             body.tablet-portrait .modal-content {
-                max-width: 550px; /* Consistent with profile.php */
-                padding: 30px; /* Consistent with profile.php */
+                max-width: 500px;
+                padding: 25px;
             }
-            body.tablet-portrait .modal h2 {
-                font-size: 2em; /* Consistent with profile.php */
-            }
-            body.tablet-portrait .modal label {
-                font-size: 1.05em; /* Consistent with profile.php */
-            }
-            body.tablet-portrait .modal input[type="text"],
-            body.tablet-portrait .modal input[type="file"] {
-                padding: 12px; /* Consistent with profile.php */
-                font-size: 1em; /* Consistent with profile.php */
-            }
-            body.tablet-portrait .modal button[type="submit"] {
-                padding: 12px 25px; /* Consistent with profile.php */
-                font-size: 1.1em; /* Consistent with profile.php */
-            }
-            /* MODIFIED: Scrollbar for File Type Filter dropdown */
             body.tablet-portrait .dropdown-content.file-type-filter-dropdown-content {
-                max-height: 200px; /* Max height for 6 items + padding */
+                max-height: 200px;
                 overflow-y: auto;
             }
             body.tablet-portrait .sidebar-menu a {
-                font-size: var(--sidebar-font-size-tablet-portrait); /* Menggunakan variabel untuk tablet portrait */
+                font-size: var(--sidebar-font-size-tablet-portrait);
             }
         }
 
-        /* Class for Mobile (HP Android & iOS: max-width 767px) */
+        /* Mobile */
         @media (max-width: 767px) {
             body.mobile .sidebar {
                 position: fixed;
                 top: 0;
                 left: 0;
                 height: 100%;
-                width: 200px; /* Narrower sidebar for mobile */
+                width: 180px; /* Even narrower sidebar */
                 z-index: 100;
-                transform: translateX(-100%); /* Hidden by default */
-                /*box-shadow: 2px 0 10px rgba(0,0,0,0.2);*/
+                transform: translateX(-100%);
+                box-shadow: 2px 0 5px rgba(0,0,0,0.2);
             }
             body.mobile .sidebar.show-mobile-sidebar {
-                transform: translateX(0); /* Show when active */
+                transform: translateX(0);
             }
             body.mobile .sidebar-toggle-btn {
-                display: block; /* Show toggle button */
+                display: block;
                 background: none;
                 border: none;
-                font-size: 1.5em;
-                color: var(--metro-text-color);
+                font-size: 1.4em;
+                color: var(--adminlte-header-text);
                 cursor: pointer;
-                margin-left: 10px; /* Space from logo */
-                order: 0; /* Place on the left */
+                margin-left: 0;
+                order: 0;
             }
             body.mobile .header-main {
-                justify-content: space-between; /* Align items */
-                padding: 10px 15px;
-                margin: 0; /* MODIFIED: Full width */
+                justify-content: flex-start;
+                padding: 10px 10px;
+                margin: -15px -15px 15px -15px;
             }
             body.mobile .header-main h1 {
-                font-size: 1.8em;
-                flex-grow: 1; /* Allow title to take space */
-                text-align: center; /* Center title */
+                font-size: 1.5em;
+                flex-grow: 1;
+                text-align: center;
+                margin-left: -25px; /* Counteract toggle button space */
             }
             body.mobile .header-main .my-drive-title {
-                display: none; /* Hide "My Drive" */
+                display: none;
             }
             body.mobile .header-main .search-bar-desktop {
-                display: none; /* Hide desktop search bar */
+                display: none;
             }
             body.mobile .search-bar-mobile {
-                display: flex; /* Show mobile search bar */
-                margin: 0 auto 15px auto; /* Centered below header */
-                width: calc(100% - 30px);
+                display: flex;
+                margin: 0 auto 10px auto;
+                width: calc(100% - 20px);
             }
             body.mobile .main-content {
-                margin: 0; /* MODIFIED: Full width */
-                padding: 15px;
-                overflow-x: hidden; /* Remove horizontal scrollbar */
+                padding: 10px;
+                overflow-x: hidden;
             }
             body.mobile .file-list-container {
-                overflow-x: hidden; /* Remove horizontal scrollbar for table */
-            }
-            body.mobile .file-table {
-                width: 100%; /* Ensure table fits */
-                border-collapse: collapse; /* Ensure collapse for proper rendering */
+                overflow-x: hidden;
             }
             body.mobile .file-table thead {
-                display: none; /* Hide table header on mobile for better stacking */
+                display: none;
             }
             body.mobile .file-table tbody tr {
                 display: flex;
                 flex-wrap: wrap;
-                border: 1px solid var(--metro-light-gray);
-                margin-bottom: 10px;
-                border-radius: 5px;
-                background-color: #FFFFFF;
-                /*box-shadow: 0 2px 5px rgba(0,0,0,0.05);*/
-                position: relative; /* For checkbox positioning */
+                border: 1px solid #dadce0;
+                margin-bottom: 8px;
+                border-radius: 8px;
+                background-color: var(--surface-color);
+                box-shadow: none;
+                position: relative;
             }
             body.mobile .file-table td {
                 display: block;
                 width: 100%;
-                padding: 8px 15px; /* Reduced padding */
-                font-size: 0.8em; /* Smaller font for table cells */
-                border-bottom: none; /* Remove individual cell borders */
-                white-space: normal; /* Allow text to wrap */
+                padding: 8px 16px;
+                font-size: 0.875em;
+                border-bottom: none;
+                white-space: normal;
                 text-align: left;
             }
-            body.mobile .file-table td:first-child { /* Checkbox */
+            body.mobile .file-table td:first-child {
                 position: absolute;
-                top: 8px;
-                left: 8px;
+                top: 12px;
+                left: 12px;
                 width: auto;
                 padding: 0;
             }
-            body.mobile .file-table td:nth-child(2) { /* Name */
-                padding-left: 40px; /* Make space for checkbox */
-                font-weight: 600;
+            body.mobile .file-table td:nth-child(2) {
+                padding-left: 48px;
+                font-weight: 500;
                 font-size: 0.9em;
             }
-            body.mobile .file-table td:nth-child(3), /* Type */
-            body.mobile .file-table td:nth-child(4), /* Size */
-            body.mobile .file-table td:nth-child(5) { /* Last Modified */
+            body.mobile .file-table td:nth-child(3),
+            body.mobile .file-table td:nth-child(4),
+            body.mobile .file-table td:nth-child(5) {
                 display: inline-block;
-                width: 50%; /* Two columns per row */
+                width: 50%;
                 box-sizing: border-box;
-                padding-top: 0;
-                padding-bottom: 0;
+                padding-top: 4px;
+                padding-bottom: 4px;
+                color: #5f6368;
             }
-            body.mobile .file-table td:nth-child(3)::before { content: "Type: "; font-weight: normal; color: var(--metro-dark-gray); }
-            body.mobile .file-table td:nth-child(4)::before { content: "Size: "; font-weight: normal; color: var(--metro-dark-gray); }
-            body.mobile .file-table td:nth-child(5)::before { content: "Modified: "; font-weight: normal; color: var(--metro-dark-gray); }
-
+            body.mobile .file-table td:nth-child(3)::before { content: "Type: "; font-weight: normal; color: #5f6368; }
+            body.mobile .file-table td:nth-child(4)::before { content: "Size: "; font-weight: normal; color: #5f6368; }
+            body.mobile .file-table td:nth-child(5)::before { content: "Modified: "; font-weight: normal; color: #5f6368; }
 
             body.mobile .toolbar {
-                flex-direction: column; /* Stack buttons */
-                align-items: stretch; /* Stretch to full width */
-                gap: 8px;
-                padding-bottom: 10px;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 6px;
+                padding-bottom: 8px;
             }
             body.mobile .toolbar-left,
             body.mobile .toolbar-right {
                 width: 100%;
-                flex-direction: row; /* Keep buttons in a row */
-                flex-wrap: wrap; /* Allow buttons to wrap */
-                justify-content: center; /* Center buttons */
-                gap: 8px; /* Space between buttons */
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 6px;
                 margin-right: 0;
             }
             body.mobile .toolbar-left button,
             body.mobile .toolbar-right button {
-                flex-grow: 1; /* Allow buttons to grow */
-                min-width: unset; /* Remove min-width constraint */
-                padding: 8px 10px; /* Smaller padding */
-                font-size: 0.85em; /* Smaller font size */
+                flex-grow: 1;
+                min-width: unset;
+                padding: 7px 9px;
+                font-size: 0.8em;
             }
             body.mobile .view-toggle {
                 display: flex;
@@ -1704,67 +1633,51 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 flex-grow: 1;
             }
             body.mobile .file-icon {
-                font-size: 1.1em;
-                margin-right: 8px;
-                width: 20px;
+                font-size: 1em;
+                margin-right: 6px;
+                width: 18px;
             }
             body.mobile .file-name-cell {
-                max-width: 100%; /* Adjust for smaller screens */
+                max-width: 100%;
             }
             body.mobile .grid-item {
-                padding: 5px;
+                padding: 8px;
             }
             body.mobile .grid-thumbnail {
-                height: 80px;
+                height: 70px;
             }
             body.mobile .grid-thumbnail i {
-                font-size: 3em;
+                font-size: 2.8em;
             }
             body.mobile .file-grid {
-                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-                gap: 10px;
-                padding: 10px;
+                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+                gap: 8px;
+                padding: 8px;
             }
             body.mobile .file-name {
-                font-size: 0.9em;
+                font-size: 0.85em;
             }
             body.mobile .file-size {
-                font-size: 0.75em;
-            }
-            body.mobile .action-buttons button {
-                padding: 5px 8px;
                 font-size: 0.7em;
             }
-            /* MODIFIED: Adjust modal content for mobile */
+            body.mobile .action-buttons button {
+                padding: 4px 7px;
+                font-size: 0.65em;
+            }
             body.mobile .modal-content {
-                max-width: 550px; /* Consistent with profile.php */
-                padding: 30px; /* Consistent with profile.php */
-            }
-            body.mobile .modal h2 {
-                font-size: 2em; /* Consistent with profile.php */
-            }
-            body.mobile .modal label {
-                font-size: 1.05em; /* Consistent with profile.php */
-            }
-            body.mobile .modal input[type="text"],
-            body.mobile .modal input[type="file"] {
-                padding: 12px; /* Consistent with profile.php */
-                font-size: 1em; /* Consistent with profile.php */
-            }
-            body.mobile .modal button[type="submit"] {
-                padding: 12px 25px; /* Consistent with profile.php */
-                font-size: 1.1em; /* Consistent with profile.php */
+                max-width: 450px;
+                padding: 20px;
             }
             body.mobile .upload-item .file-icon {
-                font-size: 2em;
-                margin-right: 10px;
-                width: 35px;
+                font-size: 1.8em;
+                margin-right: 8px;
+                width: 30px;
             }
             body.mobile .upload-status-icon {
-                font-size: 1.2em;
+                font-size: 1em;
             }
             body.mobile .upload-action-button {
-                font-size: 1.1em;
+                font-size: 1em;
             }
             body.mobile .share-link-container {
                 flex-direction: column;
@@ -1773,37 +1686,33 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             body.mobile #shareLinkModal input[type="text"] {
                 width: 100%;
                 margin-right: 0;
-                margin-bottom: 10px;
+                margin-bottom: 8px;
             }
             body.mobile #shareLinkModal button {
                 width: 100%;
             }
-            /* MODIFIED: Show toolbar-filter-buttons for mobile */
             body.mobile .toolbar-filter-buttons { 
-                display: grid; /* Changed to grid for better control */
-                grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); /* Responsive grid columns */
-                gap: 8px; /* Space between buttons */
-                justify-content: center; /* Center buttons */
-                margin-top: 10px; /* Space from toolbar */
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+                gap: 6px;
+                justify-content: center;
+                margin-top: 8px;
                 width: 100%;
             }
-            /* MODIFIED: Adjust filter button size for mobile */
             body.mobile .toolbar-filter-buttons .filter-button {
-                padding: 6px 8px; /* Even smaller filter buttons for mobile */
-                font-size: 1em;
+                padding: 6px 8px;
+                font-size: 0.9em;
             }
-            /* MODIFIED: Hide filter and view buttons in main toolbar for mobile */
             body.mobile .toolbar .dropdown-container,
             body.mobile .toolbar .view-toggle { 
                 display: none;
             }
-            /* MODIFIED: Scrollbar for File Type Filter dropdown */
             body.mobile .dropdown-content.file-type-filter-dropdown-content {
-                max-height: 200px; /* Max height for 6 items + padding */
+                max-height: 180px;
                 overflow-y: auto;
             }
             body.mobile .sidebar-menu a {
-                font-size: var(--sidebar-font-size-mobile); /* Menggunakan variabel untuk mobile */
+                font-size: var(--sidebar-font-size-mobile);
             }
         }
 
@@ -1822,15 +1731,6 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             display: block;
         }
 
-        /* MODIFIED: Remove border-bottom from dropdown content links */
-        .dropdown-content a {
-            border-bottom: none !important;
-        }
-        /* MODIFIED: Remove border-bottom from context menu list items */
-        .context-menu li {
-            border-bottom: none !important;
-        }
-
     </style>
 </head>
 <body>
@@ -1840,85 +1740,78 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
         </div>
         <ul class="sidebar-menu">
             <?php if ($currentUserRole === 'admin' || $currentUserRole === 'moderator'): ?>
-                <li><a href="control_center.php"><i class="fas fa-cogs"></i> Control Center</a></li>
+                <li><a href="control_center.php"><i class="fas fa-cogs"></i> <span data-lang-key="controlCenter">Control Center</span></a></li>
             <?php endif; ?>
             <?php if (in_array($currentUserRole, ['admin', 'moderator', 'user', 'member'])): ?>
-                <li><a href="index.php"><i class="fas fa-folder"></i> My Drive</a></li>
-                <li><a href="priority_files.php"><i class="fas fa-star"></i> Priority File</a></li>
-                <li><a href="recycle_bin.php" class="active"><i class="fas fa-trash"></i> Recycle Bin</a></li>
+                <li><a href="index.php"><i class="fas fa-folder"></i> <span data-lang-key="myDrive">My Drive</span></a></li>
+                <li><a href="priority_files.php"><i class="fas fa-star"></i> <span data-lang-key="priorityFile">Priority File</span></a></li>
+                <li><a href="recycle_bin.php" class="active"><i class="fas fa-trash"></i> <span data-lang-key="recycleBin">Recycle Bin</span></a></li>
             <?php endif; ?>
-            <li><a href="summary.php"><i class="fas fa-chart-line"></i> Summary</a></li>
-            <li><a href="members.php"><i class="fas fa-users"></i> Members</a></li>
-            <li><a href="profile.php"><i class="fas fa-user"></i> Profile</a></li>
-            <li><a href="logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+            <li><a href="summary.php"><i class="fas fa-chart-line"></i> <span data-lang-key="summary">Summary</span></a></li>
+            <li><a href="members.php"><i class="fas fa-users"></i> <span data-lang-key="members">Members</span></a></li>
+            <li><a href="profile.php"><i class="fas fa-user"></i> <span data-lang-key="profile">Profile</span></a></li>
+            <li><a href="logout.php"><i class="fas fa-sign-out-alt"></i> <span data-lang-key="logout">Logout</span></a></li>
         </ul>
         <div class="storage-info">
-            <h4>Storage</h4>
+            <h4 data-lang-key="storage">Storage</h4>
             <div class="progress-bar-container">
                 <div class="progress-bar" style="width: <?php echo round($usedPercentage, 2); ?>%;">
                     <span class="progress-bar-text"><?php echo round($usedPercentage, 2); ?>%</span>
                 </div>
             </div>
-            <p class="storage-text"><?php echo formatBytes($usedStorageBytes); ?> of <?php echo formatBytes($totalStorageBytes); ?> used</p>
+            <p class="storage-text" id="storageText"><?php echo formatBytes($usedStorageBytes); ?> of <?php echo formatBytes($totalStorageBytes); ?> used</p>
             <?php if ($isStorageFull): ?>
-                <p class="storage-text" style="color: var(--metro-error); font-weight: bold;">Storage Full! Cannot upload more files.</p>
+                <p class="storage-text storage-full-message" style="color: var(--error-color); font-weight: bold;" data-lang-key="storageFull">Storage Full! Cannot upload more files.</p>
             <?php endif; ?>
         </div>
     </div>
 
-    <div class="main-content">
+    <div class="main-content" id="mainContent">
         <div class="header-main">
             <button class="sidebar-toggle-btn" id="sidebarToggleBtn"><i class="fas fa-bars"></i></button>
-            <h1 class="my-drive-title">Recycle Bin</h1>
+            <h1 class="my-drive-title" data-lang-key="recycleBinTitle">Recycle Bin</h1>
             <!-- Removed search-bar-desktop and profile-user desktop-only -->
         </div>
 
         <!-- Mobile Search Bar (moved below header for smaller screens) -->
         <div class="search-bar search-bar-mobile">
             <i class="fas fa-search"></i>
-            <input type="text" id="searchInputMobile" placeholder="Search files in trash..." value="<?php echo htmlspecialchars($searchQuery); ?>">
+            <input type="text" id="searchInputMobile" placeholder="Search files in trash..." value="<?php echo htmlspecialchars($searchQuery); ?>" data-lang-key="searchTrashPlaceholder">
         </div>
 
         <div class="toolbar">
             <div class="toolbar-left">
-                <button id="restoreSelectedBtn" style="background-color: var(--metro-success);"><i class="fas fa-undo"></i> Restore Selected</button>
-                <button id="deleteForeverSelectedBtn" style="background-color: var(--metro-error);"><i class="fas fa-times-circle"></i> Delete Forever Selected</button>
-                <button id="emptyRecycleBinBtn" style="background-color: var(--metro-error);"><i class="fas fa-trash-alt"></i> Empty Recycle Bin</button>
+                <button id="restoreSelectedBtn" style="background-color: var(--success-color);"><i class="fas fa-undo"></i> <span data-lang-key="restoreSelected">Restore Selected</span></button>
+                <button id="deleteForeverSelectedBtn" style="background-color: var(--error-color);"><i class="fas fa-times-circle"></i> <span data-lang-key="deleteForeverSelected">Delete Forever Selected</span></button>
+                <button id="emptyRecycleBinBtn" style="background-color: var(--error-color);"><i class="fas fa-trash-alt"></i> <span data-lang-key="emptyRecycleBin">Empty Recycle Bin</span></button>
             </div>
             <div class="toolbar-right">
                 <!-- File Type Filter Button -->
                 <div class="dropdown-container file-type-filter-dropdown-container">
                     <button id="fileTypeFilterBtn" class="filter-button"><i class="fas fa-filter"></i></button>
                     <div class="dropdown-content file-type-filter-dropdown-content">
-                        <a href="#" data-filter="all">All Files</a>
-                        <a href="#" data-filter="document">Documents</a>
-                        <a href="#" data-filter="image">Images</a>
-                        <a href="#" data-filter="music">Music</a>
-                        <a href="#" data-filter="video">Videos</a>
-                        <a href="#" data-filter="code">Code Files</a>
-                        <a href="#" data-filter="archive">Archives</a>
-                        <a href="#" data-filter="installation">Installation Files</a>
-                        <a href="#" data-filter="p2p">Peer-to-Peer Files</a>
-                        <a href="#" data-filter="cad">CAD Files</a>
+                        <a href="#" data-filter="all" data-lang-key="allFiles">All Files</a>
+                        <a href="#" data-filter="document" data-lang-key="documents">Documents</a>
+                        <a href="#" data-filter="image" data-lang-key="images">Images</a>
+                        <a href="#" data-filter="music" data-lang-key="music">Music</a>
+                        <a href="#" data-filter="video" data-lang-key="videos">Videos</a>
+                        <a href="#" data-filter="cad" data-lang-key="cadFiles">CAD Files</a>
+                        <?php if ($currentUserRole === 'admin' || $currentUserRole === 'moderator'): ?>
+                            <a href="#" data-filter="code" data-lang-key="codeFiles">Code Files</a>
+                            <a href="#" data-filter="archive" data-lang-key="archives">Archives</a>
+                            <a href="#" data-filter="installation" data-lang-key="installationFiles">Installation Files</a>
+                            <a href="#" data-filter="p2p" data-lang-key="p2pFiles">Peer-to-Peer Files</a>
+                        <?php endif; ?>
                     </div>
                 </div>
 
-                <!-- Release Date Filter Button -->
-                <div class="dropdown-container release-filter-dropdown-container">
-                    <button id="releaseFilterBtn" class="filter-button"><i class="fas fa-calendar-alt"></i></button>
-                    <div class="dropdown-content release-filter-dropdown-content">
-                        <a href="#" data-filter="newest">Newest Deleted</a>
-                        <a href="#" data-filter="oldest">Oldest Deleted</a>
-                        <a href="#" data-filter="all">All Dates</a>
-                    </div>
-                </div>
-
-                <!-- Sort Order Filter Button -->
-                <div class="dropdown-container sort-order-dropdown-container">
-                    <button id="sortOrderBtn" class="filter-button"><i class="fas fa-sort-alpha-down"></i></button>
-                    <div class="dropdown-content sort-order-dropdown-content">
-                        <a href="#" data-sort="asc">A-Z</a>
-                        <a href="#" data-sort="desc">Z-A</a>
+                <!-- Size Filter Button (Replaces Release Date Filter) -->
+                <div class="dropdown-container size-filter-dropdown-container">
+                    <button id="sizeFilterBtn" class="filter-button"><i class="fas fa-sort-amount-down"></i></button>
+                    <div class="dropdown-content size-filter-dropdown-content">
+                        <a href="#" data-filter="largest" data-lang-key="largestSize">Largest First</a>
+                        <a href="#" data-filter="smallest" data-lang-key="smallestSize">Smallest First</a>
+                        <a href="#" data-filter="none" data-lang-key="noSizeFilter">No Size Filter</a>
                     </div>
                 </div>
 
@@ -1936,35 +1829,28 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             <div class="dropdown-container file-type-filter-dropdown-container">
                 <button id="fileTypeFilterBtnHeader" class="filter-button"><i class="fas fa-filter"></i></button>
                 <div class="dropdown-content file-type-filter-dropdown-content">
-                    <a href="#" data-filter="all">All Files</a>
-                    <a href="#" data-filter="document">Documents</a>
-                    <a href="#" data-filter="image">Images</a>
-                    <a href="#" data-filter="music">Music</a>
-                    <a href="#" data-filter="video">Videos</a>
-                    <a href="#" data-filter="code">Code Files</a>
-                    <a href="#" data-filter="archive">Archives</a>
-                    <a href="#" data-filter="installation">Installation Files</a>
-                    <a href="#" data-filter="p2p">Peer-to-Peer Files</a>
-                    <a href="#" data-filter="cad">CAD Files</a>
+                    <a href="#" data-filter="all" data-lang-key="allFiles">All Files</a>
+                    <a href="#" data-filter="document" data-lang-key="documents">Documents</a>
+                    <a href="#" data-filter="image" data-lang-key="images">Images</a>
+                    <a href="#" data-filter="music" data-lang-key="music">Music</a>
+                    <a href="#" data-filter="video" data-lang-key="videos">Videos</a>
+                    <a href="#" data-filter="cad" data-lang-key="cadFiles">CAD Files</a>
+                    <?php if ($currentUserRole === 'admin' || $currentUserRole === 'moderator'): ?>
+                        <a href="#" data-filter="code" data-lang-key="codeFiles">Code Files</a>
+                        <a href="#" data-filter="archive" data-lang-key="archives">Archives</a>
+                        <a href="#" data-filter="installation" data-lang-key="installationFiles">Installation Files</a>
+                        <a href="#" data-filter="p2p" data-lang-key="p2pFiles">Peer-to-Peer Files</a>
+                    <?php endif; ?>
                 </div>
             </div>
 
-            <!-- Release Date Filter Button -->
-            <div class="dropdown-container release-filter-dropdown-container">
-                <button id="releaseFilterBtnHeader" class="filter-button"><i class="fas fa-calendar-alt"></i></button>
-                <div class="dropdown-content release-filter-dropdown-content">
-                    <a href="#" data-filter="newest">Newest Deleted</a>
-                    <a href="#" data-filter="oldest">Oldest Deleted</a>
-                    <a href="#" data-filter="all">All Dates</a>
-                </div>
-            </div>
-
-            <!-- Sort Order Filter Button -->
-            <div class="dropdown-container sort-order-dropdown-container">
-                <button id="sortOrderBtnHeader" class="filter-button"><i class="fas fa-sort-alpha-down"></i></button>
-                <div class="dropdown-content sort-order-dropdown-content">
-                    <a href="#" data-sort="asc">A-Z</a>
-                    <a href="#" data-sort="desc">Z-A</a>
+            <!-- Size Filter Button (Replaces Release Date Filter) -->
+            <div class="dropdown-container size-filter-dropdown-container">
+                <button id="sizeFilterBtnHeader" class="filter-button"><i class="fas fa-sort-amount-down"></i></button>
+                <div class="dropdown-content size-filter-dropdown-content">
+                    <a href="#" data-filter="largest" data-lang-key="largestSize">Largest First</a>
+                    <a href="#" data-filter="smallest" data-lang-key="smallestSize">Smallest First</a>
+                    <a href="#" data-filter="none" data-lang-key="noSizeFilter">No Size Filter</a>
                 </div>
             </div>
 
@@ -1976,9 +1862,9 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
         </div>
 
         <div class="breadcrumbs">
-            <span><i class="fas fa-trash"></i> Recycle Bin</span>
+            <span data-lang-key="recycleBinBreadcrumb"><i class="fas fa-trash"></i> Recycle Bin</span>
             <?php if (!empty($searchQuery)): ?>
-                <span>/</span> <span>Search results for "<?php echo htmlspecialchars($searchQuery); ?>"</span>
+                <span data-lang-key="breadcrumbSeparator">/</span> <span data-lang-key="searchResultsFor">Search results for "<?php echo htmlspecialchars($searchQuery); ?>"</span>
             <?php endif; ?>
         </div>
 
@@ -1988,21 +1874,21 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                     <thead>
                         <tr>
                             <th><input type="checkbox" id="selectAllCheckbox"></th>
-                            <th>Name</th>
-                            <th>Type</th>
-                            <th>Size</th>
-                            <th>Deleted At</th>
-                            <th>Actions</th>
+                            <th data-lang-key="name">Name</th>
+                            <th data-lang-key="type">Type</th>
+                            <th data-lang-key="size">Size</th>
+                            <th data-lang-key="deletedAt">Deleted At</th>
+                            <th data-lang-key="actions">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($deletedItems) && !empty($searchQuery)): ?>
                             <tr>
-                                <td colspan="6" style="text-align: center; padding: 20px;">No deleted files or folders found matching "<?php echo htmlspecialchars($searchQuery); ?>"</td>
+                                <td colspan="6" style="text-align: center; padding: 20px;" data-lang-key="noSearchResults">No deleted files or folders found matching "<?php echo htmlspecialchars($searchQuery); ?>"</td>
                             </tr>
                         <?php elseif (empty($deletedItems) && empty($searchQuery)): ?>
                             <tr>
-                                <td colspan="6" style="text-align: center; padding: 20px;">Recycle Bin is empty.</td>
+                                <td colspan="6" style="text-align: center; padding: 20px;" data-lang-key="recycleBinEmpty">Recycle Bin is empty.</td>
                             </tr>
                         <?php endif; ?>
 
@@ -2023,7 +1909,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                                     <i class="fas <?php echo $iconClass; ?> file-icon <?php echo $colorClass; ?>"></i>
                                     <span><?php echo htmlspecialchars($itemName); ?></span>
                                 </td>
-                                <td><?php echo ucfirst($itemType); ?></td>
+                                <td data-lang-key="<?php echo $itemType; ?>Type"><?php echo ucfirst($itemType); ?></td>
                                 <td><?php echo $itemSize; ?></td>
                                 <td><?php echo $itemDeletedAt; ?></td>
                                 <td>
@@ -2038,9 +1924,9 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             <div id="fileGridView" class="file-view hidden">
                 <div class="file-grid">
                     <?php if (empty($deletedItems) && !empty($searchQuery)): ?>
-                        <div style="grid-column: 1 / -1; text-align: center; padding: 20px;">No deleted files or folders found matching "<?php echo htmlspecialchars($searchQuery); ?>"</div>
+                        <div style="grid-column: 1 / -1; text-align: center; padding: 20px;" data-lang-key="noSearchResults">No deleted files or folders found matching "<?php echo htmlspecialchars($searchQuery); ?>"</div>
                     <?php elseif (empty($deletedItems) && empty($searchQuery)): ?>
-                        <div style="grid-column: 1 / -1; text-align: center; padding: 20px;">Recycle Bin is empty.</div>
+                        <div style="grid-column: 1 / -1; text-align: center; padding: 20px;" data-lang-key="recycleBinEmpty">Recycle Bin is empty.</div>
                     <?php endif; ?>
 
                     <?php foreach ($deletedItems as $item): ?>
@@ -2060,37 +1946,14 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                                 <?php if ($itemType === 'file'): ?>
                                     <?php
                                     $filePath = htmlspecialchars($item['file_path']); // Note: physical file might be gone
-                                    if (in_array($fileExt, $imageExt) && file_exists($filePath)):
+                                    // In recycle bin, we don't expect files to exist physically, so no direct image/video preview
+                                    // Just show the icon and type label
                                     ?>
-                                        <img src="<?php echo $filePath; ?>" alt="<?php echo $itemName; ?>">
-                                    <?php elseif (in_array($fileExt, $docExt)):
-                                        // Attempt to read content if file still exists
-                                        $content = @file_get_contents($item['file_path'], false, null, 0, 500);
-                                        if ($content !== false) {
-                                            echo '<pre>' . htmlspecialchars(substr(strip_tags($content), 0, 200)) . '...</pre>';
-                                        } else {
-                                            echo '<i class="fas ' . $iconClass . ' file-icon ' . $colorClass . '"></i>';
-                                        }
-                                    ?>
-                                    <?php elseif (in_array($fileExt, $musicExt) && file_exists($filePath)): ?>
-                                        <audio controls style='width:100%; height: auto;'><source src='<?php echo $filePath; ?>' type='audio/<?php echo $fileExt; ?>'></audio>
-                                    <?php elseif (in_array($fileExt, $videoExt) && file_exists($filePath)): ?>
-                                        <video controls style='width:100%; height:100%;'><source src='<?php echo $filePath; ?>' type='video/<?php echo $fileExt; ?>'></video>
-                                    <?php elseif (in_array($fileExt, $codeExt)):
-                                        $code = @file_get_contents($item['file_path'], false, null, 0, 500);
-                                        if ($code !== false) {
-                                            echo '<pre>' . htmlspecialchars(substr($code, 0, 200)) . '...</pre>';
-                                        } else {
-                                            echo '<i class="fas ' . $iconClass . ' file-icon ' . $colorClass . '"></i>';
-                                        }
-                                    ?>
-                                    <?php else: ?>
-                                        <i class="fas <?php echo $iconClass; ?> file-icon <?php echo $colorClass; ?>"></i>
-                                    <?php endif; ?>
+                                    <i class="fas <?php echo $iconClass; ?> file-icon <?php echo $colorClass; ?>"></i>
                                 <?php else: // Folder ?>
                                     <i class="fas <?php echo $iconClass; ?> file-icon <?php echo $colorClass; ?>"></i>
                                 <?php endif; ?>
-                                <span class="file-type-label"><?php echo ucfirst($fileExt); ?></span>
+                                <span class="file-type-label" data-lang-key="<?php echo $fileExt; ?>Type"><?php echo ucfirst($fileExt); ?></span>
                             </div>
                             <span class="file-name"><?php echo htmlspecialchars($itemName); ?></span>
                             <span class="file-size"><?php echo $itemSize; ?></span>
@@ -2107,9 +1970,9 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
     <!-- Custom context menu (shared UI, populated by JS) -->
     <div id="context-menu" class="context-menu" hidden>
         <ul>
-            <li data-action="restore"><i class="fas fa-undo"></i> Restore</li>
+            <li data-action="restore"><i class="fas fa-undo"></i> <span data-lang-key="restore">Restore</span></li>
             <li class="separator"></li>
-            <li data-action="delete-forever"><i class="fas fa-times-circle"></i> Delete Forever</li>
+            <li data-action="delete-forever"><i class="fas fa-times-circle"></i> <span data-lang-key="deleteForever">Delete Forever</span></li>
         </ul>
     </div>
 
@@ -2117,28 +1980,134 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
     <div class="overlay" id="mobileOverlay"></div>
 
     <script>
+        // --- Translation Data (Global) ---
+        const translations = {
+            // Sidebar
+            'controlCenter': { 'id': 'Control Center', 'en': 'Control Center' },
+            'myDrive': { 'id': 'Drive Saya', 'en': 'My Drive' },
+            'priorityFile': { 'id': 'File Prioritas', 'en': 'Priority File' },
+            'recycleBin': { 'id': 'Tempat Sampah', 'en': 'Recycle Bin' },
+            'summary': { 'id': 'Ringkasan', 'en': 'Summary' },
+            'members': { 'id': 'Anggota', 'en': 'Members' },
+            'profile': { 'id': 'Profil', 'en': 'Profile' },
+            'logout': { 'id': 'Keluar', 'en': 'Logout' },
+            'storage': { 'id': 'Penyimpanan', 'en': 'Storage' },
+            'storageFull': { 'id': 'Penyimpanan Penuh!', 'en': 'Storage Full!' },
+
+            // Recycle Bin Page Specific
+            'recycleBinTitle': { 'id': 'Tempat Sampah', 'en': 'Recycle Bin' },
+            'searchTrashPlaceholder': { 'id': 'Cari file di tempat sampah...', 'en': 'Search files in trash...' },
+            'restoreSelected': { 'id': 'Pulihkan Terpilih', 'en': 'Restore Selected' },
+            'deleteForeverSelected': { 'id': 'Hapus Permanen Terpilih', 'en': 'Delete Forever Selected' },
+            'emptyRecycleBin': { 'id': 'Kosongkan Tempat Sampah', 'en': 'Empty Recycle Bin' },
+            'allFiles': { 'id': 'Semua File', 'en': 'All Files' },
+            'documents': { 'id': 'Dokumen', 'en': 'Documents' },
+            'images': { 'id': 'Gambar', 'en': 'Images' },
+            'music': { 'id': 'Musik', 'en': 'Music' },
+            'videos': { 'id': 'Video', 'en': 'Videos' },
+            'codeFiles': { 'id': 'File Kode', 'en': 'Code Files' },
+            'archives': { 'id': 'Arsip', 'en': 'Archives' },
+            'installationFiles': { 'id': 'File Instalasi', 'en': 'Installation Files' },
+            'p2pFiles': { 'id': 'File Peer-to-Peer', 'en': 'Peer-to-Peer Files' },
+            'cadFiles': { 'id': 'File CAD', 'en': 'CAD Files' },
+            'largestSize': { 'id': 'Ukuran Terbesar', 'en': 'Largest First' },
+            'smallestSize': { 'id': 'Ukuran Terkecil', 'en': 'Smallest First' },
+            'noSizeFilter': { 'id': 'Tanpa Filter Ukuran', 'en': 'No Size Filter' },
+            'az': { 'id': 'A-Z', 'en': 'A-Z' }, // Still used for alphabetical if no size filter
+            'za': { 'id': 'Z-A', 'en': 'Z-A' }, // Still used for alphabetical if no size filter
+            'recycleBinBreadcrumb': { 'id': 'Tempat Sampah', 'en': 'Recycle Bin' },
+            'breadcrumbSeparator': { 'id': '/', 'en': '/' },
+            'searchResultsFor': { 'id': 'Hasil pencarian untuk', 'en': 'Search results for' },
+            'name': { 'id': 'Nama', 'en': 'Name' },
+            'type': { 'id': 'Tipe', 'en': 'Type' },
+            'size': { 'id': 'Ukuran', 'en': 'Size' },
+            'deletedAt': { 'id': 'Dihapus Pada', 'en': 'Deleted At' },
+            'actions': { 'id': 'Tindakan', 'en': 'Actions' },
+            'noSearchResults': { 'id': 'Tidak ada file atau folder yang dihapus yang cocok dengan', 'en': 'No deleted files or folders found matching' },
+            'recycleBinEmpty': { 'id': 'Tempat Sampah kosong.', 'en': 'Recycle Bin is empty.' },
+            'fileType': { 'id': 'File', 'en': 'File' }, // For item type in table
+            'folderType': { 'id': 'Folder', 'en': 'Folder' }, // For item type in table
+            'restore': { 'id': 'Pulihkan', 'en': 'Restore' },
+            'deleteForever': { 'id': 'Hapus Permanen', 'en': 'Delete Forever' },
+            'confirmRestoreSelected': { 'id': 'Anda yakin ingin memulihkan item yang dipilih?', 'en': 'Are you sure you want to restore the selected items?' },
+            'confirmDeleteForeverSelected': { 'id': 'Anda yakin ingin MENGHAPUS PERMANEN item yang dipilih? Tindakan ini tidak dapat dibatalkan!', 'en': 'Are you sure you want to PERMANENTLY delete the selected items? This action cannot be undone!' },
+            'confirmEmptyRecycleBin': { 'id': 'Anda yakin ingin MENGOSONGKAN seluruh Tempat Sampah? Semua item akan dihapus PERMANEN dan tindakan ini tidak dapat dibatalkan!', 'en': 'Are you sure you want to EMPTY the entire Recycle Bin? All items will be PERMANENTLY deleted and this action cannot be undone!' },
+            'selectItemToRestore': { 'id': 'Pilih setidaknya satu file atau folder untuk dipulihkan!', 'en': 'Please select at least one file or folder to restore!' },
+            'selectItemToDelete': { 'id': 'Pilih setidaknya satu file atau folder untuk dihapus secara permanen!', 'en': 'Please select at least one file or folder to delete permanently!' },
+            'restoreSuccess': { 'id': 'Item berhasil dipulihkan.', 'en': 'Item restored successfully.' },
+            'restoreFailed': { 'id': 'Gagal memulihkan item:', 'en': 'Failed to restore items:' },
+            'deleteSuccess': { 'id': 'Item berhasil dihapus secara permanen.', 'en': 'Item deleted permanently.' },
+            'deleteFailed': { 'id': 'Gagal menghapus item secara permanen:', 'en': 'Failed to delete items permanently:' },
+            'emptyBinSuccess': { 'id': 'Tempat Sampah berhasil dikosongkan.', 'en': 'Recycle Bin emptied successfully.' },
+            'emptyBinFailed': { 'id': 'Gagal mengosongkan Tempat Sampah:', 'en': 'Failed to empty Recycle Bin:' },
+            'errorOccurred': { 'id': 'Terjadi kesalahan.', 'en': 'An error occurred.' },
+            'updateFailed': { 'id': 'Gagal memperbarui konten tempat sampah. Harap segarkan halaman.', 'en': 'Failed to update recycle bin content. Please refresh the page.' },
+            'file': { 'id': 'File', 'en': 'File' }, // For item type in table
+            'folder': { 'id': 'Folder', 'en': 'Folder' }, // For item type in table
+            // Add more file type translations if needed for grid view labels
+            'documentType': { 'id': 'Dokumen', 'en': 'Document' },
+            'imageType': { 'id': 'Gambar', 'en': 'Image' },
+            'musicType': { 'id': 'Musik', 'en': 'Music' },
+            'videoType': { 'id': 'Video', 'en': 'Video' },
+            'codeType': { 'id': 'Kode', 'en': 'Code' },
+            'archiveType': { 'id': 'Arsip', 'en': 'Archive' },
+            'installationType': { 'id': 'Instalasi', 'en': 'Installation' },
+            'p2pType': { 'id': 'P2P', 'en': 'P2P' },
+            'cadType': { 'id': 'CAD', 'en': 'CAD' },
+            'defaultType': { 'id': 'Lainnya', 'en': 'Other' },
+        };
+
+        let currentLanguage = localStorage.getItem('lang') || 'id'; // Default to Indonesian
+
+        function applyTranslation(lang) {
+            document.querySelectorAll('[data-lang-key]').forEach(element => {
+                const key = element.getAttribute('data-lang-key');
+                if (translations[key] && translations[key][lang]) {
+                    if (element.tagName === 'INPUT' && element.hasAttribute('placeholder')) {
+                        element.setAttribute('placeholder', translations[key][lang]);
+                    } else {
+                        element.textContent = translations[key][lang];
+                    }
+                }
+            });
+
+            // Special handling for "of X used" text in sidebar
+            const storageTextElement = document.getElementById('storageText');
+            if (storageTextElement) {
+                const usedBytes = <?php echo $usedStorageBytes; ?>;
+                const totalBytes = <?php echo $totalStorageBytes; ?>;
+                const formattedUsed = formatBytes(usedBytes);
+                const formattedTotal = formatBytes(totalBytes);
+                const ofText = translations['ofUsed'] ? translations['ofUsed'][lang] : (lang === 'id' ? 'dari' : 'of');
+                const usedSuffix = translations['usedText' + (lang === 'id' ? 'Id' : 'En')] || (lang === 'id' ? 'terpakai' : 'used');
+                storageTextElement.textContent = `${formattedUsed} ${ofText} ${formattedTotal} ${usedSuffix}`;
+            }
+
+            // Special handling for search results breadcrumb
+            const searchResultsSpan = document.querySelector('[data-lang-key="searchResultsFor"]');
+            if (searchResultsSpan) {
+                const originalQuery = "<?php echo htmlspecialchars($searchQuery); ?>";
+                searchResultsSpan.textContent = `${translations['searchResultsFor'][lang]} "${originalQuery}"`;
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             const restoreSelectedBtn = document.getElementById('restoreSelectedBtn');
             const deleteForeverSelectedBtn = document.getElementById('deleteForeverSelectedBtn');
             const emptyRecycleBinBtn = document.getElementById('emptyRecycleBinBtn');
             
             // Dropdown elements (main toolbar)
-            const releaseFilterDropdownContainer = document.querySelector('.toolbar .release-filter-dropdown-container');
-            const releaseFilterBtn = document.getElementById('releaseFilterBtn');
-            const releaseFilterDropdownContent = document.querySelector('.toolbar .release-filter-dropdown-content');
-
-            const sortOrderDropdownContainer = document.querySelector('.toolbar .sort-order-dropdown-container');
-            const sortOrderBtn = document.getElementById('sortOrderBtn');
-            const sortOrderDropdownContent = document.querySelector('.toolbar .sort-order-dropdown-content');
-
             const fileTypeFilterDropdownContainer = document.querySelector('.toolbar .file-type-filter-dropdown-container');
             const fileTypeFilterBtn = document.getElementById('fileTypeFilterBtn');
             const fileTypeFilterDropdownContent = document.querySelector('.toolbar .file-type-filter-dropdown-content');
 
+            const sizeFilterDropdownContainer = document.querySelector('.toolbar .size-filter-dropdown-container');
+            const sizeFilterBtn = document.getElementById('sizeFilterBtn');
+            const sizeFilterDropdownContent = document.querySelector('.toolbar .size-filter-dropdown-content');
+
             // Dropdown elements (header)
             const fileTypeFilterBtnHeader = document.getElementById('fileTypeFilterBtnHeader');
-            const releaseFilterBtnHeader = document.getElementById('releaseFilterBtnHeader');
-            const sortOrderBtnHeader = document.getElementById('sortOrderBtnHeader');
+            const sizeFilterBtnHeader = document.getElementById('sizeFilterBtnHeader');
             const listViewBtnHeader = document.getElementById('listViewBtnHeader');
             const gridViewBtnHeader = document.getElementById('gridViewBtnHeader');
 
@@ -2148,7 +2117,6 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             const fileListView = document.getElementById('fileListView');
             const fileGridView = document.getElementById('fileGridView');
             const selectAllCheckbox = document.getElementById('selectAllCheckbox');
-            const searchInput = document.getElementById('searchInput'); // Desktop search
             const searchInputMobile = document.getElementById('searchInputMobile'); // Mobile search
             const customNotification = document.getElementById('customNotification');
 
@@ -2164,16 +2132,27 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
 
             // Sidebar menu items for active state management
             const sidebarMenuItems = document.querySelectorAll('.sidebar-menu a');
+            const mainContent = document.getElementById('mainContent'); // Get main-content for animations
 
             // Current state variables for AJAX filtering/sorting
             let currentSearchQuery = <?php echo json_encode($searchQuery); ?>;
-            let currentReleaseFilter = <?php echo json_encode($releaseFilter); ?>;
-            let currentSortOrder = <?php echo json_encode($sortOrder); ?>;
+            let currentSizeFilter = <?php echo json_encode($sizeFilter); ?>;
+            let currentSortOrder = <?php echo json_encode($sortOrder); ?>; // Keep for alphabetical if no size filter
             let currentFileTypeFilter = <?php echo json_encode($fileTypeFilter); ?>;
 
             /*** Util helpers ****/
             function debounce(fn, ms=150){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
             function closestFileItem(el){ return el && el.closest('.file-item'); }
+
+            // Helper function for formatBytes (replicate PHP's formatBytes)
+            function formatBytes(bytes, precision = 2) {
+                const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+                bytes = Math.max(bytes, 0);
+                const pow = Math.floor((bytes ? Math.log(bytes) : 0) / Math.log(1024));
+                const unitIndex = Math.min(pow, units.length - 1);
+                bytes /= (1 << (10 * unitIndex));
+                return bytes.toFixed(precision) + ' ' + units[unitIndex];
+            }
 
             /*** Device detection & body class toggling ***/
             function setDeviceClass() {
@@ -2402,11 +2381,11 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 });
 
                 if (selectedItems.length === 0) {
-                    showNotification('Please select at least one file or folder to restore!', 'error');
+                    showNotification(translations['selectItemToRestore'][currentLanguage], 'error');
                     return;
                 }
 
-                if (!confirm('Are you sure you want to restore the selected items?')) {
+                if (!confirm(translations['confirmRestoreSelected'][currentLanguage])) {
                     return;
                 }
 
@@ -2420,14 +2399,14 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                     });
                     const data = await response.json();
                     if (data.success) {
-                        showNotification(data.message, 'success');
+                        showNotification(translations['restoreSuccess'][currentLanguage], 'success');
                         updateRecycleBinContent(); // Update content without full reload
                     } else {
-                        showNotification('Failed to restore items: ' + data.message, 'error');
+                        showNotification(translations['restoreFailed'][currentLanguage] + ' ' + data.message, 'error');
                     }
                 } catch (error) {
                     console.error('Error:', error);
-                    showNotification('An error occurred while restoring items.', 'error');
+                    showNotification(translations['errorOccurred'][currentLanguage] + ' ' + translations['restoreFailed'][currentLanguage], 'error');
                 }
             });
 
@@ -2439,11 +2418,11 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 });
 
                 if (selectedItems.length === 0) {
-                    showNotification('Please select at least one file or folder to delete permanently!', 'error');
+                    showNotification(translations['selectItemToDelete'][currentLanguage], 'error');
                     return;
                 }
 
-                if (!confirm('Are you sure you want to PERMANENTLY delete the selected items? This action cannot be undone!')) {
+                if (!confirm(translations['confirmDeleteForeverSelected'][currentLanguage])) {
                     return;
                 }
 
@@ -2457,20 +2436,20 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                     });
                     const data = await response.json();
                     if (data.success) {
-                        showNotification(data.message, 'success');
+                        showNotification(translations['deleteSuccess'][currentLanguage], 'success');
                         updateRecycleBinContent(); // Update content without full reload
                     } else {
-                        showNotification('Failed to delete items permanently: ' + data.message, 'error');
+                        showNotification(translations['deleteFailed'][currentLanguage] + ' ' + data.message, 'error');
                     }
                 } catch (error) {
                     console.error('Error:', error);
-                    showNotification('An error occurred while deleting items permanently.', 'error');
+                    showNotification(translations['errorOccurred'][currentLanguage] + ' ' + translations['deleteFailed'][currentLanguage], 'error');
                 }
             });
 
             // --- Empty Recycle Bin ---
             emptyRecycleBinBtn.addEventListener('click', async () => {
-                if (!confirm('Are you sure you want to EMPTY the entire Recycle Bin? All items will be PERMANENTLY deleted and this action cannot be undone!')) {
+                if (!confirm(translations['confirmEmptyRecycleBin'][currentLanguage])) {
                     return;
                 }
 
@@ -2484,14 +2463,14 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                     });
                     const data = await response.json();
                     if (data.success) {
-                        showNotification(data.message, 'success');
+                        showNotification(translations['emptyBinSuccess'][currentLanguage], 'success');
                         updateRecycleBinContent(); // Update content without full reload
                     } else {
-                        showNotification('Failed to empty Recycle Bin: ' + data.message, 'error');
+                        showNotification(translations['emptyBinFailed'][currentLanguage] + ' ' + data.message, 'error');
                     }
                 } catch (error) {
                     console.error('Error:', error);
-                    showNotification('An error occurred while emptying Recycle Bin.', 'error');
+                    showNotification(translations['errorOccurred'][currentLanguage] + ' ' + translations['emptyBinFailed'][currentLanguage], 'error');
                 }
             });
 
@@ -2507,8 +2486,16 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 }
             });
 
-            // --- File Type Filter ---
-            function setupFileTypeFilterDropdown(buttonId, dropdownContentSelector) {
+            // --- Dropdown Exclusive Logic ---
+            const allDropdownContainers = document.querySelectorAll('.dropdown-container');
+
+            function closeAllDropdowns() {
+                allDropdownContainers.forEach(container => {
+                    container.classList.remove('show');
+                });
+            }
+
+            function setupDropdown(buttonId, dropdownContentSelector, filterType) {
                 const button = document.getElementById(buttonId);
                 const dropdownContent = document.querySelector(dropdownContentSelector);
                 const dropdownContainer = button.closest('.dropdown-container');
@@ -2517,75 +2504,35 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
 
                 button.addEventListener('click', (event) => {
                     event.stopPropagation();
-                    dropdownContainer.classList.toggle('show');
+                    const isShowing = dropdownContainer.classList.contains('show');
+                    closeAllDropdowns(); // Close all other dropdowns
+                    if (!isShowing) {
+                        dropdownContainer.classList.add('show'); // Open this one
+                    }
                 });
 
                 dropdownContent.querySelectorAll('a').forEach(link => {
                     link.addEventListener('click', (event) => {
                         event.preventDefault();
                         dropdownContainer.classList.remove('show');
-                        currentFileTypeFilter = event.target.dataset.filter;
+                        if (filterType === 'file_type') {
+                            currentFileTypeFilter = event.target.dataset.filter;
+                        } else if (filterType === 'size') {
+                            currentSizeFilter = event.target.dataset.filter;
+                            // If size filter is 'none', reset sortOrder to 'asc' for alphabetical
+                            if (currentSizeFilter === 'none') {
+                                currentSortOrder = 'asc';
+                            }
+                        }
                         updateRecycleBinContent();
                     });
                 });
             }
 
-            setupFileTypeFilterDropdown('fileTypeFilterBtn', '.toolbar .file-type-filter-dropdown-content');
-            setupFileTypeFilterDropdown('fileTypeFilterBtnHeader', '.toolbar-filter-buttons .file-type-filter-dropdown-content');
-
-
-            // --- Release Date Filter ---
-            function setupReleaseFilterDropdown(buttonId, dropdownContentSelector) {
-                const button = document.getElementById(buttonId);
-                const dropdownContent = document.querySelector(dropdownContentSelector);
-                const dropdownContainer = button.closest('.dropdown-container');
-
-                if (!button || !dropdownContent || !dropdownContainer) return;
-
-                button.addEventListener('click', (event) => {
-                    event.stopPropagation();
-                    dropdownContainer.classList.toggle('show');
-                });
-
-                dropdownContent.querySelectorAll('a').forEach(link => {
-                    link.addEventListener('click', (event) => {
-                        event.preventDefault();
-                        dropdownContainer.classList.remove('show');
-                        currentReleaseFilter = event.target.dataset.filter;
-                        updateRecycleBinContent();
-                    });
-                });
-            }
-
-            setupReleaseFilterDropdown('releaseFilterBtn', '.toolbar .release-filter-dropdown-content');
-            setupReleaseFilterDropdown('releaseFilterBtnHeader', '.toolbar-filter-buttons .release-filter-dropdown-content');
-
-
-            // --- Sort Order Filter ---
-            function setupSortOrderDropdown(buttonId, dropdownContentSelector) {
-                const button = document.getElementById(buttonId);
-                const dropdownContent = document.querySelector(dropdownContentSelector);
-                const dropdownContainer = button.closest('.dropdown-container');
-
-                if (!button || !dropdownContent || !dropdownContainer) return;
-
-                button.addEventListener('click', (event) => {
-                    event.stopPropagation();
-                    dropdownContainer.classList.toggle('show');
-                });
-
-                dropdownContent.querySelectorAll('a').forEach(link => {
-                    link.addEventListener('click', (event) => {
-                        event.preventDefault();
-                        dropdownContainer.classList.remove('show');
-                        currentSortOrder = event.target.dataset.sort;
-                        updateRecycleBinContent();
-                    });
-                });
-            }
-
-            setupSortOrderDropdown('sortOrderBtn', '.toolbar .sort-order-dropdown-content');
-            setupSortOrderDropdown('sortOrderBtnHeader', '.toolbar-filter-buttons .sort-order-dropdown-content');
+            setupDropdown('fileTypeFilterBtn', '.toolbar .file-type-filter-dropdown-content', 'file_type');
+            setupDropdown('fileTypeFilterBtnHeader', '.toolbar-filter-buttons .file-type-filter-dropdown-content', 'file_type');
+            setupDropdown('sizeFilterBtn', '.toolbar .size-filter-dropdown-content', 'size');
+            setupDropdown('sizeFilterBtnHeader', '.toolbar-filter-buttons .size-filter-dropdown-content', 'size');
 
 
             /*** Context menu element ***/
@@ -2738,33 +2685,15 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                     hideContextMenu(); 
                 }
                 // Close all dropdowns if clicked outside
-                if (releaseFilterDropdownContainer && !releaseFilterDropdownContainer.contains(e.target)) {
-                    releaseFilterDropdownContainer.classList.remove('show');
-                }
-                if (sortOrderDropdownContainer && !sortOrderDropdownContainer.contains(e.target)) {
-                    sortOrderDropdownContainer.classList.remove('show');
-                }
-                if (fileTypeFilterDropdownContainer && !fileTypeFilterDropdownContainer.contains(e.target)) {
-                    fileTypeFilterDropdownContainer.classList.remove('show');
-                }
-                const headerFileTypeDropdownContainer = document.querySelector('.toolbar-filter-buttons .file-type-filter-dropdown-container');
-                const headerReleaseDropdownContainer = document.querySelector('.toolbar-filter-buttons .release-filter-dropdown-container');
-                const headerSortOrderDropdownContainer = document.querySelector('.toolbar-filter-buttons .sort-order-dropdown-container');
-                if (headerFileTypeDropdownContainer && !headerFileTypeDropdownContainer.contains(e.target)) {
-                    headerFileTypeDropdownContainer.classList.remove('show');
-                }
-                if (headerReleaseDropdownContainer && !headerReleaseDropdownContainer.contains(e.target)) {
-                    headerReleaseDropdownContainer.classList.remove('show');
-                }
-                if (headerSortOrderDropdownContainer && !headerSortOrderDropdownContainer.contains(e.target)) {
-                    headerSortOrderDropdownContainer.classList.remove('show');
+                if (!e.target.closest('.dropdown-container')) {
+                    closeAllDropdowns();
                 }
             });
             window.addEventListener('blur', hideContextMenu);
 
             // --- Individual Restore/Delete Forever ---
             async function restoreItem(id, type) {
-                if (!confirm(`Are you sure you want to restore this ${type}?`)) {
+                if (!confirm(translations['confirmRestoreSelected'][currentLanguage])) {
                     return;
                 }
                 try {
@@ -2775,19 +2704,19 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                     });
                     const data = await response.json();
                     if (data.success) {
-                        showNotification(data.message, 'success');
+                        showNotification(translations['restoreSuccess'][currentLanguage], 'success');
                         updateRecycleBinContent();
                     } else {
-                        showNotification(data.message, 'error');
+                        showNotification(translations['restoreFailed'][currentLanguage] + ' ' + data.message, 'error');
                     }
                 } catch (error) {
                     console.error('Error:', error);
-                    showNotification('An error occurred while restoring the item.', 'error');
+                    showNotification(translations['errorOccurred'][currentLanguage] + ' ' + translations['restoreFailed'][currentLanguage], 'error');
                 }
             }
 
             async function deleteItemForever(id, type) {
-                if (!confirm(`Are you sure you want to PERMANENTLY delete this ${type}? This action cannot be undone!`)) {
+                if (!confirm(translations['confirmDeleteForeverSelected'][currentLanguage])) {
                     return;
                 }
                 try {
@@ -2798,14 +2727,14 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                     });
                     const data = await response.json();
                     if (data.success) {
-                        showNotification(data.message, 'success');
+                        showNotification(translations['deleteSuccess'][currentLanguage], 'success');
                         updateRecycleBinContent();
                     } else {
-                        showNotification(data.message, 'error');
+                        showNotification(translations['deleteFailed'][currentLanguage] + ' ' + data.message, 'error');
                     }
                 } catch (error) {
                     console.error('Error:', error);
-                    showNotification('An error occurred while deleting the item permanently.', 'error');
+                    showNotification(translations['errorOccurred'][currentLanguage] + ' ' + translations['deleteFailed'][currentLanguage], 'error');
                 }
             }
 
@@ -2815,10 +2744,10 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 if (currentSearchQuery) {
                     params.set('search', currentSearchQuery);
                 }
-                if (currentReleaseFilter && currentReleaseFilter !== 'newest') { // 'newest' is default for trash
-                    params.set('release', currentReleaseFilter);
-                }
-                if (currentSortOrder && currentSortOrder !== 'asc') {
+                if (currentSizeFilter && currentSizeFilter !== 'none') {
+                    params.set('size', currentSizeFilter);
+                } else {
+                    // If no size filter, use alphabetical sort order
                     params.set('sort', currentSortOrder);
                 }
                 if (currentFileTypeFilter && currentFileTypeFilter !== 'all') {
@@ -2847,10 +2776,11 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
 
                     updateSelectAllCheckboxListener();
                     history.pushState(null, '', `recycle_bin.php?${params.toString()}`);
+                    applyTranslation(currentLanguage); // Apply translation after content update
 
                 } catch (error) {
                     console.error('Error updating recycle bin content:', error);
-                    showNotification('Failed to update recycle bin content. Please refresh the page.', 'error');
+                    // showNotification(translations['updateFailed'][currentLanguage], 'error'); // Baris ini dihapus
                 }
             }
 
@@ -2866,6 +2796,24 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 mobileOverlay.classList.remove('show');
             });
 
+            // --- Sidebar Menu Navigation with Fly Out Animation ---
+            sidebarMenuItems.forEach(item => {
+                item.addEventListener('click', function(event) {
+                    // Only apply animation if it's a navigation link and not the current active page
+                    if (this.getAttribute('href') && !this.classList.contains('active')) {
+                        event.preventDefault(); // Prevent default navigation immediately
+                        const targetUrl = this.getAttribute('href');
+
+                        mainContent.classList.add('fly-out'); // Start fly-out animation
+
+                        mainContent.addEventListener('animationend', function handler() {
+                            mainContent.removeEventListener('animationend', handler);
+                            window.location.href = targetUrl; // Navigate after animation
+                        });
+                    }
+                });
+            });
+
             // Initial call to attach listeners
             updateSelectAllCheckboxListener();
 
@@ -2878,6 +2826,9 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                     item.classList.add('active');
                 }
             });
+
+            // Apply initial translation
+            applyTranslation(currentLanguage);
         });
     </script>
 </body>

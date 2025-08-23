@@ -185,21 +185,29 @@ if ($isAjax) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* Metro Design (Modern UI) & Windows 7 Animations */
+        /* Material Design Google + Admin LTE */
         :root {
-            --metro-blue: #0078D7; /* Windows 10/Metro accent blue */
-            --metro-dark-blue: #0056b3;
-            --metro-light-gray: #E1E1E1;
-            --metro-medium-gray: #C8C8C8;
-            --metro-dark-gray: #666666;
-            --metro-text-color: #333333;
-            --metro-bg-color: #F0F0F0;
-            --metro-sidebar-bg: #2D2D30; /* Darker sidebar for contrast */
-            --metro-sidebar-text: #F0F0F0;
-            --metro-success: #4CAF50;
-            --metro-error: #E81123; /* Windows 10 error red */
-            --metro-warning: #FF8C00; /* Windows 10 warning orange */
-            
+            --primary-color: #3F51B5; /* Indigo 500 - Material Design */
+            --primary-dark-color: #303F9F; /* Indigo 700 */
+            --accent-color: #FF4081; /* Pink A200 */
+            --text-color: #212121; /* Grey 900 */
+            --secondary-text-color: #757575; /* Grey 600 */
+            --divider-color: #BDBDBD; /* Grey 400 */
+            --background-color: #F5F5F5; /* Grey 100 */
+            --surface-color: #FFFFFF; /* White */
+            --success-color: #4CAF50; /* Green 500 */
+            --error-color: #F44336; /* Red 500 */
+            --warning-color: #FFC107; /* Amber 500 */
+
+            /* AdminLTE specific colors */
+            --adminlte-sidebar-bg: #222d32;
+            --adminlte-sidebar-text: #b8c7ce;
+            --adminlte-sidebar-hover-bg: #1e282c;
+            --adminlte-sidebar-active-bg: #1e282c;
+            --adminlte-sidebar-active-text: #ffffff;
+            --adminlte-header-bg: #ffffff;
+            --adminlte-header-text: #333333;
+
             /* --- LOKASI EDIT UKURAN FONT SIDEBAR --- */
             --sidebar-font-size-desktop: 0.9em; /* Ukuran font default untuk desktop */
             --sidebar-font-size-tablet-landscape: 1.0em; /* Ukuran font untuk tablet landscape */
@@ -207,53 +215,50 @@ if ($isAjax) {
             --sidebar-font-size-mobile: 0.9em; /* Ukuran font untuk mobile */
             /* --- AKHIR LOKASI EDIT UKURAN FONT SIDEBAR --- */
         }
-        
-        * {
-            box-sizing: border-box; /* ADDED: Ensures padding and border are included in the element's total width and height */
-        }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Roboto', sans-serif; /* Material Design font */
             margin: 0;
             display: flex;
             height: 100vh;
-            background-color: var(--metro-bg-color);
-            color: var(--metro-text-color);
+            background-color: var(--background-color);
+            color: var(--text-color);
             overflow: hidden; /* Prevent body scroll, main-content handles it */
         }
 
-        /* Base Sidebar (for Desktop/Tablet Landscape) */
+        /* Base Sidebar (AdminLTE style) */
         .sidebar {
-            width: 250px; /* Wider sidebar for Metro feel */
-            background-color: var(--metro-sidebar-bg);
-            color: var(--metro-sidebar-text);
+            width: 250px;
+            background-color: var(--adminlte-sidebar-bg);
+            color: var(--adminlte-sidebar-text);
             display: flex;
             flex-direction: column;
-            padding: 20px 0;
+            padding: 0; /* No padding at top/bottom */
             transition: width 0.3s ease-in-out, transform 0.3s ease-in-out;
-            flex-shrink: 0; /* Prevent shrinking */
-            /* REMOVED: box-shadow */
+            flex-shrink: 0;
+            box-shadow: none; /* No box-shadow */
         }
 
         .sidebar-header {
-            padding: 0 20px;
-            margin-bottom: 30px;
+            padding: 15px;
+            margin-bottom: 15px;
             display: flex;
             align-items: center;
-            justify-content: center; /* Center logo */
+            justify-content: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
         }
 
         .sidebar-header img {
-            width: 150px; /* Larger logo */
+            width: 120px; /* Slightly smaller logo */
             height: auto;
             display: block;
         }
 
         .sidebar-header h2 {
             margin: 0;
-            font-size: 1.8em;
-            color: var(--metro-sidebar-text);
-            font-weight: 300; /* Lighter font weight */
+            font-size: 1.5em;
+            color: var(--adminlte-sidebar-text);
+            font-weight: 400;
         }
 
         .sidebar-menu {
@@ -261,133 +266,138 @@ if ($isAjax) {
             padding: 0;
             margin: 0;
             flex-grow: 1;
-            overflow-y: auto; /* Enable vertical scrolling */
-            overflow-x: hidden; /* Hide horizontal scrolling */
+            overflow-y: auto;
+            overflow-x: hidden;
         }
 
         .sidebar-menu li {
-            margin-bottom: 5px; /* Closer spacing */
+            margin-bottom: 0; /* No extra spacing */
         }
 
         .sidebar-menu a {
             display: flex;
             align-items: center;
-            padding: 15px 20px; /* More padding */
-            color: var(--metro-sidebar-text);
+            padding: 12px 15px; /* AdminLTE padding */
+            color: var(--adminlte-sidebar-text);
             text-decoration: none;
-            font-size: var(--sidebar-font-size-desktop); /* Menggunakan variabel untuk desktop */
+            font-size: var(--sidebar-font-size-desktop);
             transition: background-color 0.2s ease-out, color 0.2s ease-out;
-            border-left: 5px solid transparent; /* For active state */
+            border-left: 3px solid transparent; /* For active state */
         }
 
         .sidebar-menu a i {
-            margin-right: 15px;
-            font-size: 1.4em;
-            width: 25px; /* Fixed width for icons */
+            margin-right: 10px;
+            font-size: 1.2em;
+            width: 20px;
             text-align: center;
         }
 
-        /* Perbaikan Animasi Hover dan Active (Diambil dari index.php) */
         .sidebar-menu a:hover {
-            background-color: rgba(255,255,255,0.15); /* Sedikit lebih terang dari sebelumnya */
-            color: #FFFFFF;
-            transform: translateX(5px); /* Efek geser ke kanan */
-            transition: background-color 0.2s ease-out, color 0.2s ease-out, transform 0.2s ease-out;
+            background-color: var(--adminlte-sidebar-hover-bg);
+            color: var(--adminlte-sidebar-active-text);
+            transform: translateX(0); /* No slide effect */
         }
 
         .sidebar-menu a.active {
-            background-color: var(--metro-blue); /* Metro accent color */
-            border-left: 5px solid var(--metro-blue);
-            color: #FFFFFF;
-            font-weight: 600;
-            transform: translateX(0); /* Pastikan tidak ada geseran saat aktif */
+            background-color: var(--adminlte-sidebar-active-bg);
+            border-left-color: var(--primary-color); /* Material primary color for active */
+            color: var(--adminlte-sidebar-active-text);
+            font-weight: 500;
         }
 
-        /* Storage Info */
+        /* Storage Info (AdminLTE style) */
         .storage-info {
-            padding: 20px;
+            padding: 15px;
             border-top: 1px solid rgba(255,255,255,0.1);
             text-align: center;
-            font-size: 0.9em;
+            font-size: 0.85em;
+            margin-top: auto;
+            padding-top: 15px;
         }
 
         .storage-info h4 {
             margin-top: 0;
-            margin-bottom: 15px;
-            color: var(--metro-sidebar-text);
+            margin-bottom: 10px;
+            color: var(--adminlte-sidebar-text);
             font-weight: 400;
         }
 
         .progress-bar-container {
             width: 100%;
             background-color: rgba(255,255,255,0.2);
-            border-radius: 5px;
-            height: 8px;
-            margin-bottom: 10px;
+            border-radius: 0; /* Siku-siku */
+            height: 6px;
+            margin-bottom: 8px;
             overflow: hidden;
-            position: relative; /* Added for text overlay */
+            position: relative;
         }
 
         .progress-bar {
             height: 100%;
-            background-color: var(--metro-success); /* Green for progress */
-            border-radius: 5px;
+            background-color: var(--success-color);
+            border-radius: 0; /* Siku-siku */
             transition: width 0.5s ease-in-out;
             position: relative;
             overflow: hidden;
         }
 
-        /* Progress bar text overlay */
         .progress-bar-text {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            color: #fff; /* White text for contrast */
-            font-size: 0.7em; /* Smaller font size */
+            color: #fff;
+            font-size: 0.6em;
             font-weight: bold;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.5); /* Add shadow for readability */
-            white-space: nowrap; /* Prevent text from wrapping */
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            white-space: nowrap;
         }
 
         .storage-text {
-            font-size: 0.9em;
-            color: var(--metro-light-gray);
+            font-size: 0.8em;
+            color: var(--adminlte-sidebar-text);
         }
 
-        /* Main Content */
+        /* Main Content (Full-width, unique & professional) */
         .main-content {
             flex-grow: 1;
-            padding: 30px;
+            padding: 20px; /* Reduced padding */
             display: flex;
             flex-direction: column;
-            overflow-y: auto; /* Enable scrolling for content */
-            background-color: #FFFFFF; /* White background for content area */
-            border-radius: 0; /* MODIFIED: No rounded corners for full width */
-            margin: 0; /* MODIFIED: Full width */
-            /* REMOVED: box-shadow */
+            overflow-y: auto;
+            background-color: var(--background-color); /* Light grey background */
+            border-radius: 0; /* Siku-siku */
+            margin: 0; /* Full width */
+            box-shadow: none; /* No box-shadow */
+            /* MODIFIED: Initial state for fly-in animation */
+            opacity: 0;
+            transform: translateY(100%);
+            animation: flyInFromBottom 0.5s ease-out forwards; /* Fly In animation from bottom */
         }
 
-        /* Header Main - Now always white */
+        .main-content.fly-out {
+            animation: flyOutToTop 0.5s ease-in forwards; /* Fly Out animation to top */
+        }
+
+        /* Header Main (Full-width, white, no background residue) */
         .header-main {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 25px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid var(--metro-light-gray);
-            background-color: #FFFFFF; /* White header */
-            padding: 15px 30px; /* Add padding for header */
-            margin: -30px -30px 25px -30px; /* Adjust margin to cover full width */
-            border-radius: 0; /* MODIFIED: No rounded top corners for full width */
-            /* REMOVED: box-shadow */
+            margin-bottom: 20px; /* Reduced margin */
+            padding: 15px 20px; /* Padding for header */
+            border-bottom: 1px solid var(--divider-color);
+            background-color: var(--adminlte-header-bg); /* White header */
+            margin: -20px -20px 20px -20px; /* Adjust margin to cover full width */
+            border-radius: 0; /* Siku-siku */
+            box-shadow: none; /* No box-shadow */
         }
 
         .header-main h1 {
             margin: 0;
-            color: var(--metro-text-color);
-            font-size: 2.5em;
-            font-weight: 300;
+            color: var(--adminlte-header-text);
+            font-size: 2em; /* Slightly smaller title */
+            font-weight: 400; /* Lighter font weight */
         }
 
         /* Dashboard Specific Styles */
@@ -400,15 +410,15 @@ if ($isAjax) {
 
         /* Card styles */
         .card {
-            background-color: var(--metro-blue);
+            background-color: var(--primary-color); /* Material primary color */
             color: #FFFFFF;
             padding: 25px;
-            border-radius: 5px;
-            /* REMOVED: box-shadow */
+            border-radius: 0; /* Siku-siku */
+            box-shadow: none; /* No box-shadow */
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            transition: transform 0.2s ease-out; /* REMOVED box-shadow from transition */
+            transition: transform 0.2s ease-out;
             animation: fadeIn 0.5s ease-out forwards;
             opacity: 0;
         }
@@ -419,7 +429,6 @@ if ($isAjax) {
 
         .card:hover {
             transform: translateY(-5px);
-            /* REMOVED: box-shadow */
         }
 
         .card h3 {
@@ -435,9 +444,9 @@ if ($isAjax) {
             font-weight: 600;
         }
 
-        .card.green { background-color: var(--metro-success); }
-        .card.orange { background-color: var(--metro-warning); }
-        .card.red { background-color: var(--metro-error); }
+        .card.green { background-color: var(--success-color); }
+        .card.orange { background-color: var(--warning-color); }
+        .card.red { background-color: var(--error-color); }
 
         /* Adjust .card p for the count and storage text */
         .card p.count {
@@ -454,32 +463,34 @@ if ($isAjax) {
 
 
         .chart-container {
-            background-color: white;
-            border-radius: 8px;
+            background-color: var(--surface-color);
+            border-radius: 0; /* Siku-siku */
             padding: 20px;
             margin-bottom: 20px;
-            transition: transform 0.2s ease-out; /* REMOVED box-shadow from transition */
-            /* REMOVED: box-shadow */
+            box-shadow: none; /* No box-shadow */
+            transition: transform 0.2s ease-out;
+            border: 1px solid var(--divider-color); /* Subtle border for container */
         }
         .chart-container:hover {
             transform: translateY(-3px);
         }
         .chart-container h3 {
-            color: var(--metro-text-color);
-            font-weight: 300;
+            color: var(--text-color);
+            font-weight: 400;
             font-size: 1.8em;
             margin-top: 0;
             margin-bottom: 20px;
-            border-bottom: 1px solid var(--metro-light-gray);
+            border-bottom: 1px solid var(--divider-color);
             padding-bottom: 10px;
         }
 
         .last-uploaded-files {
-            background-color: white;
-            border-radius: 8px;
+            background-color: var(--surface-color);
+            border-radius: 0; /* Siku-siku */
             padding: 20px;
-            transition: transform 0.2s ease-out; /* REMOVED box-shadow from transition */
-            /* REMOVED: box-shadow */
+            box-shadow: none; /* No box-shadow */
+            transition: transform 0.2s ease-out;
+            border: 1px solid var(--divider-color); /* Subtle border for container */
         }
         .last-uploaded-files:hover {
             transform: translateY(-3px);
@@ -488,10 +499,10 @@ if ($isAjax) {
         .last-uploaded-files h3 {
             margin-top: 0;
             margin-bottom: 15px;
-            color: var(--metro-text-color);
-            font-weight: 300;
+            color: var(--text-color);
+            font-weight: 400;
             font-size: 1.8em;
-            border-bottom: 1px solid var(--metro-light-gray);
+            border-bottom: 1px solid var(--divider-color);
             padding-bottom: 10px;
         }
 
@@ -506,7 +517,7 @@ if ($isAjax) {
             justify-content: space-between;
             align-items: center;
             padding: 10px 0;
-            border-bottom: 1px solid var(--metro-light-gray);
+            border-bottom: 1px solid var(--divider-color);
             font-size: 0.95em;
         }
 
@@ -530,7 +541,7 @@ if ($isAjax) {
         }
         .last-uploaded-files .file-name {
             font-weight: 400;
-            color: var(--metro-text-color);
+            color: var(--text-color);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -539,7 +550,7 @@ if ($isAjax) {
         }
         .last-uploaded-files .file-meta {
             font-size: 0.85em;
-            color: var(--metro-dark-gray);
+            color: var(--secondary-text-color);
             flex-shrink: 0; /* Prevent meta from shrinking */
             margin-left: 10px;
         }
@@ -558,20 +569,32 @@ if ($isAjax) {
         .file-icon.folder { color: #FFD700; } /* Gold for folders */
         .file-icon.default { color: #999999; } /* Light Gray */
 
-        /* Windows 7-like Animations */
+        /* Animations */
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
-        @keyframes slideInFromTop {
+        /* Fly In/Out Animations for main-content */
+        @keyframes flyInFromBottom {
             from {
-                transform: translateY(-50px);
                 opacity: 0;
+                transform: translateY(100%);
             }
             to {
-                transform: translateY(0);
                 opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes flyOutToTop {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-100%);
             }
         }
 
@@ -579,7 +602,7 @@ if ($isAjax) {
         /* Responsive Classes for iPad, Tablet, HP (Android & iOS) */
         /* ========================================================================== */
 
-        /* Default for Desktop/Windows */
+        /* Default for Desktop */
         .sidebar-toggle-btn {
             display: none; /* Hidden on desktop */
         }
@@ -598,17 +621,17 @@ if ($isAjax) {
         }
 
         ::-webkit-scrollbar-track {
-            background: var(--metro-light-gray); /* Color of the track */
-            border-radius: 10px;
+            background: var(--background-color); /* Color of the track */
+            border-radius: 0; /* Siku-siku */
         }
 
         ::-webkit-scrollbar-thumb {
-            background: var(--metro-medium-gray); /* Color of the scroll thumb */
-            border-radius: 10px;
+            background: var(--divider-color); /* Color of the scroll thumb */
+            border-radius: 0; /* Siku-siku */
         }
 
         ::-webkit-scrollbar-thumb:hover {
-            background: var(--metro-dark-gray); /* Color of the scroll thumb on hover */
+            background: var(--secondary-text-color); /* Color of the scroll thumb on hover */
         }
 
         /* Class for iPad & Tablet (Landscape: min-width 768px, max-width 1024px) */
@@ -678,7 +701,7 @@ if ($isAjax) {
                 height: 100%;
                 z-index: 100;
                 transform: translateX(-100%); /* Hidden by default */
-                /* REMOVED: box-shadow */
+                box-shadow: 2px 0 5px rgba(0,0,0,0.2); /* Subtle shadow for mobile sidebar */
             }
             body.tablet-portrait .sidebar.show-mobile-sidebar {
                 transform: translateX(0); /* Show when active */
@@ -688,7 +711,7 @@ if ($isAjax) {
                 background: none;
                 border: none;
                 font-size: 1.8em;
-                color: var(--metro-text-color);
+                color: var(--adminlte-header-text);
                 cursor: pointer;
                 margin-left: 10px; /* Space from logo */
                 order: 0; /* Place on the left */
@@ -779,7 +802,7 @@ if ($isAjax) {
                 background: none;
                 border: none;
                 font-size: 1.5em;
-                color: var(--metro-text-color);
+                color: var(--adminlte-header-text);
                 cursor: pointer;
                 margin-left: 10px;
                 order: 0;
@@ -889,20 +912,20 @@ if ($isAjax) {
         </div>
         <ul class="sidebar-menu">
             <?php if ($currentUserRole === 'admin' || $currentUserRole === 'moderator'): ?>
-                <li><a href="control_center.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'control_center.php') ? 'active' : ''; ?>"><i class="fas fa-cogs"></i> Control Center</a></li>
+                <li><a href="control_center.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'control_center.php') ? 'active' : ''; ?>"><i class="fas fa-cogs"></i> <span data-lang-key="controlCenter">Control Center</span></a></li>
             <?php endif; ?>
             <?php if ($currentUserRole === 'admin' || $currentUserRole === 'user' || $currentUserRole === 'member'): ?>
-                <li><a href="index.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'index.php') ? 'active' : ''; ?>"><i class="fas fa-folder"></i> My Drive</a></li>
-                <li><a href="priority_files.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'priority_files.php') ? 'active' : ''; ?>"><i class="fas fa-star"></i> Priority File</a></li>
-                <li><a href="recycle_bin.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'recycle_bin.php') ? 'active' : ''; ?>"><i class="fas fa-trash"></i> Recycle Bin</a></li>
+                <li><a href="index.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'index.php') ? 'active' : ''; ?>"><i class="fas fa-folder"></i> <span data-lang-key="myDrive">My Drive</span></a></li>
+                <li><a href="priority_files.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'priority_files.php') ? 'active' : ''; ?>"><i class="fas fa-star"></i> <span data-lang-key="priorityFile">Priority File</span></a></li>
+                <li><a href="recycle_bin.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'recycle_bin.php') ? 'active' : ''; ?>"><i class="fas fa-trash"></i> <span data-lang-key="recycleBin">Recycle Bin</span></a></li>
             <?php endif; ?>
-            <li><a href="summary.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'summary.php') ? 'active' : ''; ?>"><i class="fas fa-chart-line"></i> Summary</a></li>
-            <li><a href="members.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'members.php') ? 'active' : ''; ?>"><i class="fas fa-users"></i> Members</a></li>
-            <li><a href="profile.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'profile.php') ? 'active' : ''; ?>"><i class="fas fa-user"></i> Profile</a></li>
-            <li><a href="logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+            <li><a href="summary.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'summary.php') ? 'active' : ''; ?>"><i class="fas fa-chart-line"></i> <span data-lang-key="summary">Summary</span></a></li>
+            <li><a href="members.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'members.php') ? 'active' : ''; ?>"><i class="fas fa-users"></i> <span data-lang-key="members">Members</span></a></li>
+            <li><a href="profile.php" class="<?php echo (basename($_SERVER['PHP_SELF']) == 'profile.php') ? 'active' : ''; ?>"><i class="fas fa-user"></i> <span data-lang-key="profile">Profile</span></a></li>
+            <li><a href="logout.php"><i class="fas fa-sign-out-alt"></i> <span data-lang-key="logout">Logout</span></a></li>
         </ul>
         <div class="storage-info">
-            <h4>Storage</h4>
+            <h4 data-lang-key="storage">Storage</h4>
             <div class="progress-bar-container">
                 <div class="progress-bar" style="width: <?php echo round($usedPercentage, 2); ?>%;">
                     <span class="progress-bar-text"><?php echo round($usedPercentage, 2); ?>%</span>
@@ -910,58 +933,58 @@ if ($isAjax) {
             </div>
             <p class="storage-text" id="storageText"><?php echo formatBytes($usedStorageBytes); ?> of <?php echo formatBytes($totalStorageBytes); ?> used</p>
             <?php if ($isStorageFull): ?>
-                <p class="storage-text storage-full-message" style="color: var(--metro-error); font-weight: bold;">Storage Full!</p>
+                <p class="storage-text storage-full-message" style="color: var(--error-color); font-weight: bold;" data-lang-key="storageFull">Storage Full!</p>
             <?php endif; ?>
         </div>
     </div>
 
-    <div class="main-content">
+    <div class="main-content" id="mainContent">
         <div class="header-main">
             <button class="sidebar-toggle-btn" id="sidebarToggleBtn"><i class="fas fa-bars"></i></button>
-            <h1 class="summary-title">Activity Log</h1>
+            <h1 class="summary-title" data-lang-key="activityLogTitle">Activity Log</h1>
         </div>
 
         <div class="dashboard-grid">
             <div class="card">
-                <h3>Total Files Uploaded</h3>
+                <h3 data-lang-key="totalFilesUploaded">Total Files Uploaded</h3>
                 <p class="count" id="totalFilesCount"><?php echo $totalFiles; ?></p>
             </div>
 
             <div class="card green">
-                <h3>Total Folders</h3>
+                <h3 data-lang-key="totalFolders">Total Folders</h3>
                 <p class="count" id="totalFoldersCount"><?php echo $totalFolders; ?></p>
             </div>
 
             <div class="card orange">
-                <h3>Total Storage Used</h3>
+                <h3 data-lang-key="totalStorageUsed">Total Storage Used</h3>
                 <p class="count" id="totalStorageUsed"><?php echo formatBytes($usedStorageBytes); ?></p>
-                <p class="storage-text-card" id="totalStorageCapacity">of <?php echo formatBytes($totalStorageBytes); ?></p>
+                <p class="storage-text-card" id="totalStorageCapacity" data-lang-key="ofUsedText">of <?php echo formatBytes($totalStorageBytes); ?> used</p>
             </div>
 
              <div class="card red">
-                <h3>Storage Used (%)</h3>
+                <h3 data-lang-key="storageUsedPercentage">Storage Used (%)</h3>
                 <p class="count" id="storageUsedPercentage"><?php echo round($usedPercentage, 2); ?>%</p>
             </div>
         </div>
 
         <div class="dashboard-grid" style="grid-template-columns: 2fr 1fr;">
             <div class="chart-container">
-                <h3>Uploads Per Month</h3>
+                <h3 data-lang-key="uploadsPerMonth">Uploads Per Month</h3>
                 <canvas id="uploadsPerMonthChart"></canvas>
             </div>
 
             <div class="chart-container">
-                <h3>File Type Distribution</h3>
+                <h3 data-lang-key="fileTypeDistribution">File Type Distribution</h3>
                 <canvas id="fileTypeChart"></canvas>
             </div>
         </div>
 
         <div class="dashboard-grid" style="grid-template-columns: 1fr 1fr;">
             <div class="last-uploaded-files">
-                <h3>Last Uploaded Files</h3>
+                <h3 data-lang-key="lastUploadedFiles">Last Uploaded Files</h3>
                 <ul id="lastUploadedFilesList">
                     <?php if (empty($lastUploadedFiles)): ?>
-                        <li>No recent uploads.</li>
+                        <li data-lang-key="noRecentUploads">No recent uploads.</li>
                     <?php else: ?>
                         <?php foreach ($lastUploadedFiles as $file): ?>
                             <li>
@@ -977,7 +1000,7 @@ if ($isAjax) {
             </div>
 
             <div class="chart-container">
-                <h3>Storage Usage Per Month</h3>
+                <h3 data-lang-key="storageUsagePerMonth">Storage Usage Per Month</h3>
                 <canvas id="storageUsageChart"></canvas>
             </div>
         </div>
@@ -990,7 +1013,91 @@ if ($isAjax) {
         let fileTypeChart;
         let storageUsageChart;
 
+        // --- Translation Data (Global) ---
+        const translations = {
+            // Sidebar
+            'controlCenter': { 'id': 'Control Center', 'en': 'Control Center' },
+            'myDrive': { 'id': 'Drive Saya', 'en': 'My Drive' },
+            'priorityFile': { 'id': 'File Prioritas', 'en': 'Priority File' },
+            'recycleBin': { 'id': 'Tempat Sampah', 'en': 'Recycle Bin' },
+            'summary': { 'id': 'Ringkasan', 'en': 'Summary' },
+            'members': { 'id': 'Anggota', 'en': 'Members' },
+            'profile': { 'id': 'Profil', 'en': 'Profile' },
+            'logout': { 'id': 'Keluar', 'en': 'Logout' },
+            'storage': { 'id': 'Penyimpanan', 'en': 'Storage' },
+            'storageFull': { 'id': 'Penyimpanan Penuh!', 'en': 'Storage Full!' },
+
+            // Summary Dashboard
+            'activityLogTitle': { 'id': 'Log Aktivitas', 'en': 'Activity Log' },
+            'totalFilesUploaded': { 'id': 'Total File Diunggah', 'en': 'Total Files Uploaded' },
+            'totalFolders': { 'id': 'Total Folder', 'en': 'Total Folders' },
+            'totalStorageUsed': { 'id': 'Total Penyimpanan Terpakai', 'en': 'Total Storage Used' },
+            'ofUsedText': { 'id': 'dari', 'en': 'of' }, // "of X used"
+            'storageUsedPercentage': { 'id': 'Penyimpanan Terpakai (%)', 'en': 'Storage Used (%)' },
+            'uploadsPerMonth': { 'id': 'Unggahan Per Bulan', 'en': 'Uploads Per Month' },
+            'fileTypeDistribution': { 'id': 'Distribusi Tipe File', 'en': 'File Type Distribution' },
+            'lastUploadedFiles': { 'id': 'File Terakhir Diunggah', 'en': 'Last Uploaded Files' },
+            'noRecentUploads': { 'id': 'Tidak ada unggahan terbaru.', 'en': 'No recent uploads.' },
+            'storageUsagePerMonth': { 'id': 'Penggunaan Penyimpanan Per Bulan', 'en': 'Storage Usage Per Month' },
+            'filesUploaded': { 'id': 'File Diunggah', 'en': 'Files Uploaded' },
+            'numberofFiles': { 'id': 'Jumlah File', 'en': 'Number of Files' },
+            'month': { 'id': 'Bulan', 'en': 'Month' },
+            'storageUsed': { 'id': 'Penyimpanan Terpakai', 'en': 'Storage Used' },
+        };
+
+        let currentLanguage = localStorage.getItem('lang') || 'id'; // Default to Indonesian
+
+        function applyTranslation(lang) {
+            document.querySelectorAll('[data-lang-key]').forEach(element => {
+                const key = element.getAttribute('data-lang-key');
+                if (translations[key] && translations[key][lang]) {
+                    element.textContent = translations[key][lang];
+                }
+            });
+
+            // Special handling for "of X used" text in cards
+            const totalStorageCapacityElement = document.getElementById('totalStorageCapacity');
+            if (totalStorageCapacityElement) {
+                const usedStorage = document.getElementById('totalStorageUsed').textContent;
+                const totalStorage = totalStorageCapacityElement.textContent.split(' ')[1]; // Get the total storage value
+                if (translations['ofUsedText'] && translations['ofUsedText'][lang]) {
+                    totalStorageCapacityElement.textContent = `${translations['ofUsedText'][lang]} ${totalStorage} ${lang === 'id' ? 'terpakai' : 'used'}`;
+                }
+            }
+
+            // Update sidebar storage text
+            const storageTextElement = document.getElementById('storageText');
+            if (storageTextElement) {
+                const usedStorage = storageTextElement.textContent.split(' ')[0]; // Get the used storage value
+                const totalStorage = storageTextElement.textContent.split(' ')[2]; // Get the total storage value
+                if (translations['ofUsedText'] && translations['ofUsedText'][lang]) {
+                    storageTextElement.textContent = `${usedStorage} ${translations['ofUsedText'][lang]} ${totalStorage} ${lang === 'id' ? 'terpakai' : 'used'}`;
+                }
+            }
+
+            // Update chart labels if charts are already rendered
+            if (uploadsPerMonthChart) {
+                uploadsPerMonthChart.data.datasets[0].label = translations['filesUploaded'][lang];
+                uploadsPerMonthChart.options.scales.y.title.text = translations['numberofFiles'][lang];
+                uploadsPerMonthChart.options.scales.x.title.text = translations['month'][lang];
+                uploadsPerMonthChart.update();
+            }
+            if (fileTypeChart) {
+                // Doughnut chart labels are dynamic, no direct translation needed for legend labels
+                fileTypeChart.update();
+            }
+            if (storageUsageChart) {
+                storageUsageChart.data.datasets[0].label = translations['storageUsed'][lang];
+                storageUsageChart.options.scales.y.title.text = translations['storageUsed'][lang];
+                storageUsageChart.options.scales.x.title.text = translations['month'][lang];
+                storageUsageChart.update();
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
+            // Get language from localStorage
+            currentLanguage = localStorage.getItem('lang') || 'id';
+
             // Initial chart rendering
             renderCharts(
                 <?php echo json_encode($monthLabels); ?>,
@@ -1008,6 +1115,7 @@ if ($isAjax) {
             const sidebar = document.querySelector('.sidebar');
             const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
             const mobileOverlay = document.getElementById('mobileOverlay');
+            const mainContent = document.getElementById('mainContent'); // Get main-content for animations
 
             // Sidebar menu items for active state management
             const sidebarMenuItems = document.querySelectorAll('.sidebar-menu a');
@@ -1060,6 +1168,24 @@ if ($isAjax) {
                 }
             });
 
+            // --- Sidebar Menu Navigation with Fly Out Animation ---
+            sidebarMenuItems.forEach(item => {
+                item.addEventListener('click', function(event) {
+                    // Only apply animation if it's a navigation link and not the current active page
+                    if (this.getAttribute('href') && !this.classList.contains('active')) {
+                        event.preventDefault(); // Prevent default navigation immediately
+                        const targetUrl = this.getAttribute('href');
+
+                        mainContent.classList.add('fly-out'); // Start fly-out animation
+
+                        mainContent.addEventListener('animationend', function handler() {
+                            mainContent.removeEventListener('animationend', handler);
+                            window.location.href = targetUrl; // Navigate after animation
+                        });
+                    }
+                });
+            });
+
             // Set active class for current page in sidebar
             const currentPage = window.location.pathname.split('/').pop();
             sidebarMenuItems.forEach(item => {
@@ -1069,6 +1195,9 @@ if ($isAjax) {
                     item.classList.add('active');
                 }
             });
+
+            // Apply initial translation
+            applyTranslation(currentLanguage);
         });
 
         // Function to get file icon class based on extension (replicated from PHP for client-side rendering)
@@ -1218,10 +1347,10 @@ if ($isAjax) {
                 data: {
                     labels: monthLabels,
                     datasets: [{
-                        label: 'Files Uploaded',
+                        label: translations['filesUploaded'][currentLanguage] || 'Files Uploaded',
                         data: monthData,
-                        backgroundColor: 'var(--metro-blue)', // Use Metro blue
-                        borderColor: 'var(--metro-blue)',
+                        backgroundColor: 'var(--primary-color)', // Use Material primary color
+                        borderColor: 'var(--primary-color)',
                         borderWidth: 1
                     }]
                 },
@@ -1232,34 +1361,34 @@ if ($isAjax) {
                             beginAtZero: true,
                             title: {
                                 display: true,
-                                text: 'Number of Files',
-                                color: 'var(--metro-text-color)'
+                                text: translations['numberofFiles'][currentLanguage] || 'Number of Files',
+                                color: 'var(--text-color)'
                             },
                             ticks: {
-                                color: 'var(--metro-dark-gray)'
+                                color: 'var(--secondary-text-color)'
                             },
                             grid: {
-                                color: 'var(--metro-light-gray)'
+                                color: 'var(--divider-color)'
                             }
                         },
                         x: {
                             title: {
                                 display: true,
-                                text: 'Month',
-                                color: 'var(--metro-text-color)'
+                                text: translations['month'][currentLanguage] || 'Month',
+                                color: 'var(--text-color)'
                             },
                             ticks: {
-                                color: 'var(--metro-dark-gray)'
+                                color: 'var(--secondary-text-color)'
                             },
                             grid: {
-                                color: 'var(--metro-light-gray)'
+                                color: 'var(--divider-color)'
                             }
                         }
                     },
                     plugins: {
                         legend: {
                             labels: {
-                                color: 'var(--metro-text-color)'
+                                color: 'var(--text-color)'
                             }
                         }
                     }
@@ -1269,7 +1398,7 @@ if ($isAjax) {
             // File Type Distribution Chart
             const fileTypeCtx = document.getElementById('fileTypeChart').getContext('2d');
             const fileTypeColors = [
-                '#E81123', '#0078D7', '#4CAF50', '#FF8C00', '#8E24AA', /* Metro-inspired colors */
+                '#E81123', '#0078D7', '#4CAF50', '#FF8C00', '#8E24AA', /* Material-inspired colors */
                 '#F7B500', '#666666', '#00B294', '#D24726', '#2B579A',
                 '#107C10', '#FFB900', '#505050', '#999999', '#0056b3',
                 '#C8C8C8', '#E1E1E1', '#2D2D30', '#333333', '#F0F0F0'
@@ -1290,12 +1419,12 @@ if ($isAjax) {
                         legend: {
                             position: 'right',
                             labels: {
-                                color: 'var(--metro-text-color)'
+                                color: 'var(--text-color)'
                             }
                         },
                         title: {
                             display: false,
-                            text: 'File Type Distribution'
+                            text: translations['fileTypeDistribution'][currentLanguage] || 'File Type Distribution'
                         }
                     }
                 }
@@ -1308,10 +1437,10 @@ if ($isAjax) {
                 data: {
                     labels: storageMonthLabels,
                     datasets: [{
-                        label: 'Storage Used',
+                        label: translations['storageUsed'][currentLanguage] || 'Storage Used',
                         data: storageMonthData,
-                        backgroundColor: 'var(--metro-success)', // Use Metro success color
-                        borderColor: 'var(--metro-success)',
+                        backgroundColor: 'var(--success-color)', // Use Material success color
+                        borderColor: 'var(--success-color)',
                         borderWidth: 1
                     }]
                 },
@@ -1322,37 +1451,37 @@ if ($isAjax) {
                             beginAtZero: true,
                             title: {
                                 display: true,
-                                text: 'Month',
-                                color: 'var(--metro-text-color)'
+                                text: translations['month'][currentLanguage] || 'Month',
+                                color: 'var(--text-color)'
                             },
                             ticks: {
-                                color: 'var(--metro-dark-gray)'
+                                color: 'var(--secondary-text-color)'
                             },
                             grid: {
-                                color: 'var(--metro-light-gray)'
+                                color: 'var(--divider-color)'
                             }
                         },
                         y: {
                             title: {
                                 display: true,
-                                text: 'Storage Used',
-                                color: 'var(--metro-text-color)'
+                                text: translations['storageUsed'][currentLanguage] || 'Storage Used',
+                                color: 'var(--text-color)'
                             },
                             ticks: {
-                                color: 'var(--metro-dark-gray)',
+                                color: 'var(--secondary-text-color)',
                                 callback: function(value, index, values) {
                                     return formatBytes(value); // Custom formatting function
                                 }
                             },
                             grid: {
-                                color: 'var(--metro-light-gray)'
+                                color: 'var(--divider-color)'
                             }
                         }
                     },
                     plugins: {
                         legend: {
                             labels: {
-                                color: 'var(--metro-text-color)'
+                                color: 'var(--text-color)'
                             }
                         },
                         tooltip: {
@@ -1383,13 +1512,22 @@ if ($isAjax) {
                 document.getElementById('totalFilesCount').textContent = data.totalFiles;
                 document.getElementById('totalFoldersCount').textContent = data.totalFolders;
                 document.getElementById('totalStorageUsed').textContent = data.formattedUsedStorage;
-                document.getElementById('totalStorageCapacity').textContent = `of ${data.formattedTotalStorage}`;
+                
+                const totalStorageCapacityElement = document.getElementById('totalStorageCapacity');
+                if (totalStorageCapacityElement) {
+                    totalStorageCapacityElement.textContent = `${translations['ofUsedText'][currentLanguage]} ${data.formattedTotalStorage} ${currentLanguage === 'id' ? 'terpakai' : 'used'}`;
+                }
+
                 document.getElementById('storageUsedPercentage').textContent = `${data.usedPercentage}%`;
 
                 // Update sidebar storage info
                 document.querySelector('.progress-bar').style.width = `${data.usedPercentage}%`;
                 document.querySelector('.progress-bar-text').textContent = `${data.usedPercentage}%`;
-                document.getElementById('storageText').textContent = `${data.formattedUsedStorage} of ${data.formattedTotalStorage} used`;
+                
+                const storageTextElement = document.getElementById('storageText');
+                if (storageTextElement) {
+                    storageTextElement.textContent = `${data.formattedUsedStorage} ${translations['ofUsedText'][currentLanguage]} ${data.formattedTotalStorage} ${currentLanguage === 'id' ? 'terpakai' : 'used'}`;
+                }
                 
                 const storageInfoDiv = document.querySelector('.storage-info');
                 let storageFullMessage = storageInfoDiv.querySelector('.storage-full-message');
@@ -1398,9 +1536,9 @@ if ($isAjax) {
                     if (!storageFullMessage) {
                         const p = document.createElement('p');
                         p.className = 'storage-text storage-full-message';
-                        p.style.color = 'var(--metro-error)';
+                        p.style.color = 'var(--error-color)';
                         p.style.fontWeight = 'bold';
-                        p.textContent = 'Storage Full!';
+                        p.setAttribute('data-lang-key', 'storageFull'); // Add data-lang-key for translation
                         storageInfoDiv.appendChild(p);
                     }
                 } else {
@@ -1414,7 +1552,10 @@ if ($isAjax) {
                 const lastUploadedFilesList = document.getElementById('lastUploadedFilesList');
                 lastUploadedFilesList.innerHTML = '';
                 if (data.lastUploadedFiles.length === 0) {
-                    lastUploadedFilesList.innerHTML = '<li>No recent uploads.</li>';
+                    const li = document.createElement('li');
+                    li.setAttribute('data-lang-key', 'noRecentUploads');
+                    li.textContent = translations['noRecentUploads'][currentLanguage] || 'No recent uploads.';
+                    lastUploadedFilesList.appendChild(li);
                 } else {
                     data.lastUploadedFiles.forEach(file => {
                         const listItem = document.createElement('li');
@@ -1444,6 +1585,9 @@ if ($isAjax) {
                     data.storageMonthLabels,
                     data.storageMonthData
                 );
+
+                // Re-apply translation after AJAX update
+                applyTranslation(currentLanguage);
 
             } catch (error) {
                 console.error('Error fetching dashboard data:', error);
