@@ -1,0 +1,91 @@
+/* File Icon Colors */
+.file-color-pdf {
+  color: #E81123;
+}
+
+/* Red */
+.file-color-doc {
+  color: #2B579A;
+}
+
+/* Blue */
+.file-color-xls {
+  color: #217346;
+}
+
+/* Green */
+.file-color-ppt {
+  color: #D24726;
+}
+
+/* Orange */
+.file-color-txt {
+  color: #666666;
+}
+
+/* Dark Gray */
+.file-color-csv {
+  color: #1E6F42;
+}
+
+/* Dark Green */
+
+.file-color-image {
+  color: #8E24AA;
+}
+
+/* Purple */
+.file-color-audio {
+  color: #00B294;
+}
+
+/* Teal */
+.file-color-video {
+  color: #FFB900;
+}
+
+/* Gold */
+
+.file-color-archive {
+  color: #F7B500;
+}
+
+/* Amber */
+.file-color-code {
+  color: #505050;
+}
+
+/* Dark Gray */
+.file-color-exe {
+  color: #0078D7;
+}
+
+/* Blue */
+
+/* CAD Files (NEW) */
+.file-color-cad {
+  color: #FF4500;
+  /* Orange-Red, you can choose any color */
+}
+
+.file-color-default {
+  color: #999999;
+}
+
+/* Light Gray */
+
+/* Folder specific */
+.file-icon.folder {
+  color: #FFD700;
+}
+
+/* Gold */
+
+/* Icon base styling */
+.file-icon {
+  font-size: 1.2em;
+  width: 24px;
+  text-align: center;
+  display: inline-block;
+  margin-right: 8px;
+}
