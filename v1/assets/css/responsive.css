@@ -1,0 +1,239 @@
+/* Responsive Design for SKMI Cloud Storage */
+
+/* Tablet Landscape */
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 250px;
+  }
+
+  .content-header h1 {
+    font-size: 2.2em;
+  }
+
+  .search-input {
+    min-width: 200px;
+  }
+}
+
+/* Tablet Portrait */
+@media (max-width: 768px) {
+  .app-container {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    height: auto;
+    order: 2;
+  }
+
+  .sidebar-header {
+    padding: 20px;
+  }
+
+  .sidebar-header img {
+    width: 80px;
+  }
+
+  .sidebar-header h2 {
+    font-size: 1.5em;
+  }
+
+  .sidebar-menu {
+    display: flex;
+    overflow-x: auto;
+    padding: 15px 20px;
+  }
+
+  .sidebar-menu ul {
+    display: flex;
+    gap: 10px;
+    flex-wrap: nowrap;
+  }
+
+  .sidebar-menu li {
+    margin-bottom: 0;
+    flex-shrink: 0;
+  }
+
+  .sidebar-menu a {
+    padding: 12px 20px;
+    white-space: nowrap;
+    border-radius: 20px;
+    border-left: none;
+  }
+
+  .sidebar-menu a.active {
+    border-left: none;
+    background-color: var(--primary-color);
+  }
+
+  .storage-info,
+  .user-info {
+    display: none;
+  }
+
+  .main-content {
+    order: 1;
+    height: calc(100vh - 120px);
+  }
+
+  .content-header {
+    padding: 20px;
+    flex-direction: column;
+    gap: 20px;
+    align-items: stretch;
+  }
+
+  .content-header h1 {
+    font-size: 2em;
+    text-align: center;
+  }
+
+  .header-actions {
+    justify-content: center;
+  }
+
+  .search-input {
+    min-width: 150px;
+  }
+
+  .content-body {
+    padding: 20px;
+  }
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+  .sidebar-header {
+    padding: 15px;
+  }
+
+  .sidebar-header img {
+    width: 60px;
+  }
+
+  .sidebar-header h2 {
+    font-size: 1.3em;
+  }
+
+  .sidebar-menu {
+    padding: 10px 15px;
+  }
+
+  .sidebar-menu a {
+    padding: 10px 15px;
+    font-size: 0.85em;
+  }
+
+  .content-header {
+    padding: 15px;
+  }
+
+  .content-header h1 {
+    font-size: 1.8em;
+  }
+
+  .header-actions {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .search-container {
+    width: 100%;
+  }
+
+  .search-input {
+    min-width: auto;
+    flex-grow: 1;
+  }
+
+  .upload-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .content-body {
+    padding: 15px;
+  }
+}
+
+/* Small Mobile */
+@media (max-width: 360px) {
+  .sidebar-header h2 {
+    font-size: 1.2em;
+  }
+
+  .content-header h1 {
+    font-size: 1.6em;
+  }
+
+  .sidebar-menu a {
+    padding: 8px 12px;
+    font-size: 0.8em;
+  }
+}
+
+/* High DPI Displays */
+@media (-webkit-min-device-pixel-ratio: 2),
+(min-resolution: 192dpi) {
+  .sidebar-header img {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+}
+
+/* Print Styles */
+@media print {
+
+  .sidebar,
+  .header-actions,
+  .upload-btn {
+    display: none;
+  }
+
+  .main-content {
+    margin: 0;
+    padding: 20px;
+  }
+
+  .content-header {
+    border-bottom: 2px solid #000;
+  }
+
+  .content-header h1 {
+    color: #000;
+  }
+}
+
+/* Accessibility Improvements */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2d2d2d;
+    --text-primary: #ffffff;
+    --text-secondary: #cccccc;
+    --border-color: #404040;
+  }
+
+  .search-container {
+    background-color: var(--bg-secondary);
+  }
+
+  .search-input {
+    color: var(--text-primary);
+  }
+
+  .search-input::placeholder {
+    color: var(--text-secondary);
+  }
+}
