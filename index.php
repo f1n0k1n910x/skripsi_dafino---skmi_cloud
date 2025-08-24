@@ -2391,6 +2391,14 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
 
         let currentLanguage = localStorage.getItem('lang') || 'id'; // Default to Indonesian
 
+        function formatBytes(bytes, precision = 2) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(precision)) + ' ' + sizes[i];
+        }
+
         function applyTranslation(lang) {
             document.querySelectorAll('[data-lang-key]').forEach(element => {
                 const key = element.getAttribute('data-lang-key');
@@ -3127,19 +3135,28 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
 
                 const itemType = item.dataset.type;
                 const itemName = item.dataset.name;
-                const fileType = item.dataset.fileType; // Get file type for restriction check
+                const fileType = item.dataset.fileType;
 
-                // --- NEW: Check for restricted file types ---
-                if (itemType === 'file' && restrictedFileTypes.includes(fileType) && currentUserRole !== 'admin' && currentUserRole !== 'moderator') {
+                // Restriction check
+                if (
+                    itemType === 'file' &&
+                    restrictedFileTypes.includes(fileType) &&
+                    currentUserRole !== 'admin' &&
+                    currentUserRole !== 'moderator'
+                ) {
                     showNotification('noPermissionRestrictedRename', 'error');
                     return;
                 }
-                // --- END NEW ---
 
                 document.getElementById('renameItemId').value = id;
                 document.getElementById('renameItemActualType').value = itemType;
                 document.getElementById('newName').value = itemName;
-                document.getElementById('renameItemType').textContent = translations[itemType][currentLanguage]; // Translate item type
+
+                // ✅ Safe check before setting textContent
+                const renameItemTypeElement = document.getElementById('renameItemType');
+                if (renameItemTypeElement) {
+                    renameItemTypeElement.textContent = translations[itemType]?.[currentLanguage] ?? itemType;
+                }
 
                 openModal(renameModal);
             }
