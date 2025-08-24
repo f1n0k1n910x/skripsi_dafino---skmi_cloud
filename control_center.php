@@ -13,11 +13,11 @@ if (!isset($_SESSION['user_id'])) {
 // Define $currentUserRole from session
 $currentUserRole = isset($_SESSION['role']) ? $_SESSION['role'] : 'guest'; // Default to 'guest' if not set
 
-// Check if the user has admin or moderator role
-if ($currentUserRole !== 'admin' && $currentUserRole !== 'moderator') {
-    header("Location: index.php"); // Redirect if not authorized
-    exit();
-}
+// // Check if the user has admin or moderator role
+// if ($currentUserRole !== 'admin' && $currentUserRole !== 'moderator') {
+//     header("Location: index.php"); // Redirect if not authorized
+//     exit();
+// }
 
 $currentUserId = $_SESSION['user_id'];
 
@@ -1205,6 +1205,12 @@ if (isset($_SESSION['message'])) {
                 </div>
                 <button type="submit" name="create_member_account" data-lang-key="createAccount">Create Account</button>
             </form>
+            <?php if (isset($message)): ?>
+            <div id="customNotification" class="<?php echo $messageType; ?>">
+                <?php echo htmlspecialchars($message); ?>
+            </div>
+            <?php endif; ?>
+
         </div>
 
         <div class="member-monitoring-header">
@@ -1484,6 +1490,75 @@ if (isset($_SESSION['message'])) {
                 xhr.send();
             }
 
+            function fetchMembers() {
+                fetch('v2/services/api/fetchMembers.php')
+                    .then(response => response.json())
+                    .then(data => {
+                        const tbody = document.querySelector(".member-table tbody");
+                        tbody.innerHTML = ""; // 🔥 Clear old rows
+
+                        data.forEach(member => {
+                            const tr = document.createElement("tr");
+                            tr.innerHTML = `
+                                <td>${member.id}</td>
+                                <td>${member.username}</td>
+                                <td>${member.full_name}</td>
+                                <td>
+                                    <span data-lang-key="${member.role ? member.role.toLowerCase() + 'Role' : ''}">
+                                        ${member.role ? capitalizeFirstLetter(member.role) : ''}
+                                    </span>
+                                </td>      
+                                <td>${escapeHtml(member.email)}</td>
+                                <td>${
+                                    member.last_login 
+                                        ? formatDate(member.last_login) 
+                                        : '<span data-lang-key="na">N/A</span>'
+                                }</td>
+                                <td>
+                                    <span class="status-indicator ${member.is_online ? 'online' : 'offline'}"></span>
+                                    <span data-lang-key="${member.is_online ? 'onlineStatus' : 'offlineStatus'}">
+                                        ${member.is_online ? 'Online' : 'Offline'}
+                                    </span>
+                                </td>
+                                <td class="action-buttons">
+                                    <button onclick="viewMemberDetails(${member.id})" data-lang-key="viewDetails">
+                                        View Details
+                                    </button>
+                                </td>
+                            `;
+                            tbody.appendChild(tr);
+                        });
+                    })
+                    .catch(error => console.error("Error fetching members:", error));
+            }
+
+            // Helpers (same as PHP version behavior)
+            function escapeHtml(text) {
+                if (typeof text !== "string" && typeof text !== "number") return "";
+                return text.toString().replace(/&/g, "&amp;")
+                                    .replace(/</g, "&lt;")
+                                    .replace(/>/g, "&gt;")
+                                    .replace(/"/g, "&quot;")
+                                    .replace(/'/g, "&#039;");
+            }
+
+            function capitalizeFirstLetter(str) {
+                return str ? str.charAt(0).toUpperCase() + str.slice(1) : "";
+            }
+
+            function formatDate(dateString) {
+                const date = new Date(dateString);
+                if (isNaN(date)) return '<span data-lang-key="na">N/A</span>';
+
+                const year = date.getFullYear();
+                const month = ("0" + (date.getMonth() + 1)).slice(-2);
+                const day = ("0" + date.getDate()).slice(-2);
+                const hours = ("0" + date.getHours()).slice(-2);
+                const minutes = ("0" + date.getMinutes()).slice(-2);
+
+                return `${year}-${month}-${day} ${hours}:${minutes}`;
+            }
+
             searchMemberInputDesktop.addEventListener('keyup', function() {
                 updateMemberList(this.value);
             });
@@ -1548,7 +1623,7 @@ if (isset($_SESSION['message'])) {
                     // If successful, clear form and update member list
                     if (messageType === 'success') {
                         createMemberForm.reset();
-                        updateMemberList(''); // Refresh member list
+                        fetchMembers(); // Refresh member list
                     }
                 })
                 .catch(error => {
