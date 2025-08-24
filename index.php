@@ -693,38 +693,25 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
 
         /* List View (Google Drive Style) */
         .file-table {
-            width: 100%;
-            border-collapse: collapse; /* Kunci utama */
-            table-layout: fixed; /* Kunci utama */
-            margin-top: 0;
-            border: none; /* Remove outer border, container has it */
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
         }
 
-        .file-table th, .file-table td {
-            border-bottom: 1px solid #dadce0; /* Google Drive border color */
-            border-top: none;
-            border-left: none;
-            border-right: none;
+        .file-table th, 
+        .file-table td {
             padding: 12px 24px;
-            vertical-align: middle; /* Pastikan konten vertikal rata tengah */
-            font-size: 0.875em;
-            color: #3c4043; /* Google Drive text color */
+            vertical-align: middle;
+            border: none; /* no cell-level borders */
         }
 
-        .file-table th {
-            background-color: #f8f9fa; /* Google Drive header background */
-            color: #5f6368; /* Google Drive header text */
-            font-weight: 500;
-            text-transform: none;
-            position: sticky;
-            top: 0;
-            z-index: 1;
-            text-align: left; /* Biar header selalu rata */
+        .file-table tbody tr {
+            border-bottom: 1px solid #e0e0e0; /* every row, including last one */
         }
 
         .file-table tbody tr:last-child td {
-            border-bottom: none;
-        }
+            border-bottom: 1px solid #e0e0e0; /* keep consistent */
+        } */
 
         .file-table tbody tr:hover {
             background-color: #f0f0f0; /* Google Drive hover effect */
@@ -751,10 +738,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
         .file-name-cell {
             display: flex;
             align-items: center;
-            max-width: 400px; /* Adjusted max-width */
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            height: 100%; /* new */
         }
 
         .file-name-cell a {
