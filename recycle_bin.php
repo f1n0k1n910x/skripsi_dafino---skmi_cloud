@@ -286,7 +286,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 <!-- Size Filter Button (Replaces Release Date Filter) -->
                 <div class="dropdown-container size-filter-dropdown-container">
                     <button id="sizeFilterBtn" class="filter-button"><i class="fas fa-sort-amount-down"></i></button>
-                    <div class="dropdown-content size-filter-dropdown-content">
+                    <div class="dropdown-content size-filter-dropdown-content" style="position: absolute; top: 100%; right: 3%; transform: translateX(-50%); margin-top: 8px; padding:5px 0; border-radius:4px;">
                         <a href="#" data-filter="largest" data-lang-key="largestSize">Largest First</a>
                         <a href="#" data-filter="smallest" data-lang-key="smallestSize">Smallest First</a>
                         <a href="#" data-filter="none" data-lang-key="noSizeFilter">No Size Filter</a>
