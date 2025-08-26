@@ -281,7 +281,7 @@ if (isset($_SESSION['message'])) {
             <input type="text" id="searchMemberInputMobile" placeholder="Search members..." value="<?php echo htmlspecialchars($searchMemberQuery); ?>" data-lang-key="searchMembersPlaceholder">
         </div>
 
-        <div class="member-list-section">
+        <div class="member-list-section" style="padding:0;">
             <table class="member-table">
                 <thead>
                     <tr>
