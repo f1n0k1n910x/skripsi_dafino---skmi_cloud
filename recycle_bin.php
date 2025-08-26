@@ -348,55 +348,56 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
 
         <div class="file-list-container">
             <div id="fileListView" class="file-view">
-                <table class="file-table">
-                    <thead>
-                        <tr>
-                            <th><input type="checkbox" id="selectAllCheckbox"></th>
-                            <th data-lang-key="name">Name</th>
-                            <th data-lang-key="type">Type</th>
-                            <th data-lang-key="size">Size</th>
-                            <th data-lang-key="deletedAt">Deleted At</th>
-                            <th data-lang-key="actions">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php if (empty($deletedItems) && !empty($searchQuery)): ?>
+                    <table class="file-table">
+                        <thead>
                             <tr>
-                                <td colspan="6" style="text-align: center; padding: 20px;" data-lang-key="noSearchResults">No deleted files or folders found matching "<?php echo htmlspecialchars($searchQuery); ?>"</td>
+                                <th><input type="checkbox" id="selectAllCheckbox"></th>
+                                <th data-lang-key="name">Name</th>
+                                <th data-lang-key="type">Type</th>
+                                <th data-lang-key="size">Size</th>
+                                <th data-lang-key="deletedAt">Deleted At</th>
+                                <th data-lang-key="actions">Actions</th>
                             </tr>
-                        <?php elseif (empty($deletedItems) && empty($searchQuery)): ?>
-                            <tr>
-                                <td colspan="6" style="text-align: center; padding: 20px;" data-lang-key="recycleBinEmpty">Recycle Bin is empty.</td>
-                            </tr>
-                        <?php endif; ?>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($deletedItems) && !empty($searchQuery)): ?>
+                                <tr>
+                                    <td colspan="6" style="text-align: center; padding: 20px;" data-lang-key="noSearchResults">No deleted files or folders found matching "<?php echo htmlspecialchars($searchQuery); ?>"</td>
+                                </tr>
+                            <?php elseif (empty($deletedItems) && empty($searchQuery)): ?>
+                                <tr>
+                                    <td colspan="6" style="text-align: center; padding: 20px;" data-lang-key="recycleBinEmpty">Recycle Bin is empty.</td>
+                                </tr>
+                            <?php endif; ?>
 
-                        <?php foreach ($deletedItems as $item): ?>
-                            <?php
-                                $itemId = $item['id'];
-                                $itemType = $item['item_type'];
-                                $itemName = $itemType === 'file' ? $item['file_name'] : $item['folder_name'];
-                                $itemSize = $itemType === 'file' ? formatBytes($item['file_size']) : 'Folder'; // Folder size not stored in deleted_folders
-                                $itemDeletedAt = date('Y-m-d H:i', strtotime($item['deleted_at']));
-                                $fileExt = $itemType === 'file' ? strtolower($item['file_type']) : 'folder';
-                                $iconClass = $itemType === 'file' ? getFontAwesomeIconClass($itemName) : 'fa-folder';
-                                $colorClass = $itemType === 'file' ? getFileColorClassPhp($itemName) : 'folder';
-                            ?>
-                            <tr class="file-item" data-id="<?php echo $itemId; ?>" data-type="<?php echo $itemType; ?>" data-name="<?php echo htmlspecialchars($itemName); ?>" data-file-type="<?php echo $fileExt; ?>" tabindex="0">
-                                <td><input type="checkbox" class="file-checkbox" data-id="<?php echo $itemId; ?>" data-type="<?php echo $itemType; ?>"></td>
-                                <td class="file-name-cell">
-                                    <i class="fas <?php echo $iconClass; ?> file-icon <?php echo $colorClass; ?>"></i>
-                                    <span><?php echo htmlspecialchars($itemName); ?></span>
-                                </td>
-                                <td data-lang-key="<?php echo $itemType; ?>Type"><?php echo ucfirst($itemType); ?></td>
-                                <td><?php echo $itemSize; ?></td>
-                                <td><?php echo $itemDeletedAt; ?></td>
-                                <td>
-                                    <button class="item-more" aria-haspopup="true" aria-label="More">⋮</button>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
+                            <?php foreach ($deletedItems as $item): ?>
+                                <?php
+                                    $itemId = $item['id'];
+                                    $itemType = $item['item_type'];
+                                    $itemName = $itemType === 'file' ? $item['file_name'] : $item['folder_name'];
+                                    $itemSize = $itemType === 'file' ? formatBytes($item['file_size']) : 'Folder'; // Folder size not stored in deleted_folders
+                                    $itemDeletedAt = date('Y-m-d H:i', strtotime($item['deleted_at']));
+                                    $fileExt = $itemType === 'file' ? strtolower($item['file_type']) : 'folder';
+                                    $iconClass = $itemType === 'file' ? getFontAwesomeIconClass($itemName) : 'fa-folder';
+                                    $colorClass = $itemType === 'file' ? getFileColorClassPhp($itemName) : 'folder';
+                                ?>
+                                <tr class="file-item" data-id="<?php echo $itemId; ?>" data-type="<?php echo $itemType; ?>" data-name="<?php echo htmlspecialchars($itemName); ?>" data-file-type="<?php echo $fileExt; ?>" tabindex="0">
+                                    <td><input type="checkbox" class="file-checkbox" data-id="<?php echo $itemId; ?>" data-type="<?php echo $itemType; ?>"></td>
+                                    <td class="file-name-cell" style="display:table-cell; vertical-align:middle;">
+                                        <i class="fas <?php echo $iconClass; ?> file-icon <?php echo $colorClass; ?>"></i>
+                                        <span><?php echo htmlspecialchars($itemName); ?></span>
+                                    </td>
+                                    <td data-lang-key="<?php echo $itemType; ?>Type"><?php echo ucfirst($itemType); ?></td>
+                                    <td><?php echo $itemSize; ?></td>
+                                    <td><?php echo $itemDeletedAt; ?></td>
+                                    <td>
+                                        <button class="item-more" aria-haspopup="true" aria-label="More">⋮</button>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             <div id="fileGridView" class="file-view hidden">
