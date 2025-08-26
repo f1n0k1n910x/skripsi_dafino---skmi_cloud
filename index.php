@@ -419,15 +419,14 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 </div>
 
                 <!-- Size Filter Button (Replaces Release Date Filter) -->
-                <div class="dropdown-container size-filter-dropdown-container">
+                <div class="dropdown-container size-filter-dropdown-container"  style="position: relative;">
                     <button id="sizeFilterBtn" class="filter-button"><i class="fas fa-sort-amount-down"></i></button>
-                    <div class="dropdown-content size-filter-dropdown-content">
+                    <div class="dropdown-content size-filter-dropdown-content" style="position: absolute; top: 100%; right: 3%; transform: translateX(-50%); margin-top: 8px; padding:5px 0; border-radius:4px;">
                         <a href="#" data-size="desc" data-lang-key="sizeLargeToSmall">Size (Large to Small)</a>
                         <a href="#" data-size="asc" data-lang-key="sizeSmallToLarge">Size (Small to Large)</a>
                         <a href="#" data-size="none" data-lang-key="defaultAlphabetical">Default (Alphabetical)</a>
                     </div>
                 </div>
-
                 <!-- View Toggle Buttons (Hidden on mobile/tablet portrait) -->
                 <div class="view-toggle">
                     <button id="listViewBtn" class="active"><i class="fas fa-list"></i></button>
