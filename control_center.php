@@ -121,7 +121,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
                         <?php echo $member['is_online'] ? 'Online' : 'Offline'; ?>
                     </td>
                     <td class="action-buttons">
-                        <button onclick="viewMemberDetails(<?php echo $member['id']; ?>)">View Details</button>
+                        <button  data-lang-key="viewDetails" onclick="viewMemberDetails(<?php echo $member['id']; ?>)">View Details</button>
                         <!-- Add more actions like Edit, Delete if needed -->
                     </td>
                 </tr>
@@ -173,7 +173,20 @@ if (isset($_SESSION['message'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SKMI Cloud Storage - Control Center</title>
+
+    <!-- Bootstrap 4 CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+    <!-- AdminLTE CSS -->
+    <!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css"> -->
+    <!-- jQuery -->
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <!-- Bootstrap 4 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- AdminLTE -->
+    <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
     <link rel="stylesheet" href="css/control_center.css">
 </head>
 <body>
@@ -310,9 +323,20 @@ if (isset($_SESSION['message'])) {
                                     <span data-lang-key="<?php echo $member['is_online'] ? 'onlineStatus' : 'offlineStatus'; ?>"><?php echo $member['is_online'] ? 'Online' : 'Offline'; ?></span>
                                 </td>
                                 <td class="action-buttons">
-                                    <button onclick="viewMemberDetails(<?php echo $member['id']; ?>)" data-lang-key="viewDetails">View Details</button>
-                                    <!-- Add more actions like Edit, Delete if needed -->
+                                    <div class="btn-group">
+                                        <button type="button" class="btn btn-primary btn-sm dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
+                                        </button>
+                                        <div class="dropdown-menu">
+                                        <a class="dropdown-item" href="javascript:void(0)" onclick="viewMemberDetails(<?php echo $member['id']; ?>)">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                        <a class="dropdown-item text-danger" href="delete.php?id=<?php echo $member['id']; ?>" onclick="return confirm('Are you sure?')">
+                                            <i class="fas fa-trash"></i> Delete
+                                        </a>
+                                        </div>
+                                    </div>
                                 </td>
+
                             </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
