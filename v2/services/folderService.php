@@ -208,7 +208,7 @@ function deleteFolderAndMoveFilesToTrash($conn, $userId, $folderId, $baseUploadD
 /**
  * Delete selected items (files or folders).
  */
-function deleteSelectedItems($conn, $userId, array $itemsToDelete, string $baseUploadDir = 'uploads/') {
+function deleteSelectedItems($conn, $userId, array $itemsToDelete, string $baseUploadDir = '/../uploads/') {
     $conn->begin_transaction();
     $successCount = 0;
     $failMessages = [];

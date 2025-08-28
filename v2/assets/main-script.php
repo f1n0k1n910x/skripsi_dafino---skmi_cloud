@@ -449,9 +449,15 @@ $currentFolderPath = ''; // To build the full path for uploads and display
       // --- Delete Selected Files/Folders ---
       deleteSelectedBtn.addEventListener('click', async () => {
           const checkboxes = document.querySelectorAll('.file-checkbox:checked');
-          const selectedItems = Array.from(checkboxes).map(cb => {
-              return { id: cb.dataset.id, type: cb.dataset.type };
-          });
+          const seen = new Set();
+            const selectedItems = Array.from(checkboxes).reduce((acc, cb) => {
+            const key = `${cb.dataset.type}-${cb.dataset.id}`;
+            if (!seen.has(key)) {
+                seen.add(key);
+                acc.push({ id: cb.dataset.id, type: cb.dataset.type });
+            }
+            return acc;
+            }, []);
 
           if (selectedItems.length === 0) {
               showNotification('Please select at least one file or folder to delete!', 'error');

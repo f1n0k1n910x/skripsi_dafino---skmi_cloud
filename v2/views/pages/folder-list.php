@@ -27,10 +27,13 @@ $currentFolderId = isset($_GET['folder']) ? (int)$_GET['folder'] : NULL;
         </div>
 
         <div class="toolbar">
-            <div class="toolbar-left">
-                <button id="uploadFileBtn" <?php echo $isStorageFull ? 'disabled' : ''; ?>><i class="fas fa-upload"></i> Upload File</button>
-                <button id="createFolderBtn" <?php echo $isStorageFull ? 'disabled' : ''; ?>><i class="fas fa-folder-plus"></i> Create Folder</button>
-                <button id="deleteSelectedBtn" style="background-color: var(--metro-error);"><i class="fas fa-trash-alt"></i> Delete Selected</button>
+            <div class="dropdown-container size-filter-dropdown-container" >
+                <button id="sizeFilterBtn" class="filter-button">Action</button>
+                <div class="dropdown-content size-filter-dropdown-content" style="position: absolute; top: 100%; left: 3%; transform: translateX(-50%); margin-top: 8px; padding:5px 0; border-radius:4px;">
+                    <a id="uploadFileBtn" href="#" data-size="desc"><i class="fas fa-upload"></i> Upload File</a>
+                    <a id="createFolderBtn" href="#" data-size="asc" ><i class="fas fa-folder-plus"> </i> Create Folder</a>
+                    <a id="deleteSelectedBtn" href="#" data-size="none"><i class="fas fa-trash-alt"></i> Delete Selected</a>
+                </div>
             </div>
             <div class="toolbar-right">
                 <!-- Archive Button with Dropdown (Hidden on mobile/tablet portrait) -->
@@ -132,72 +135,74 @@ $currentFolderId = isset($_GET['folder']) ? (int)$_GET['folder'] : NULL;
 
         <div class="file-list-container">
             <div id="fileListView" class="file-view">
-                <table class="file-table">
-                    <thead>
-                        <tr>
-                            <th><input type="checkbox" id="selectAllCheckbox"></th>
-                            <th>Name</th>
-                            <th>Type</th>
-                            <th>Size</th>
-                            <th>Last Modified</th>
-                            <th>Actions</th> <!-- Added Actions column header -->
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php if (empty($folders) && empty($files) && !empty($searchQuery)): ?>
+                <div class="file-table-wrapper">
+                    <table class="file-table">
+                        <thead>
                             <tr>
-                                <td colspan="6" style="text-align: center; padding: 20px;">No files or folders found matching "<?php echo htmlspecialchars($searchQuery); ?>"</td>
+                                <th><input type="checkbox" id="selectAllCheckbox"></th>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Size</th>
+                                <th>Last Modified</th>
+                                <th>Actions</th> <!-- Added Actions column header -->
                             </tr>
-                        <?php elseif (empty($folders) && empty($files) && empty($searchQuery)): ?>
-                            <tr>
-                                <td colspan="6" style="text-align: center; padding: 20px;">No files or folders found in this directory.</td>
-                            </tr>
-                        <?php endif; ?>
-                        <?php foreach ($folders as $folder): ?>
-                            <tr class="file-item" data-id="<?php echo $folder['id']; ?>" data-type="folder" data-name="<?php echo htmlspecialchars($folder['folder_name']); ?>" data-path="<?php echo htmlspecialchars($baseUploadDir . getFolderPath($conn, $folder['id'])); ?>" tabindex="0">
-                                <td><input type="checkbox" class="file-checkbox" data-id="<?php echo $folder['id']; ?>" data-type="folder"></td>
-                                <td class="file-name-cell">
-                                    <i class="fas fa-folder file-icon folder"></i>
-                                    <a href="index.php?folder=<?php echo $folder['id']; ?>" class="file-link-clickable" onclick="event.stopPropagation();"><?php echo htmlspecialchars($folder['folder_name']); ?></a>
-                                </td>
-                                <td>Folder</td>
-                                <td>
-                                    <?php
-                                        // NEW: Calculate and display folder size
-                                        // Get the full physical path of the folder
-                                        echo formatBytes($folder['calculated_size']);
-                                    ?>
-                                </td>
-                                <td>
-                                    <?php
-                                        // Display modification date if available, otherwise creation date
-                                        $displayDate = $folder['updated_at'] ?? $folder['created_at'];
-                                        echo date('Y-m-d H:i', strtotime($displayDate));
-                                    ?>
-                                </td>
-                                <td>
-                                    <button class="item-more" aria-haspopup="true" aria-label="More">⋮</button>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-
-                        <?php foreach ($files as $file): ?>
-                            <tr class="file-item" data-id="<?php echo $file['id']; ?>" data-type="file" data-name="<?php echo htmlspecialchars($file['file_name']); ?>" data-path="<?php echo htmlspecialchars($file['file_path']); ?>" data-file-type="<?php echo strtolower($file['file_type'] ?? ""); ?>" tabindex="0">
-                                <td><input type="checkbox" class="file-checkbox" data-id="<?php echo $file['id']; ?>" data-type="file"></td>
-                                <td class="file-name-cell">
-                                    <i class="fas <?php echo getFontAwesomeIconClass($file['file_name']); ?> file-icon <?php echo getFileColorClassPhp($file['file_name']); ?>"></i>
-                                    <a href="views/pages/file-view.php?file_id=<?php echo $file['id']; ?>" class="file-link-clickable" onclick="event.stopPropagation();"><?php echo htmlspecialchars($file['file_name']); ?></a>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($folders) && empty($files) && !empty($searchQuery)): ?>
+                                <tr>
+                                    <td colspan="6" style="text-align: center; padding: 20px;">No files or folders found matching "<?php echo htmlspecialchars($searchQuery); ?>"</td>
+                                </tr>
+                            <?php elseif (empty($folders) && empty($files) && empty($searchQuery)): ?>
+                                <tr>
+                                    <td colspan="6" style="text-align: center; padding: 20px;">No files or folders found in this directory.</td>
+                                </tr>
+                            <?php endif; ?>
+                            <?php foreach ($folders as $folder): ?>
+                                <tr class="file-item" data-id="<?php echo $folder['id']; ?>" data-type="folder" data-name="<?php echo htmlspecialchars($folder['folder_name']); ?>" data-path="<?php echo htmlspecialchars($baseUploadDir . getFolderPath($conn, $folder['id'])); ?>" tabindex="0">
+                                    <td><input type="checkbox" class="file-checkbox" data-id="<?php echo $folder['id']; ?>" data-type="folder"></td>
+                                    <td class="file-name-cell">
+                                        <i class="fas fa-folder file-icon folder"></i>
+                                        <a href="index.php?folder=<?php echo $folder['id']; ?>" class="file-link-clickable" onclick="event.stopPropagation();"><?php echo htmlspecialchars($folder['folder_name']); ?></a>
                                     </td>
-                                <td><?php echo strtoupper($file['file_type'] ?? ""); ?></td>
-                                <td><?php echo formatBytes($file['file_size'] ?? ""); ?></td>
-                                <td><?php echo !empty($file['uploaded_at']) ? date('Y-m-d H:i', strtotime($file['uploaded_at'])) : 'N/A'; ?></td>
-                                <td>
-                                    <button class="item-more" aria-haspopup="true" aria-label="More">⋮</button>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
+                                    <td>Folder</td>
+                                    <td>
+                                        <?php
+                                            // NEW: Calculate and display folder size
+                                            // Get the full physical path of the folder
+                                            echo formatBytes($folder['calculated_size']);
+                                        ?>
+                                    </td>
+                                    <td>
+                                        <?php
+                                            // Display modification date if available, otherwise creation date
+                                            $displayDate = $folder['updated_at'] ?? $folder['created_at'];
+                                            echo date('Y-m-d H:i', strtotime($displayDate));
+                                        ?>
+                                    </td>
+                                    <td>
+                                        <button class="item-more" aria-haspopup="true" aria-label="More">⋮</button>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+
+                            <?php foreach ($files as $file): ?>
+                                <tr class="file-item" data-id="<?php echo $file['id']; ?>" data-type="file" data-name="<?php echo htmlspecialchars($file['file_name']); ?>" data-path="<?php echo htmlspecialchars($file['file_path']); ?>" data-file-type="<?php echo strtolower($file['file_type'] ?? ""); ?>" tabindex="0">
+                                    <td><input type="checkbox" class="file-checkbox" data-id="<?php echo $file['id']; ?>" data-type="file"></td>
+                                    <td class="file-name-cell">
+                                        <i class="fas <?php echo getFontAwesomeIconClass($file['file_name']); ?> file-icon <?php echo getFileColorClassPhp($file['file_name']); ?>"></i>
+                                        <a href="views/pages/file-view.php?file_id=<?php echo $file['id']; ?>" class="file-link-clickable" onclick="event.stopPropagation();"><?php echo htmlspecialchars($file['file_name']); ?></a>
+                                        </td>
+                                    <td><?php echo strtoupper($file['file_type'] ?? ""); ?></td>
+                                    <td><?php echo formatBytes($file['file_size'] ?? ""); ?></td>
+                                    <td><?php echo !empty($file['uploaded_at']) ? date('Y-m-d H:i', strtotime($file['uploaded_at'])) : 'N/A'; ?></td>
+                                    <td>
+                                        <button class="item-more" aria-haspopup="true" aria-label="More">⋮</button>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             <div id="fileGridView" class="file-view hidden">
