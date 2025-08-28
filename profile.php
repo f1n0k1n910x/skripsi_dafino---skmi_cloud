@@ -775,6 +775,7 @@ $current_account_status = $initial_data['current_account_status'];
         const initialNotificationMessage = '<?php echo $notification_message; ?>';
         const initialNotificationType = '<?php echo $notification_type; ?>';
     </script>
-    <script src="js/profile.js"></script> <!-- Tautan ke file JavaScript eksternal -->
+    <script type="module" src="js/translation.js"></script>
+    <script type="module" src="js/profile.js"></script>
 </body>
 </html>
