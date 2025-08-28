@@ -663,7 +663,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
         <div class="modal-content">
             <span class="close-button">&times;</span>
             <h2 data-lang-key="createNewFolder">Create New Folder</h2>
-            <form id="createFolderForm" action="create_folder.php" method="POST">
+            <form id="createFolderForm" action="v2/services/api/folderCreate.php" method="POST">
                 <input type="hidden" name="parent_folder_id" value="<?php echo htmlspecialchars($currentFolderId); ?>">
                 <input type="hidden" name="parent_folder_path" value="<?php echo htmlspecialchars($currentFolderPath); ?>">
                 <label for="folderName" data-lang-key="folderName">Folder Name:</label>
