@@ -385,10 +385,13 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
         </div>
 
         <div class="toolbar">
-            <div class="toolbar-left">
-                <button id="uploadFileBtn" <?php echo $isStorageFull ? 'disabled' : ''; ?>><i class="fas fa-upload"></i></button>
-                <button id="createFolderBtn" <?php echo $isStorageFull ? 'disabled' : ''; ?>><i class="fas fa-folder-plus"></i></button>
-                <button id="deleteSelectedBtn" style="background-color: var(--error-color);"><i class="fas fa-trash-alt"></i></button>
+            <div class="dropdown-container size-filter-dropdown-container" >
+                <button id="sizeFilterBtn" class="filter-button">Action</button>
+                <div class="dropdown-content size-filter-dropdown-content" style="position: absolute; top: 100%; left: 3%; transform: translateX(-50%); margin-top: 8px; padding:5px 0; border-radius:4px;">
+                    <a id="uploadFileBtn" href="#" data-size="desc"><i class="fas fa-upload"></i> Upload File</a>
+                    <a id="createFolderBtn" href="#" data-size="asc" ><i class="fas fa-folder-plus"> </i> Create Folder</a>
+                    <a id="deleteSelectedBtn" href="#" data-size="none"><i class="fas fa-trash-alt"></i> Delete Selected</a>
+                </div>
             </div>
             <div class="toolbar-right">
                 <!-- Archive Button with Dropdown (Hidden on mobile/tablet portrait) -->
