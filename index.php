@@ -754,6 +754,6 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             cadExt: <?php echo json_encode($cadExt); ?>
         };
     </script>
-    <script src="js/index.js"></script>
+    <?php include 'v2/assets/main-script.php'; ?>
 </body>
 </html>

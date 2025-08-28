@@ -10,6 +10,8 @@ $currentFolderPath = ''; // To build the full path for uploads and display
 ?>
 
 <script>
+  const BASE_URL = "<?php echo dirname($_SERVER['SCRIPT_NAME']); ?>";
+
   document.addEventListener('DOMContentLoaded', function() {
       const uploadFileBtn = document.getElementById('uploadFileBtn');
       const createFolderBtn = document.getElementById('createFolderBtn');
@@ -469,7 +471,7 @@ $currentFolderPath = ''; // To build the full path for uploads and display
           }
 
           try {
-              const response = await fetch('services/api/deleteSelected.php', {
+              const response = await fetch(`${BASE_URL}/v2/services/api/deleteSelected.php`, {
                   method: 'POST',
                   headers: {
                       'Content-Type': 'application/json',
