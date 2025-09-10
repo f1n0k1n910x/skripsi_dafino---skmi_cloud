@@ -450,7 +450,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_email'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_additional_email'])) {
-    $email_id_to_delete = (int)$_POST['email_id_to_to_delete'];
+    $email_id_to_delete = (int)$_POST['email_id_to_delete'];
     $response = ['success' => false, 'message' => ''];
 
     $stmt_delete = $conn->prepare("DELETE FROM user_emails WHERE id = ? AND user_id = ?");
@@ -502,8 +502,1409 @@ $current_account_status = $initial_data['current_account_status'];
     <title>Profile - SKMI Cloud Storage</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="css/profile.css"> <!-- Tautan ke file CSS eksternal -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Material Design Google + Admin LTE */
+        :root {
+            --primary-color: #3F51B5; /* Indigo 500 - Material Design */
+            --primary-dark-color: #303F9F; /* Indigo 700 */
+            --accent-color: #FF4081; /* Pink A200 */
+            --text-color: #212121; /* Grey 900 */
+            --secondary-text-color: #757575; /* Grey 600 */
+            --divider-color: #BDBDBD; /* Grey 400 */
+            --background-color: #F5F5F5; /* Grey 100 */
+            --surface-color: #FFFFFF; /* White */
+            --success-color: #4CAF50; /* Green 500 */
+            --error-color: #F44336; /* Red 500 */
+            --warning-color: #FFC107; /* Amber 500 */
+
+            /* AdminLTE specific colors */
+            --adminlte-sidebar-bg: #222d32;
+            --adminlte-sidebar-text: #b8c7ce;
+            --adminlte-sidebar-hover-bg: #1e282c;
+            --adminlte-sidebar-active-bg: #1e282c;
+            --adminlte-sidebar-active-text: #ffffff;
+            --adminlte-header-bg: #ffffff;
+            --adminlte-header-text: #333333;
+
+            /* --- LOKASI EDIT UKURAN FONT SIDEBAR --- */
+            --sidebar-font-size-desktop: 0.9em; /* Ukuran font default untuk desktop */
+            --sidebar-font-size-tablet-landscape: 1.0em; /* Ukuran font untuk tablet landscape */
+            --sidebar-font-size-tablet-portrait: 0.95em; /* Ukuran font untuk tablet portrait */
+            --sidebar-font-size-mobile: 0.9em; /* Ukuran font untuk mobile */
+            /* --- AKHIR LOKASI EDIT UKURAN FONT SIDEBAR --- */
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif; /* Material Design font */
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            overflow: hidden; /* Prevent body scroll, main-content handles it */
+            visibility: hidden; /* Hide body initially to prevent FOUC/white blink */
+        }
+
+        /* Base Sidebar (AdminLTE style) */
+        .sidebar {
+            width: 250px;
+            background-color: var(--adminlte-sidebar-bg);
+            color: var(--adminlte-sidebar-text);
+            display: flex;
+            flex-direction: column;
+            padding: 0; /* No padding at top/bottom */
+            transition: width 0.3s ease-in-out, transform 0.3s ease-in-out;
+            flex-shrink: 0;
+            box-shadow: none; /* No box-shadow */
+        }
+
+        .sidebar-header {
+            padding: 15px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .sidebar-header img {
+            width: 120px; /* Slightly smaller logo */
+            height: auto;
+            display: block;
+        }
+
+        .sidebar-header h2 {
+            margin: 0;
+            font-size: 1.5em;
+            color: var(--adminlte-sidebar-text);
+            font-weight: 400;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            flex-grow: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .sidebar-menu li {
+            margin-bottom: 0; /* No extra spacing */
+        }
+
+        .sidebar-menu a {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px; /* AdminLTE padding */
+            color: var(--adminlte-sidebar-text);
+            text-decoration: none;
+            font-size: var(--sidebar-font-size-desktop);
+            transition: background-color 0.2s ease-out, color 0.2s ease-out;
+            border-left: 3px solid transparent; /* For active state */
+        }
+
+        .sidebar-menu a i {
+            margin-right: 10px;
+            font-size: 1.2em;
+            width: 20px;
+            text-align: center;
+        }
+
+        .sidebar-menu a:hover {
+            background-color: var(--adminlte-sidebar-hover-bg);
+            color: var(--adminlte-sidebar-active-text);
+            transform: translateX(0); /* No slide effect */
+        }
+
+        .sidebar-menu a.active {
+            background-color: var(--adminlte-sidebar-active-bg);
+            border-left-color: var(--primary-color); /* Material primary color for active */
+            color: var(--adminlte-sidebar-active-text);
+            font-weight: 500;
+        }
+
+        /* Storage Info (AdminLTE style) */
+        .storage-info {
+            padding: 15px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            text-align: center;
+            font-size: 0.85em;
+            margin-top: auto;
+            padding-top: 15px;
+        }
+
+        .storage-info h4 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: var(--adminlte-sidebar-text);
+            font-weight: 400;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            background-color: rgba(255,255,255,0.2);
+            border-radius: 0; /* Siku-siku */
+            height: 6px;
+            margin-bottom: 8px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background-color: var(--success-color);
+            border-radius: 0; /* Siku-siku */
+            transition: width 0.5s ease-in-out;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-bar-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-size: 0.6em;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            white-space: nowrap;
+        }
+
+        .storage-text {
+            font-size: 0.8em;
+            color: var(--adminlte-sidebar-text);
+        }
+
+        /* Main Content (Full-width, unique & professional) */
+        .main-content {
+            flex-grow: 1;
+            padding: 20px; /* Reduced padding */
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            background-color: var(--background-color); /* Light grey background */
+            border-radius: 0; /* Siku-siku */
+            margin: 0; /* Full width */
+            box-shadow: none; /* No box-shadow */
+            /* MODIFIED: Initial state for fly-in animation */
+            opacity: 0;
+            transform: translateY(100%);
+            animation: flyInFromBottom 0.5s ease-out forwards; /* Fly In animation from bottom */
+        }
+
+        .main-content.fly-out {
+            animation: flyOutToTop 0.5s ease-in forwards; /* Fly Out animation to top */
+        }
+
+        /* Header Main (Full-width, white, no background residue) */
+        .dashboard-header { /* Renamed from .header-main for profile.php */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px; /* Reduced margin */
+            padding: 15px 20px; /* Padding for header */
+            border-bottom: 1px solid var(--divider-color);
+            background-color: var(--adminlte-header-bg); /* White header */
+            margin: -20px -20px 20px -20px; /* Adjust margin to cover full width */
+            border-radius: 0; /* Siku-siku */
+            box-shadow: none; /* No box-shadow */
+        }
+
+        .dashboard-header h1 { /* Renamed from .header-main h1 */
+            margin: 0;
+            color: var(--adminlte-header-text);
+            font-size: 2em; /* Slightly smaller title */
+            font-weight: 400; /* Lighter font weight */
+        }
+
+        .dashboard-header .user-info {
+            display: flex;
+            align-items: center;
+        }
+
+        .dashboard-header .user-info span {
+            margin-right: 15px;
+            font-size: 1.1em;
+            color: var(--text-color);
+        }
+
+        .dashboard-header .user-info img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--divider-color);
+            box-shadow: none;
+        }
+
+        /* Dashboard Grid Layout */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr; /* Adjust as needed for responsiveness */
+            gap: 20px; /* Reduced gap */
+        }
+
+        .card {
+            background-color: var(--surface-color);
+            border-radius: 0; /* Siku-siku */
+            box-shadow: none; /* No box-shadow */
+            padding: 20px; /* Reduced padding */
+            overflow: hidden; /* For image in profile card */
+            transition: transform 0.2s ease-out;
+            border: 1px solid var(--divider-color); /* Subtle border for cards */
+        }
+        .card:hover {
+            transform: translateY(0); /* No lift */
+        }
+
+        /* My Profile Card */
+        .profile-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* Center content horizontally */
+            text-align: center;
+            position: relative; /* For the background image */
+            padding-top: 0; /* Remove initial padding to allow bg to go to top */
+        }
+
+        .profile-header-bg {
+            width: 100%;
+            height: 120px; /* Height for the background image */
+            background: linear-gradient(to right, var(--primary-color), var(--success-color)); /* Material-inspired gradient */
+            position: absolute;
+            top: 0;
+            left: 0;
+            border-top-left-radius: 0; /* Siku-siku */
+            border-top-right-radius: 0; /* Siku-siku */
+        }
+
+        .profile-card .profile-picture-container {
+            position: relative;
+            margin-top: 40px; /* Push image down to show background */
+            z-index: 1; /* Ensure image is above background */
+            cursor: pointer; /* Indicate it's clickable */
+        }
+
+        .profile-card img {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid #fff; /* White border around profile picture */
+            box-shadow: none; /* No box-shadow */
+        }
+
+        .profile-card .edit-profile-picture-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .profile-card .profile-picture-container:hover .edit-profile-picture-overlay {
+            opacity: 1;
+        }
+
+        .profile-card .edit-profile-picture-overlay i {
+            color: white;
+            font-size: 1.8em;
+        }
+
+        .profile-card h3 {
+            margin-top: 15px;
+            margin-bottom: 5px;
+            font-size: 1.6em;
+            color: var(--text-color);
+        }
+
+        .profile-card p {
+            font-size: 0.9em;
+            color: var(--secondary-text-color);
+            margin-bottom: 15px;
+        }
+
+        .profile-info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* Two columns for info */
+            gap: 8px 15px; /* Reduced gap */
+            width: 100%;
+            padding: 15px;
+            box-sizing: border-box;
+            text-align: left; /* Align text within grid items */
+        }
+
+        .profile-info-item strong {
+            display: block;
+            font-size: 0.85em;
+            color: var(--secondary-text-color);
+            margin-bottom: 2px;
+        }
+
+        .profile-info-item span {
+            font-size: 1em;
+            color: var(--text-color);
+        }
+
+        .profile-info-item.full-width {
+            grid-column: span 2; /* Make this item span both columns */
+        }
+
+        .profile-stats {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            padding: 15px;
+            border-top: 1px solid var(--divider-color);
+            margin-top: 15px;
+            box-sizing: border-box;
+        }
+
+        .profile-stats-item {
+            text-align: center;
+        }
+
+        .profile-stats-item strong {
+            display: block;
+            font-size: 1.3em;
+            color: var(--text-color);
+            margin-bottom: 3px;
+        }
+
+        .profile-stats-item span {
+            font-size: 0.8em;
+            color: var(--secondary-text-color);
+        }
+
+        /* Updated Profile Actions Buttons with Material Design */
+        .profile-actions-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 6px; /* Smaller gap between buttons */
+            padding: 10px; /* Smaller padding */
+            border-top: 1px solid var(--divider-color);
+            margin-top: 15px;
+        }
+
+        .profile-actions-buttons .profile-button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 7px 12px; /* Smaller padding */
+            border-radius: 0; /* Siku-siku */
+            cursor: pointer;
+            font-size: 0.85em; /* Smaller font size */
+            transition: background-color 0.2s ease-out;
+            margin: 0;
+            min-width: 100px; /* Consistent minimum width */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: none; /* No box-shadow */
+        }
+
+        .profile-actions-buttons .profile-button i {
+            font-size: 0.85em;
+        }
+
+        /* Different colors for each button */
+        .profile-actions-buttons .profile-button:nth-child(1) {
+            background-color: var(--success-color); /* Green for Edit Profile */
+        }
+        .profile-actions-buttons .profile-button:nth-child(2) {
+            background-color: #2196F3; /* Blue for Change Password */
+        }
+        .profile-actions-buttons .profile-button:nth-child(3) {
+            background-color: #9C27B0; /* Purple for Logout */
+        }
+
+        /* Hover effects */
+        .profile-actions-buttons .profile-button:hover {
+            background-color: var(--primary-dark-color);
+        }
+        .profile-actions-buttons .profile-button:nth-child(1):hover {
+            background-color: #388E3C; /* Darker green */
+        }
+        .profile-actions-buttons .profile-button:nth-child(2):hover {
+            background-color: #1976D2; /* Darker blue */
+        }
+        .profile-actions-buttons .profile-button:nth-child(3):hover {
+            background-color: #7B1FA2; /* Darker purple */
+        }
+
+        /* Real-time clock styles */
+        .real-time-clock {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 15px;
+            padding: 10px;
+            background-color: var(--background-color);
+            border-radius: 0; /* Siku-siku */
+            border: 1px solid var(--divider-color);
+        }
+
+        .real-time-clock .clock {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: var(--text-color);
+        }
+
+        .real-time-clock .date {
+            font-size: 0.85em;
+            margin-top: 5px;
+            color: var(--secondary-text-color);
+        }
+
+        /* Activity History Card */
+        .activity-card .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--divider-color);
+            padding-bottom: 10px;
+        }
+
+        .activity-card .card-header h2 {
+            font-size: 1.6em;
+            margin: 0;
+            color: var(--text-color);
+            font-weight: 400;
+        }
+
+        .activity-card .chart-container {
+            position: relative;
+            height: 200px; /* Set a fixed height for the chart */
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
+        /* Calendar Filter */
+        .calendar-filter {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: flex-end;
+        }
+
+        .calendar-filter .form-group {
+            margin-bottom: 0;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .calendar-filter label {
+            font-weight: 500;
+            color: var(--text-color);
+            margin-bottom: 6px;
+            display: block;
+            font-size: 0.9em;
+        }
+
+        .calendar-filter input[type="date"] {
+            width: calc(100% - 16px);
+            padding: 8px;
+            border: 1px solid var(--divider-color);
+            border-radius: 0; /* Siku-siku */
+            font-size: 0.9em;
+            box-sizing: border-box;
+            background-color: var(--background-color);
+            transition: border-color 0.2s ease-out;
+        }
+        .calendar-filter input[type="date"]:focus {
+            border-color: var(--primary-color);
+            outline: none;
+            background-color: var(--surface-color);
+        }
+
+        .calendar-filter button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 0; /* Siku-siku */
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.2s ease-out;
+            box-shadow: none;
+        }
+
+        .calendar-filter button:hover {
+            background-color: var(--primary-dark-color);
+        }
+
+        #filterResult {
+            margin-top: 8px;
+            font-weight: 500;
+            color: var(--text-color);
+            font-size: 0.85em;
+        }
+
+        /* Activity Details Sticky and Full Background */
+        #activityList {
+            position: relative; /* Changed from sticky to relative for simpler layout */
+            width: 100%;
+            background-color: var(--surface-color);
+            border-top: 1px solid var(--divider-color);
+            padding-top: 10px;
+            padding-bottom: 10px;
+            z-index: 1;
+            margin-top: 15px;
+            border-radius: 0; /* Siku-siku */
+            box-sizing: border-box;
+        }
+
+        #activityList h3 {
+            margin-top: 0;
+            margin-bottom: 8px;
+            padding-left: 5px;
+            color: var(--text-color);
+            font-size: 1.1em;
+            font-weight: 500;
+        }
+
+        #activityList ul {
+            list-style: none;
+            padding: 0 5px;
+            margin: 0;
+            max-height: 120px; /* Keep max height for scrollbar */
+            overflow-y: auto; /* Enable vertical scrollbar */
+        }
+
+        #activityList ul li {
+            margin-bottom: 6px;
+            padding: 4px;
+            background-color: var(--background-color);
+            border-radius: 0; /* Siku-siku */
+            font-size: 0.85em;
+            color: var(--text-color);
+        }
+
+
+        /* Add Email Card */
+        .add-email-card .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--divider-color);
+            padding-bottom: 10px;
+        }
+
+        .add-email-card .card-header h2 {
+            font-size: 1.6em;
+            margin: 0;
+            color: var(--text-color);
+            font-weight: 400;
+        }
+
+        .add-email-card .email-input-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .add-email-card .email-input-group input[type="email"] {
+            flex-grow: 1;
+            width: calc(100% - 16px);
+            padding: 8px;
+            border: 1px solid var(--divider-color);
+            border-radius: 0; /* Siku-siku */
+            font-size: 0.9em;
+            background-color: var(--background-color);
+            transition: border-color 0.2s ease-out;
+        }
+        .add-email-card .email-input-group input[type="email"]:focus {
+            border-color: var(--primary-color);
+            outline: none;
+            background-color: var(--surface-color);
+        }
+
+        .add-email-card .email-input-group button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 0; /* Siku-siku */
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.2s ease-out;
+            box-shadow: none;
+        }
+
+        .add-email-card .email-input-group button:hover {
+            background-color: var(--primary-dark-color);
+        }
+
+        .add-email-card .email-list-container {
+            max-height: 150px; /* Max height for scrollbar */
+            overflow-y: auto; /* Enable vertical scrollbar */
+            border: 1px solid var(--divider-color);
+            border-radius: 0; /* Siku-siku */
+            padding: 8px;
+            background-color: var(--background-color);
+        }
+
+        .add-email-card .email-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--divider-color);
+            font-size: 0.9em;
+            color: var(--text-color);
+        }
+
+        .add-email-card .email-item:last-child {
+            border-bottom: none;
+        }
+
+        .add-email-card .email-item .delete-email-btn {
+            background: none;
+            border: none;
+            color: var(--error-color);
+            cursor: pointer;
+            font-size: 1em;
+            transition: color 0.2s ease-out;
+        }
+
+        .add-email-card .email-item .delete-email-btn:hover {
+            color: #D32F2F;
+        }
+
+        /* Notification Styles */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 0; /* Siku-siku */
+            color: white;
+            font-weight: 500;
+            z-index: 1001;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+        }
+
+        .notification.show {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .notification.success {
+            background-color: var(--success-color);
+        }
+
+        .notification.error {
+            background-color: var(--error-color);
+        }
+
+        /* Additional sections for Password Change and Delete Account */
+        .profile-section {
+            background-color: var(--surface-color);
+            border-radius: 0; /* Siku-siku */
+            box-shadow: none; /* No box-shadow */
+            padding: 20px;
+            margin-top: 20px; /* Spacing between cards */
+            transition: transform 0.2s ease-out;
+            border: 1px solid var(--divider-color); /* Subtle border for cards */
+        }
+        .profile-section:hover {
+            transform: translateY(0); /* No lift */
+        }
+
+        .profile-section h2 {
+            font-size: 1.6em;
+            color: var(--text-color);
+            margin-top: 0;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            font-weight: 400;
+            border-bottom: 1px solid var(--divider-color);
+            padding-bottom: 10px;
+        }
+
+        .profile-section h2 i {
+            margin-right: 10px;
+            color: var(--primary-color);
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text-color);
+            font-size: 0.95em;
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="email"],
+        .form-group input[type="password"],
+        .form-group input[type="file"],
+        .form-group input[type="date"] {
+            width: calc(100% - 16px);
+            padding: 8px;
+            border: 1px solid var(--divider-color);
+            border-radius: 0; /* Siku-siku */
+            font-size: 0.9em;
+            background-color: var(--background-color);
+            transition: border-color 0.2s ease-out;
+        }
+        .form-group input[type="text"]:focus,
+        .form-group input[type="email"]:focus,
+        .form-group input[type="password"]:focus,
+        .form-group input[type="date"]:focus {
+            border-color: var(--primary-color);
+            outline: none;
+            background-color: var(--surface-color);
+        }
+
+        .form-group input[type="file"] {
+            border: none;
+            padding-left: 0;
+            background-color: transparent;
+        }
+
+        .profile-button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 0; /* Siku-siku */
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.2s ease-out;
+            box-shadow: none;
+            margin-top: 10px;
+        }
+
+        .profile-button:hover {
+            background-color: var(--primary-dark-color);
+        }
+
+        .delete-button {
+            background-color: var(--error-color);
+        }
+
+        .delete-button:hover {
+            background-color: #D32F2F;
+        }
+
+        .button-group {
+            display: flex;
+            justify-content: flex-end; /* Align buttons to the right */
+            gap: 8px;
+            margin-top: 15px;
+        }
+
+        /* New styles for aligning Change Password and Account Actions */
+        .profile-actions-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* Two columns, equal width */
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .profile-actions-grid {
+                grid-template-columns: 1fr; /* Stack on smaller screens */
+            }
+        }
+
+        /* Modal Styles (Copied from index.php and adapted for profile.php) */
+        .modal {
+            display: flex;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.6);
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
+        }
+
+        .modal.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background-color: var(--surface-color);
+            padding: 30px;
+            border-radius: 0; /* Siku-siku */
+            box-shadow: 0 8px 17px 2px rgba(0,0,0,0.14), 0 3px 14px 2px rgba(0,0,0,0.12), 0 5px 5px -3px rgba(0,0,0,0.2); /* Material Design shadow */
+            width: 90%;
+            max-width: 550px;
+            position: relative;
+            transform: translateY(-20px);
+            opacity: 0;
+            transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+        }
+
+        .modal.show .modal-content {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .close-button {
+            color: var(--secondary-text-color);
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 28px; /* Slightly smaller */
+            font-weight: normal;
+            cursor: pointer;
+            transition: color 0.2s ease-out;
+        }
+
+        .close-button:hover, .close-button:focus {
+            color: var(--error-color);
+        }
+
+        .modal h2 {
+            margin-top: 0;
+            margin-bottom: 20px; /* Reduced margin */
+            color: var(--text-color);
+            font-size: 1.8em; /* Slightly smaller */
+            font-weight: 400;
+            border-bottom: 1px solid var(--divider-color);
+            padding-bottom: 15px;
+        }
+
+        .modal label {
+            display: block;
+            margin-bottom: 8px; /* Reduced margin */
+            font-weight: 500;
+            color: var(--text-color);
+            font-size: 1em;
+        }
+
+        .modal input[type="text"],
+        .modal input[type="email"],
+        .modal input[type="password"],
+        .modal input[type="file"],
+        .modal input[type="date"] {
+            width: calc(100% - 24px); /* Adjust for padding and border */
+            padding: 10px; /* Reduced padding */
+            margin-bottom: 15px; /* Reduced margin */
+            border: 1px solid var(--divider-color);
+            border-radius: 0; /* Siku-siku */
+            font-size: 0.95em;
+            color: var(--text-color);
+            background-color: var(--background-color);
+            transition: border-color 0.2s ease-out, box-shadow 0.2s ease-out;
+        }
+        
+        .modal input[type="text"]:focus,
+        .modal input[type="email"]:focus,
+        .modal input[type="password"]:focus,
+        .modal input[type="date"]:focus {
+            border-color: var(--primary-color);
+            box-shadow: none; /* No box-shadow */
+            outline: none;
+            background-color: var(--surface-color);
+        }
+        .modal input[type="file"] {
+            border: 1px solid var(--divider-color); /* Keep border for file input */
+            padding: 10px;
+            background-color: transparent;
+        }
+
+        .modal button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px; /* Reduced padding */
+            border-radius: 0; /* Siku-siku */
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.2s ease-out;
+            box-shadow: none;
+        }
+
+        .modal button:hover {
+            background-color: var(--primary-dark-color);
+        }
+
+        /* Animations */
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes slideInFromTop {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal.show .modal-content {
+            animation: slideInFromTop 0.3s ease-out forwards;
+        }
+
+        /* Fly In/Out Animations for main-content */
+        @keyframes flyInFromBottom {
+            from {
+                opacity: 0;
+                transform: translateY(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes flyOutToTop {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-100%);
+            }
+        }
+
+        /* General button focus effects */
+        button {
+            outline: none;
+        }
+        button:focus {
+            box-shadow: 0 0 0 2px rgba(63,81,181,0.5); /* Material Design focus ring */
+        }
+
+        /* ========================================================================== */
+        /* Responsive Classes for iPad, Tablet, HP (Android & iOS) */
+        /* ========================================================================== */
+
+        /* Default for Desktop */
+        .sidebar-toggle-btn {
+            display: none;
+        }
+        .sidebar.mobile-hidden {
+            display: flex;
+            transform: translateX(0);
+        }
+        .dashboard-header .profile-title {
+            display: block;
+        }
+        .dashboard-header .user-info {
+            display: flex;
+        }
+
+        /* Custom Scrollbar for Webkit browsers (Chrome, Safari) */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--background-color);
+            border-radius: 0; /* Siku-siku */
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--divider-color);
+            border-radius: 0; /* Siku-siku */
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--secondary-text-color);
+        }
+
+        /* Tablet Landscape */
+        @media (min-width: 768px) and (max-width: 1024px) {
+            body.tablet-landscape .sidebar {
+                width: 200px; /* Narrower sidebar */
+            }
+            body.tablet-landscape .sidebar-header img {
+                width: 100px;
+            }
+            body.tablet-landscape .main-content {
+                padding: 15px;
+            }
+            body.tablet-landscape .dashboard-header {
+                padding: 10px 15px;
+                margin: -15px -15px 15px -15px;
+            }
+            body.tablet-landscape .dashboard-header h1 {
+                font-size: 1.8em;
+            }
+            body.tablet-landscape .dashboard-grid {
+                grid-template-columns: 1fr; /* Stack columns vertically */
+                gap: 15px;
+            }
+            body.tablet-landscape .card {
+                padding: 15px;
+            }
+            body.tablet-landscape .profile-card h3 {
+                font-size: 1.4em;
+            }
+            body.tablet-landscape .profile-info-grid {
+                grid-template-columns: 1fr 1fr;
+                padding: 10px;
+            }
+            body.tablet-landscape .profile-stats {
+                padding: 10px;
+            }
+            body.tablet-landscape .profile-stats-item strong {
+                font-size: 1.1em;
+            }
+            body.tablet-landscape .profile-actions-buttons .profile-button {
+                padding: 6px 10px;
+                font-size: 0.8em;
+                min-width: 90px;
+            }
+            body.tablet-landscape .activity-card .card-header h2,
+            body.tablet-landscape .add-email-card .card-header h2 {
+                font-size: 1.4em;
+            }
+            body.tablet-landscape .calendar-filter input[type="date"],
+            body.tablet-landscape .add-email-card .email-input-group input[type="email"] {
+                padding: 7px;
+                font-size: 0.85em;
+            }
+            body.tablet-landscape .calendar-filter button,
+            body.tablet-landscape .add-email-card .email-input-group button {
+                padding: 7px 12px;
+                font-size: 0.85em;
+            }
+            body.tablet-landscape .activity-card .chart-container {
+                height: 180px;
+            }
+            body.tablet-landscape .activity-card #activityList {
+                max-height: 120px;
+            }
+            body.tablet-landscape .add-email-card .email-list-container {
+                max-height: 120px;
+            }
+            body.tablet-landscape .modal-content {
+                max-width: 500px;
+                padding: 25px;
+            }
+            body.tablet-landscape .sidebar-menu a {
+                font-size: var(--sidebar-font-size-tablet-landscape);
+            }
+        }
+
+        /* Tablet Portrait */
+        @media (min-width: 768px) and (max-width: 1024px) and (orientation: portrait) {
+            body.tablet-portrait .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100%;
+                z-index: 100;
+                transform: translateX(-100%);
+                box-shadow: 2px 0 5px rgba(0,0,0,0.2); /* Subtle shadow for mobile sidebar */
+            }
+            body.tablet-portrait .sidebar.show-mobile-sidebar {
+                transform: translateX(0);
+            }
+            body.tablet-portrait .sidebar-toggle-btn {
+                display: block;
+                background: none;
+                border: none;
+                font-size: 1.6em;
+                color: var(--adminlte-header-text);
+                cursor: pointer;
+                margin-left: 0;
+                order: 0;
+            }
+            body.tablet-portrait .dashboard-header {
+                justify-content: flex-start; /* Align items to start */
+                padding: 10px 15px;
+                margin: -15px -15px 15px -15px;
+            }
+            body.tablet-portrait .dashboard-header h1 {
+                font-size: 1.6em;
+                flex-grow: 1;
+                text-align: center;
+                margin-left: -30px; /* Counteract toggle button space */
+            }
+            body.tablet-portrait .dashboard-header .profile-title {
+                display: none;
+            }
+            body.tablet-portrait .dashboard-header .user-info {
+                display: none;
+            }
+            body.tablet-portrait .main-content {
+                padding: 15px;
+            }
+            body.tablet-portrait .dashboard-grid {
+                grid-template-columns: 1fr; /* Force vertical stacking */
+                gap: 15px;
+            }
+            body.tablet-portrait .card {
+                padding: 15px;
+            }
+            body.tablet-portrait .profile-card h3 {
+                font-size: 1.4em;
+            }
+            body.tablet-portrait .profile-info-grid {
+                grid-template-columns: 1fr 1fr;
+                padding: 10px;
+            }
+            body.tablet-portrait .profile-stats {
+                padding: 10px;
+            }
+            body.tablet-portrait .profile-stats-item strong {
+                font-size: 1.1em;
+            }
+            body.tablet-portrait .profile-actions-buttons .profile-button {
+                padding: 6px 10px;
+                font-size: 0.8em;
+                min-width: 90px;
+            }
+            body.tablet-portrait .activity-card .card-header h2,
+            body.tablet-portrait .add-email-card .card-header h2 {
+                font-size: 1.4em;
+            }
+            body.tablet-portrait .calendar-filter {
+                flex-direction: column;
+                gap: 10px;
+            }
+            body.tablet-portrait .calendar-filter .form-group {
+                min-width: unset;
+                width: 100%;
+            }
+            body.tablet-portrait .calendar-filter input[type="date"],
+            body.tablet-portrait .add-email-card .email-input-group input[type="email"] {
+                padding: 7px;
+                font-size: 0.85em;
+            }
+            body.tablet-portrait .calendar-filter button,
+            body.tablet-portrait .add-email-card .email-input-group button {
+                padding: 7px 12px;
+                font-size: 0.85em;
+            }
+            body.tablet-portrait .activity-card .chart-container {
+                height: 180px;
+            }
+            body.tablet-portrait .activity-card #activityList {
+                max-height: 120px;
+            }
+            body.tablet-portrait .add-email-card .email-list-container {
+                max-height: 120px;
+            }
+            body.tablet-portrait .modal-content {
+                max-width: 500px;
+                padding: 25px;
+            }
+            body.tablet-portrait .sidebar-menu a {
+                font-size: var(--sidebar-font-size-tablet-portrait);
+            }
+        }
+
+        /* Mobile */
+        @media (max-width: 767px) {
+            body.mobile .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100%;
+                width: 180px; /* Even narrower sidebar */
+                z-index: 100;
+                transform: translateX(-100%);
+                box-shadow: 2px 0 5px rgba(0,0,0,0.2);
+            }
+            body.mobile .sidebar.show-mobile-sidebar {
+                transform: translateX(0);
+            }
+            body.mobile .sidebar-toggle-btn {
+                display: block;
+                background: none;
+                border: none;
+                font-size: 1.4em;
+                color: var(--adminlte-header-text);
+                cursor: pointer;
+                margin-left: 0;
+                order: 0;
+            }
+            body.mobile .dashboard-header {
+                justify-content: flex-start;
+                padding: 10px 10px;
+                margin: -15px -15px 15px -15px;
+            }
+            body.mobile .dashboard-header h1 {
+                font-size: 1.5em;
+                flex-grow: 1;
+                text-align: center;
+                margin-left: -25px; /* Counteract toggle button space */
+            }
+            body.mobile .dashboard-header .profile-title {
+                display: none;
+            }
+            body.mobile .dashboard-header .user-info {
+                display: none;
+            }
+            body.mobile .main-content {
+                padding: 10px;
+                overflow-x: hidden;
+            }
+            body.mobile .dashboard-grid {
+                grid-template-columns: 1fr !important; /* Force vertical stacking */
+                gap: 10px;
+            }
+            body.mobile .card {
+                padding: 10px;
+            }
+            body.mobile .profile-card h3 {
+                font-size: 1.2em;
+            }
+            body.mobile .profile-info-grid {
+                grid-template-columns: 1fr; /* Single column on mobile */
+                padding: 8px;
+            }
+            body.mobile .profile-info-item.full-width {
+                grid-column: span 1; /* Single column on mobile */
+            }
+            body.mobile .profile-stats {
+                padding: 8px;
+            }
+            body.mobile .profile-stats-item strong {
+                font-size: 1em;
+            }
+            body.mobile .profile-actions-buttons {
+                flex-direction: column;
+                gap: 5px;
+            }
+            body.mobile .profile-actions-buttons .profile-button {
+                padding: 5px 8px;
+                font-size: 0.75em;
+                min-width: unset;
+            }
+            body.mobile .activity-card .card-header h2,
+            body.mobile .add-email-card .card-header h2 {
+                font-size: 1.2em;
+            }
+            body.mobile .calendar-filter {
+                flex-direction: column;
+                gap: 8px;
+            }
+            body.mobile .calendar-filter .form-group {
+                min-width: unset;
+                width: 100%;
+            }
+            body.mobile .calendar-filter input[type="date"],
+            body.mobile .add-email-card .email-input-group input[type="email"] {
+                padding: 6px;
+                font-size: 0.8em;
+            }
+            body.mobile .calendar-filter button,
+            body.mobile .add-email-card .email-input-group button {
+                padding: 6px 10px;
+                font-size: 0.8em;
+            }
+            body.mobile .add-email-card .email-input-group {
+                flex-direction: column;
+            }
+            body.mobile .activity-card .chart-container {
+                height: 150px;
+            }
+            body.mobile .activity-card #activityList {
+                max-height: 100px;
+            }
+            body.mobile .add-email-card .email-list-container {
+                max-height: 100px;
+            }
+            body.mobile .modal-content {
+                width: 95%;
+                padding: 20px;
+            }
+            body.mobile .sidebar-menu a {
+                font-size: var(--sidebar-font-size-mobile);
+            }
+        }
+
+        /* Overlay for mobile sidebar */
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 99;
+        }
+        .overlay.show {
+            display: block;
+        }
+
+        /* Styles for translation buttons */
+        .translation-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 10px;
+            border-bottom: 1px solid var(--divider-color);
+        }
+
+        .translation-buttons button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 0;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.2s ease-out;
+            box-shadow: none;
+        }
+
+        .translation-buttons button:hover {
+            background-color: var(--primary-dark-color);
+        }
+
+        .translation-buttons button.active-lang {
+            background-color: var(--success-color);
+            font-weight: bold;
+        }
+        .translation-buttons button.active-lang:hover {
+            background-color: #388E3C;
+        }
+    </style>
 </head>
 <body>
     <div class="sidebar mobile-hidden">
@@ -768,14 +2169,975 @@ $current_account_status = $initial_data['current_account_status'];
     <div class="overlay" id="mobileOverlay"></div>
 
     <script>
-        // Data PHP yang akan digunakan oleh JavaScript
-        const initialChartLabels = <?php echo json_encode($chart_labels); ?>;
-        const initialChartData = <?php echo json_encode($chart_data); ?>;
-        const initialActivityLogs = <?php echo json_encode($activity_logs); ?>;
-        const initialNotificationMessage = '<?php echo $notification_message; ?>';
-        const initialNotificationType = '<?php echo $notification_type; ?>';
+        // Global variable for Chart.js instance
+        let activityChart;
+
+        // Helper function to format bytes (replicate from PHP's formatBytes)
+        function formatBytes(bytes, precision = 2) {
+            const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+            bytes = Math.max(bytes, 0);
+            const pow = Math.floor((bytes ? Math.log(bytes) : 0) / Math.log(1024));
+            const p = Math.min(pow, units.length - 1);
+            bytes /= (1 << (10 * p));
+            return bytes.toFixed(precision) + ' ' + units[p];
+        }
+
+        // Function to show custom notification
+        function showNotification(message, type) {
+            const customNotification = document.getElementById('customNotification');
+            customNotification.textContent = message;
+            customNotification.className = 'notification show ' + type;
+            setTimeout(() => {
+                customNotification.classList.remove('show');
+            }, 3000);
+        }
+
+        // Function to initialize or update the chart
+        function updateActivityChart(labels, data) {
+            const ctx = document.getElementById('activityLineChart').getContext('2d');
+            if (activityChart) {
+                activityChart.data.labels = labels;
+                activityChart.data.datasets[0].data = data;
+                activityChart.update();
+            } else {
+                activityChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Number of Activities',
+                            data: data,
+                            borderColor: 'var(--primary-color)',
+                            backgroundColor: 'rgba(63, 81, 181, 0.1)',
+                            tension: 0.3,
+                            fill: true,
+                            pointBackgroundColor: 'var(--primary-color)',
+                            pointBorderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                labels: {
+                                    color: 'var(--text-color)'
+                                }
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Count',
+                                    color: 'var(--text-color)'
+                                },
+                                ticks: {
+                                    precision: 0,
+                                    color: 'var(--secondary-text-color)'
+                                },
+                                grid: {
+                                    color: 'var(--divider-color)'
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Date',
+                                    color: 'var(--text-color)'
+                                },
+                                ticks: {
+                                    color: 'var(--secondary-text-color)'
+                                },
+                                grid: {
+                                    color: 'var(--divider-color)'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        // Function to process log data into chart format
+        function processLogsForChart(logs) {
+            const dailyCounts = {};
+            logs.forEach(log => {
+                const date = new Date(log.timestamp).toISOString().split('T')[0]; // Format YYYY-MM-DD
+                dailyCounts[date] = (dailyCounts[date] || 0) + 1;
+            });
+
+            const sortedDates = Object.keys(dailyCounts).sort();
+            const labels = sortedDates;
+            const data = sortedDates.map(date => dailyCounts[date]);
+
+            return { labels, data };
+        }
+
+        // Function to update all UI elements with new data
+        function updateProfileUI(data) {
+            const user = data.user;
+
+            // Update Dashboard Header
+            document.getElementById('userInfoGreeting').textContent = `Hello ${user.full_name || user.username}`;
+            document.getElementById('userInfoAvatar').src = user.profile_picture || 'img/photo_profile.png';
+
+            // Update Sidebar Storage Info
+            document.getElementById('sidebarProgressBar').style.width = `${data.usedPercentage.toFixed(2)}%`;
+            document.getElementById('sidebarProgressBarText').textContent = `${data.usedPercentage.toFixed(2)}%`;
+            document.getElementById('sidebarStorageText').textContent = `${formatBytes(data.usedStorageBytes)} of ${formatBytes(data.totalStorageBytes)} used`;
+            
+            const sidebarStorageFullMessage = document.getElementById('sidebarStorageFullMessage');
+            if (data.isStorageFull) {
+                if (!sidebarStorageFullMessage) {
+                    const p = document.createElement('p');
+                    p.id = 'sidebarStorageFullMessage';
+                    p.className = 'storage-text';
+                    p.style.color = 'var(--error-color)';
+                    p.style.fontWeight = 'bold';
+                    p.textContent = 'Storage Full!';
+                    document.querySelector('.storage-info').appendChild(p);
+                }
+            } else {
+                if (sidebarStorageFullMessage) {
+                    sidebarStorageFullMessage.remove();
+                }
+            }
+
+            // Update Profile Card
+            document.getElementById('profileCardPicture').src = user.profile_picture || 'img/photo_profile.png';
+            document.getElementById('profileCardFullName').textContent = user.full_name || 'Full Name';
+            document.getElementById('profileInfoUsername').textContent = user.username;
+            document.getElementById('profileInfoEmail').textContent = user.email;
+            document.getElementById('profileInfoPhoneNumber').textContent = user.phone_number || 'N/A';
+            document.getElementById('profileInfoDateOfBirth').textContent = user.date_of_birth || 'N/A';
+            document.getElementById('profileInfoJoinDate').textContent = new Date(user.created_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
+            document.getElementById('profileInfoAccountStatus').textContent = data.current_account_status;
+
+            document.getElementById('profileStatsTotalFiles').textContent = data.total_files;
+            document.getElementById('profileStatsStorageUsed').textContent = formatBytes(data.usedStorageBytes);
+            document.getElementById('profileStatsTotalQuota').textContent = formatBytes(data.totalStorageBytes);
+
+            // Update Activity Chart
+            updateActivityChart(data.chart_labels, data.chart_data);
+
+            // Update Detailed Activity List
+            const activityListUl = document.getElementById('activityListUl');
+            activityListUl.innerHTML = ''; // Clear existing list
+            if (data.activity_logs.length > 0) {
+                data.activity_logs.forEach(log => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <strong data-lang-activity-type="${log.activity_type}">${log.activity_type}:</strong>
+                        <span data-lang-activity-desc="${log.description}">${log.description}</span>
+                        <span style="float: right; color: var(--secondary-text-color); font-size: 0.9em;">${new Date(log.timestamp).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                    `;
+                    activityListUl.appendChild(li);
+                });
+            } else {
+                const li = document.createElement('li');
+                li.setAttribute('data-lang-key', 'noActivityHistory');
+                li.textContent = 'No activity history.';
+                activityListUl.appendChild(li);
+            }
+
+            // Update Additional Emails List
+            const additionalEmailsList = document.getElementById('additionalEmailsList');
+            additionalEmailsList.innerHTML = ''; // Clear existing list
+            if (data.additional_emails.length > 0) {
+                data.additional_emails.forEach(email_item => {
+                    const li = document.createElement('li');
+                    li.className = 'email-item';
+                    li.innerHTML = `
+                        <span>${email_item.email}</span>
+                        <form class="delete-email-form" data-email-id="${email_item.id}">
+                            <input type="hidden" name="email_id_to_delete" value="${email_item.id}">
+                            <button type="submit" name="delete_additional_email" class="delete-email-btn" title="Delete this email" data-lang-title="deleteThisEmail">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </form>
+                    `;
+                    additionalEmailsList.appendChild(li);
+                });
+            }
+            // Always display primary email
+            const primaryLi = document.createElement('li');
+            primaryLi.className = 'email-item';
+            primaryLi.style.fontWeight = 'bold';
+            primaryLi.style.backgroundColor = 'var(--background-color)';
+            primaryLi.style.borderRadius = '0'; // Siku-siku
+            primaryLi.style.padding = '8px';
+            primaryLi.innerHTML = `
+                <span data-lang-key="primaryEmailLabel">${user.email} (Primary Email)</span>
+                <i class="fas fa-check-circle" style="color: var(--success-color);"></i>
+            `;
+            additionalEmailsList.appendChild(primaryLi);
+
+            // Update Edit Profile Modal fields
+            document.getElementById('edit_full_name').value = user.full_name || '';
+            document.getElementById('edit_phone_number').value = user.phone_number || '';
+            document.getElementById('edit_date_of_birth').value = user.date_of_birth || '';
+            document.getElementById('currentProfilePicLink').href = user.profile_picture || 'img/photo_profile.png';
+            document.getElementById('currentProfilePicLink').textContent = (user.profile_picture ? user.profile_picture.split('/').pop() : 'photo_profile.png');
+
+            // Re-apply translation after UI update
+            applyTranslation(currentLanguage);
+        }
+
+        // Function to fetch profile data via AJAX
+        async function fetchProfileData() {
+            try {
+                const response = await fetch('profile.php?action=get_profile_data');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                if (data.error) {
+                    // showNotification(data.message, 'error'); // Dihapus agar tidak mengganggu saat menerjemahkan
+                    // Optionally redirect if user not found
+                    // window.location.href = 'login.php';
+                    return;
+                }
+                updateProfileUI(data);
+                // Store all activity logs for client-side filtering
+                window.allActivityLogs = data.activity_logs;
+            } catch (error) {
+                console.error("Could not fetch profile data:", error);
+                // showNotification('Failed to load profile data.', 'error'); // Dihapus agar tidak mengganggu saat menerjemahkan
+            }
+        }
+
+        // Function to update the real-time clock
+        function updateClock() {
+            const now = new Date();
+            
+            let hours = now.getHours();
+            const minutes = now.getMinutes();
+            const seconds = now.getSeconds();
+            const ampm = hours >= 12 ? 'P.M.' : 'A.M.';
+            
+            hours = hours % 12;
+            hours = hours ? hours : 12; // Convert 0 to 12
+            
+            const timeString = `${pad(hours)}:${pad(minutes)}:${pad(seconds)} ${ampm}`;
+            document.getElementById("profileClock").innerText = timeString;
+            
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const months = [
+                'January', 'February', 'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October', 'November', 'December'
+            ];
+            
+            const dayName = days[now.getDay()];
+            const day = now.getDate();
+            const month = months[now.getMonth()];
+            const year = now.getFullYear();
+            
+            const dateString = `${dayName}, ${day} ${month} ${year}`;
+            document.getElementById("profileDate").innerText = dateString;
+        }
+        
+        function pad(n) {
+            return n < 10 ? '0' + n : n;
+        }
+
+        // --- Responsive Class Handling ---
+        function applyDeviceClass() {
+            const width = window.innerWidth;
+            const body = document.body;
+            const sidebar = document.querySelector('.sidebar');
+            const mobileOverlay = document.getElementById('mobileOverlay');
+            const profileTitle = document.querySelector('.profile-title'); // Get the title element
+            const userInfo = document.querySelector('.user-info'); // Get user-info element
+
+            // Remove all previous device classes
+            body.classList.remove('mobile', 'tablet-portrait', 'tablet-landscape', 'desktop');
+
+            if (width <= 767) {
+                body.classList.add('mobile');
+                sidebar.classList.add('mobile-hidden'); // Ensure sidebar is hidden by default
+                profileTitle.style.display = 'none'; // Hide title on mobile
+                userInfo.style.display = 'none'; // Hide user info on mobile
+            } else if (width >= 768 && width <= 1024) {
+                if (window.matchMedia("(orientation: portrait)").matches) {
+                    body.classList.add('tablet-portrait');
+                    sidebar.classList.add('mobile-hidden'); // Ensure sidebar is hidden by default
+                    profileTitle.style.display = 'none'; // Hide title on tablet portrait
+                    userInfo.style.display = 'none'; // Hide user info on tablet portrait
+                } else {
+                    body.classList.add('tablet-landscape');
+                    sidebar.classList.remove('mobile-hidden'); // Show sidebar
+                    sidebar.classList.remove('show-mobile-sidebar'); // Ensure mobile sidebar is closed
+                    mobileOverlay.classList.remove('show'); // Hide overlay
+                    profileTitle.style.display = 'block'; // Show title on tablet landscape
+                    userInfo.style.display = 'flex'; // Show user info on tablet landscape
+                }
+            } else {
+                body.classList.add('desktop');
+                sidebar.classList.remove('mobile-hidden'); // Show sidebar
+                sidebar.classList.remove('show-mobile-sidebar'); // Ensure mobile sidebar is closed
+                mobileOverlay.classList.remove('show'); // Hide overlay
+                profileTitle.style.display = 'block'; // Show title on desktop
+                userInfo.style.display = 'flex'; // Show user info on desktop
+            }
+        }
+
+        // --- Translation Logic ---
+        const translations = {
+            // Sidebar
+            'controlCenter': { 'id': 'Control Center', 'en': 'Control Center' },
+            'myDrive': { 'id': 'Drive Saya', 'en': 'My Drive' },
+            'priorityFile': { 'id': 'File Prioritas', 'en': 'Priority File' },
+            'recycleBin': { 'id': 'Tempat Sampah', 'en': 'Recycle Bin' },
+            'summary': { 'id': 'Ringkasan', 'en': 'Summary' },
+            'members': { 'id': 'Anggota', 'en': 'Members' },
+            'profile': { 'id': 'Profil', 'en': 'Profile' },
+            'logout': { 'id': 'Keluar', 'en': 'Logout' },
+            'storage': { 'id': 'Penyimpanan', 'en': 'Storage' },
+            'storageFull': { 'id': 'Penyimpanan Penuh!', 'en': 'Storage Full!' },
+
+            // Dashboard Header
+            'profileDashboardTitle': { 'id': 'Dasbor Profil Saya', 'en': 'My Profile Dashboard' },
+            'helloUserGreeting': { 'id': 'Halo', 'en': 'Hello' }, // Will be combined with username
+
+            // Profile Card
+            'welcomeMessage': { 'id': 'Selamat datang di SKMI Cloud Storage', 'en': 'Welcome to SKMI Cloud Storage' },
+            'usernameLabel': { 'id': 'Nama Pengguna', 'en': 'Username' },
+            'emailLabel': { 'id': 'Email', 'en': 'Email' },
+            'phoneNumberLabel': { 'id': 'Nomor Telepon', 'en': 'Phone Number' },
+            'dateOfBirthLabel': { 'id': 'Tanggal Lahir', 'en': 'Date of Birth' },
+            'joinDateLabel': { 'id': 'Tanggal Bergabung', 'en': 'Join Date' },
+            'accountStatusLabel': { 'id': 'Status Akun', 'en': 'Account Status' },
+            'totalFilesLabel': { 'id': 'Total File', 'en': 'Total Files' },
+            'storageUsedLabel': { 'id': 'Penyimpanan Terpakai', 'en': 'Storage Used' },
+            'totalQuotaLabel': { 'id': 'Total Kuota', 'en': 'Total Quota' },
+            'editProfileButton': { 'id': 'Edit Profil', 'en': 'Edit Profile' },
+            'changePasswordButton': { 'id': 'Ubah Kata Sandi', 'en': 'Change Password' },
+            'logoutButton': { 'id': 'Keluar', 'en': 'Logout' },
+
+            // Right Column - Translation Buttons Card
+            'languageSelectionTitle': { 'id': 'Pilihan Bahasa', 'en': 'Language Selection' },
+
+            // Activity History Card
+            'activityHistoryTitle': { 'id': 'Riwayat Aktivitas', 'en': 'Activity History' },
+            'startDateLabel': { 'id': 'Tanggal Mulai:', 'en': 'Start Date:' },
+            'endDateLabel': { 'id': 'Tanggal Akhir:', 'en': 'End Date:' },
+            'showDataButton': { 'id': 'Tampilkan Data', 'en': 'Show Data' },
+            'activityDetailsTitle': { 'id': 'Detail Aktivitas:', 'en': 'Activity Details:' },
+            'noActivityHistory': { 'id': 'Tidak ada riwayat aktivitas.', 'en': 'No activity history.' },
+            'noActivityWithinRange': { 'id': 'Tidak ada aktivitas dalam rentang tanggal ini.', 'en': 'No activity within this date range.' },
+            'selectBothDates': { 'id': 'Mohon pilih kedua tanggal!', 'en': 'Please select both dates!' },
+            'startDateCannotBeLater': { 'id': 'Tanggal mulai tidak boleh lebih lambat dari tanggal akhir.', 'en': 'Start date cannot be later than end date.' },
+
+            // Activity Types (dynamic content)
+            'change_password': { 'id': 'Ubah Kata Sandi', 'en': 'Change Password' },
+            'update_profile': { 'id': 'Perbarui Profil', 'en': 'Update Profile' },
+            'delete_profile_picture': { 'id': 'Hapus Foto Profil', 'en': 'Delete Profile Picture' },
+            'add_email': { 'id': 'Tambah Email', 'en': 'Add Email' },
+            'delete_email': { 'id': 'Hapus Email', 'en': 'Delete Email' },
+            // Add more activity types as needed
+
+            // Additional Emails Card
+            'additionalEmailsTitle': { 'id': 'Email Tambahan', 'en': 'Additional Emails' },
+            'enterNewEmail': { 'id': 'Masukkan email baru', 'en': 'Enter new email' },
+            'addButton': { 'id': 'Tambah', 'en': 'Add' },
+            'deleteThisEmail': { 'id': 'Hapus email ini', 'en': 'Delete this email' },
+            'primaryEmailLabel': { 'id': ' (Email Utama)', 'en': ' (Primary Email)' }, // Will be appended to email address
+
+            // Change Password Modal
+            'changePasswordModalTitle': { 'id': 'Ubah Kata Sandi', 'en': 'Change Password' },
+            'oldPasswordLabel': { 'id': 'Kata Sandi Lama:', 'en': 'Old Password:' },
+            'newPasswordLabel': { 'id': 'Kata Sandi Baru:', 'en': 'New Password:' },
+            'confirmNewPasswordLabel': { 'id': 'Konfirmasi Kata Sandi Baru:', 'en': 'Confirm New Password:' },
+            'saveNewPasswordButton': { 'id': 'Simpan Kata Sandi Baru', 'en': 'Save New Password' },
+
+            // Edit Profile Modal
+            'editProfileModalTitle': { 'id': 'Edit Profil', 'en': 'Edit Profile' },
+            'fullNameLabel': { 'id': 'Nama Lengkap:', 'en': 'Full Name:' },
+            'profilePictureLabel': { 'id': 'Foto Profil:', 'en': 'Profile Picture:' },
+            'currentLabel': { 'id': 'Saat Ini:', 'en': 'Current:' },
+            'deleteProfilePictureButton': { 'id': 'Hapus Foto Profil', 'en': 'Delete Profile Picture' },
+            'saveChangesButton': { 'id': 'Simpan Perubahan', 'en': 'Save Changes' },
+
+            // Notifications (dynamic messages, but can have base translations)
+            'failedToLoadProfileData': { 'id': 'Gagal memuat data profil.', 'en': 'Failed to load profile data.' },
+            'errorChangingPassword': { 'id': 'Terjadi kesalahan saat mengubah kata sandi.', 'en': 'An error occurred while changing password.' },
+            'errorUpdatingProfile': { 'id': 'Terjadi kesalahan saat memperbarui profil.', 'en': 'An error occurred while updating profile.' },
+            'errorUploadingProfilePicture': { 'id': 'Terjadi kesalahan saat mengunggah foto profil.', 'en': 'An error occurred while uploading profile picture.' },
+            'errorDeletingProfilePicture': { 'id': 'Terjadi kesalahan saat menghapus foto profil.', 'en': 'An error occurred while deleting profile picture.' },
+            'errorAddingEmail': { 'id': 'Terjadi kesalahan saat menambahkan email.', 'en': 'An error occurred while adding email.' },
+            'errorDeletingEmail': { 'id': 'Terjadi kesalahan saat menghapus email.', 'en': 'An error occurred while deleting email.' },
+            'profilePictureDeletedSuccess': { 'id': 'Foto profil berhasil dihapus.', 'en': 'Profile picture deleted successfully.' },
+            'passwordChangedSuccess': { 'id': 'Kata sandi berhasil diubah.', 'en': 'Password changed successfully.' },
+            'profileUpdatedSuccess': { 'id': 'Profil berhasil diperbarui.', 'en': 'Profile updated successfully.' },
+            'emailAddedSuccess': { 'id': 'Email berhasil ditambahkan!', 'en': 'Email added successfully!' },
+            'emailDeletedSuccess': { 'id': 'Email tambahan berhasil dihapus.', 'en': 'Additional email deleted successfully.' },
+            'oldPasswordIncorrect': { 'id': 'Kata sandi lama salah.', 'en': 'Old password is incorrect.' },
+            'newPasswordMismatch': { 'id': 'Konfirmasi kata sandi baru tidak cocok.', 'en': 'New password confirmation does not match.' },
+            'passwordTooShort': { 'id': 'Kata sandi baru harus minimal 6 karakter.', 'en': 'New password must be at least 6 characters long.' },
+            'invalidEmailFormat': { 'id': 'Format email tidak valid.', 'en': 'Invalid email format.' },
+            'emailAlreadyPrimary': { 'id': 'Email ini sudah menjadi email utama Anda.', 'en': 'This email is already your primary email.' },
+            'emailAlreadyRegisteredUser': { 'id': 'Email ini sudah terdaftar sebagai email tambahan Anda.', 'en': 'This email is already registered as your additional email.' },
+            'emailUsedByOtherPrimary': { 'id': 'Email ini sudah digunakan sebagai email utama oleh akun lain.', 'en': 'This email is already used as a primary email by another account.' },
+            'emailUsedByOtherAdditional': { 'id': 'Email ini sudah digunakan sebagai email tambahan oleh akun lain.', 'en': 'This email is already used as an additional email by another account.' },
+            'noCustomProfilePicture': { 'id': 'Tidak ada foto profil kustom untuk dihapus.', 'en': 'No custom profile picture to delete.' },
+            'emailNotFoundOrUnauthorized': { 'id': 'Email tidak ditemukan atau tidak diizinkan untuk dihapus.', 'en': 'Email not found or not authorized to delete.' },
+            'fileTypeNotAllowed': { 'id': 'Hanya file JPG, JPEG, PNG, dan GIF yang diizinkan.', 'en': 'Only JPG, JPEG, PNG, and GIF files are allowed.' },
+            'fileSizeTooLarge': { 'id': 'Ukuran file terlalu besar. Maksimal 2MB.', 'en': 'File size is too large. Maximum 2MB.' },
+            'failedToSaveMergedImage': { 'id': 'Gagal menyimpan foto profil yang digabungkan.', 'en': 'Failed to save merged profile picture.' },
+            'failedToLoadImagesForMerging': { 'id': 'Gagal memuat gambar untuk penggabungan.', 'en': 'Failed to load images for merging.' },
+            'backgroundNotFoundUploadOriginal': { 'id': 'Gambar latar belakang tidak ditemukan. Mengunggah PNG asli.', 'en': 'Background image not found. Uploading original PNG.' },
+            'failedToUploadProfilePicture': { 'id': 'Gagal mengunggah foto profil.', 'en': 'Failed to upload profile picture.' },
+            'failedToUpdateProfilePictureDB': { 'id': 'Gagal memperbarui foto profil di database.', 'en': 'Failed to update profile picture in database.' },
+            'failedToDeleteProfilePictureFile': { 'id': 'Gagal menghapus file foto profil.', 'en': 'Failed to delete profile picture file.' },
+            'emailCannotBeEmpty': { 'id': 'Email tidak boleh kosong.', 'en': 'Email cannot be empty.' },
+            'deleteProfilePictureButtonConfirm': { 'id': 'Apakah Anda yakin ingin menghapus foto profil Anda? Ini akan kembali ke gambar kosong default.', 'en': 'Are you sure you want to delete your profile picture? This will revert to the default blank image.' },
+            'deleteThisEmailConfirm': { 'id': 'Apakah Anda yakin ingin menghapus email ini?', 'en': 'Are you sure you want to delete this email?' },
+        };
+
+        let currentLanguage = localStorage.getItem('lang') || 'id'; // Default to Indonesian
+
+        function applyTranslation(lang) {
+            const mainContent = document.getElementById('mainContent');
+            mainContent.style.opacity = '0'; // Hide content before translation
+
+            document.querySelectorAll('[data-lang-key]').forEach(element => {
+                const key = element.getAttribute('data-lang-key');
+                if (translations[key] && translations[key][lang]) {
+                    // Handle special cases for dynamic text
+                    if (key === 'helloUserGreeting') {
+                        const username = document.getElementById('userInfoGreeting').textContent.split(' ')[1]; // Get current username
+                        element.textContent = `${translations[key][lang]} ${username}`;
+                    } else if (key === 'primaryEmailLabel') {
+                        const email = element.textContent.split(' ')[0]; // Get current email
+                        element.textContent = `${email}${translations[key][lang]}`;
+                    } else {
+                        element.textContent = translations[key][lang];
+                    }
+                }
+            });
+
+            // Handle placeholders
+            document.querySelectorAll('[data-lang-placeholder]').forEach(element => {
+                const key = element.getAttribute('data-lang-placeholder');
+                if (translations[key] && translations[key][lang]) {
+                    element.placeholder = translations[key][lang];
+                }
+            });
+
+            // Handle titles
+            document.querySelectorAll('[data-lang-title]').forEach(element => {
+                const key = element.getAttribute('data-lang-title');
+                if (translations[key] && translations[key][lang]) {
+                    element.title = translations[key][lang];
+                }
+            });
+
+            // Handle activity log types and descriptions
+            document.querySelectorAll('#activityListUl li').forEach(li => {
+                const strongElement = li.querySelector('strong[data-lang-activity-type]');
+                // const spanElement = li.querySelector('span[data-lang-activity-desc]'); // Description is dynamic, no direct translation needed here
+
+                if (strongElement) {
+                    const activityTypeKey = strongElement.getAttribute('data-lang-activity-type');
+                    if (translations[activityTypeKey] && translations[activityTypeKey][lang]) {
+                        strongElement.textContent = `${translations[activityTypeKey][lang]}:`;
+                    }
+                }
+            });
+
+            // Update sidebar menu items
+            document.querySelectorAll('.sidebar-menu a').forEach(link => {
+                const href = link.getAttribute('href');
+                let key;
+                if (href.includes('control_center.php')) key = 'controlCenter';
+                else if (href.includes('index.php')) key = 'myDrive';
+                else if (href.includes('priority_files.php')) key = 'priorityFile';
+                else if (href.includes('recycle_bin.php')) key = 'recycleBin';
+                else if (href.includes('summary.php')) key = 'summary';
+                else if (href.includes('members.php')) key = 'members';
+                else if (href.includes('profile.php')) key = 'profile';
+                else if (href.includes('logout.php')) key = 'logout';
+
+                if (key && translations[key] && translations[key][lang]) {
+                    const icon = link.querySelector('i');
+                    link.innerHTML = ''; // Clear existing content
+                    if (icon) link.appendChild(icon);
+                    link.appendChild(document.createTextNode(` ${translations[key][lang]}`));
+                }
+            });
+
+            // Update sidebar storage info
+            const sidebarStorageFullMessage = document.getElementById('sidebarStorageFullMessage');
+            if (sidebarStorageFullMessage) {
+                const key = 'storageFull';
+                if (translations[key] && translations[key][lang]) {
+                    sidebarStorageFullMessage.textContent = translations[key][lang];
+                }
+            }
+            const storageTitle = document.querySelector('.storage-info h4');
+            if (storageTitle) {
+                const key = 'storage';
+                if (translations[key] && translations[key][lang]) {
+                    storageTitle.textContent = translations[key][lang];
+                }
+            }
+
+            // Update active language button
+            document.getElementById('langIdBtn').classList.remove('active-lang');
+            document.getElementById('langEnBtn').classList.remove('active-lang');
+            if (lang === 'id') {
+                document.getElementById('langIdBtn').classList.add('active-lang');
+            } else {
+                document.getElementById('langEnBtn').classList.add('active-lang');
+            }
+
+            // Update notification messages if any are currently displayed
+            const currentNotification = document.getElementById('customNotification');
+            if (currentNotification.classList.contains('show')) {
+                const messageKey = currentNotification.getAttribute('data-lang-key-notification');
+                if (messageKey && translations[messageKey] && translations[messageKey][lang]) {
+                    currentNotification.textContent = translations[messageKey][lang];
+                }
+            }
+
+            // After applying all translations, make content visible
+            mainContent.style.opacity = '1';
+        }
+
+        // Override showNotification to handle translation keys
+        const originalShowNotification = showNotification;
+        showNotification = function(message, type, langKey = null) {
+            const customNotification = document.getElementById('customNotification');
+            if (langKey && translations[langKey] && translations[langKey][currentLanguage]) {
+                customNotification.textContent = translations[langKey][currentLanguage];
+                customNotification.setAttribute('data-lang-key-notification', langKey); // Store key for re-translation
+            } else {
+                customNotification.textContent = message;
+                customNotification.removeAttribute('data-lang-key-notification');
+            }
+            customNotification.className = 'notification show ' + type;
+            setTimeout(() => {
+                customNotification.classList.remove('show');
+                customNotification.removeAttribute('data-lang-key-notification');
+            }, 3000);
+        };
+
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initial UI update with data from PHP (server-side rendered)
+            // This ensures the page is not blank while AJAX loads
+            updateActivityChart(
+                <?php echo json_encode($chart_labels); ?>,
+                <?php echo json_encode($chart_data); ?>
+            );
+            window.allActivityLogs = <?php echo json_encode($activity_logs); ?>;
+
+            // Initialize real-time clock
+            updateClock();
+            setInterval(updateClock, 1000);
+
+            // Elements for modals and forms
+            const changePasswordModal = document.getElementById('changePasswordModal');
+            const changePasswordForm = document.getElementById('changePasswordForm');
+            const editProfileModal = document.getElementById('editProfileModal');
+            const editProfileForm = document.getElementById('editProfileForm');
+            const closeButtons = document.querySelectorAll('.close-button');
+            const profilePictureContainer = document.querySelector('.profile-picture-container');
+            const profilePictureInput = document.getElementById('profilePictureInput');
+            const addEmailForm = document.getElementById('addEmailForm');
+            const additionalEmailsList = document.getElementById('additionalEmailsList');
+            const deleteProfilePictureBtn = document.getElementById('deleteProfilePictureBtn');
+
+            // Mobile sidebar elements
+            const sidebar = document.querySelector('.sidebar');
+            const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
+            const mobileOverlay = document.getElementById('mobileOverlay');
+            const mainContent = document.getElementById('mainContent'); // Get main-content for animations
+
+            // Notification display from initial PHP load
+            <?php if (!empty($notification_message)): ?>
+                showNotification('<?php echo $notification_message; ?>', '<?php echo $notification_type; ?>');
+            <?php endif; ?>
+
+            // Apply initial translation based on stored preference
+            applyTranslation(currentLanguage);
+            document.body.style.visibility = 'visible'; // Make body visible after initial translation
+
+            // Event listeners for translation buttons
+            document.getElementById('langIdBtn').addEventListener('click', () => {
+                currentLanguage = 'id';
+                localStorage.setItem('lang', 'id');
+                applyTranslation('id');
+            });
+
+            document.getElementById('langEnBtn').addEventListener('click', () => {
+                currentLanguage = 'en';
+                localStorage.setItem('lang', 'en');
+                applyTranslation('en');
+            });
+
+            // Open Edit Profile Modal
+            document.getElementById('editProfileBtn').addEventListener('click', () => {
+                editProfileModal.classList.add('show');
+                // Populate fields are handled by updateProfileUI on initial load and refresh
+                applyTranslation(currentLanguage); // Re-apply translation to modal content
+            });
+
+            // Open Change Password Modal
+            document.getElementById('changePasswordBtn').addEventListener('click', () => {
+                changePasswordModal.classList.add('show');
+                changePasswordForm.reset(); // Clear form fields when opening
+                applyTranslation(currentLanguage); // Re-apply translation to modal content
+            });
+
+            // Close Modals
+            closeButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    changePasswordModal.classList.remove('show');
+                    editProfileModal.classList.remove('show');
+                });
+            });
+
+            window.addEventListener('click', (event) => {
+                if (event.target == changePasswordModal) {
+                    changePasswordModal.classList.remove('show');
+                }
+                if (event.target == editProfileModal) {
+                    editProfileModal.classList.remove('show');
+                }
+                // Close mobile sidebar if overlay is clicked
+                if (event.target == mobileOverlay && sidebar.classList.contains('show-mobile-sidebar')) {
+                    sidebar.classList.remove('show-mobile-sidebar');
+                    mobileOverlay.classList.remove('show');
+                }
+            });
+
+            // Handle Change Password Form Submission via AJAX
+            changePasswordForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                try {
+                    const response = await fetch('profile.php', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        showNotification(result.message, 'success', 'passwordChangedSuccess');
+                        changePasswordModal.classList.remove('show');
+                        this.reset();
+                    } else {
+                        // Map specific error messages to translation keys
+                        let langKey = 'errorChangingPassword';
+                        if (result.message.includes('Old password is incorrect')) {
+                            langKey = 'oldPasswordIncorrect';
+                        } else if (result.message.includes('New password confirmation does not match')) {
+                            langKey = 'newPasswordMismatch';
+                        } else if (result.message.includes('New password must be at least 6 characters long')) {
+                            langKey = 'passwordTooShort';
+                        }
+                        showNotification(result.message, 'error', langKey);
+                    }
+                } catch (error) {
+                    console.error('Error changing password:', error);
+                    showNotification('An error occurred while changing password.', 'error', 'errorChangingPassword');
+                }
+            });
+
+            // Handle Edit Profile Form Submission via AJAX
+            editProfileForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                try {
+                    const response = await fetch('profile.php', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        showNotification(result.message, 'success', 'profileUpdatedSuccess');
+                        editProfileModal.classList.remove('show');
+                        fetchProfileData(); // Refresh UI after successful update
+                    } else {
+                        let langKey = 'errorUpdatingProfile';
+                        if (result.message.includes('Only JPG, JPEG, PNG, and GIF files are allowed')) {
+                            langKey = 'fileTypeNotAllowed';
+                        } else if (result.message.includes('File size is too large')) {
+                            langKey = 'fileSizeTooLarge';
+                        } else if (result.message.includes('Failed to save merged profile picture')) {
+                            langKey = 'failedToSaveMergedImage';
+                        } else if (result.message.includes('Failed to load images for merging')) {
+                            langKey = 'failedToLoadImagesForMerging';
+                        } else if (result.message.includes('Background image not found')) {
+                            langKey = 'backgroundNotFoundUploadOriginal';
+                        } else if (result.message.includes('Failed to upload profile picture')) {
+                            langKey = 'failedToUploadProfilePicture';
+                        }
+                        showNotification(result.message, 'error', langKey);
+                    }
+                } catch (error) {
+                    console.error('Error updating profile:', error);
+                    showNotification('An error occurred while updating profile.', 'error', 'errorUpdatingProfile');
+                }
+            });
+
+            // Handle profile picture click to trigger file input
+            profilePictureContainer.addEventListener('click', () => {
+                profilePictureInput.click();
+            });
+
+            // Handle file input change for profile picture upload (directly from profile card)
+            profilePictureInput.addEventListener('change', async function() {
+                if (this.files.length === 0) {
+                    return;
+                }
+                const file = this.files[0];
+                const formData = new FormData();
+                formData.append('profile_picture', file);
+                formData.append('edit_profile_submit', '1');
+                // Send current full name, phone number, and date of birth to avoid overwriting
+                // These values are fetched from the current UI state, which should be up-to-date
+                formData.append('full_name', document.getElementById('edit_full_name').value);
+                formData.append('phone_number', document.getElementById('edit_phone_number').value);
+                formData.append('date_of_birth', document.getElementById('edit_date_of_birth').value);
+
+                try {
+                    const response = await fetch('profile.php', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        showNotification(result.message, 'success', 'profileUpdatedSuccess');
+                        fetchProfileData(); // Refresh UI after successful update
+                    } else {
+                        let langKey = 'errorUploadingProfilePicture';
+                        if (result.message.includes('Only JPG, JPEG, PNG, and GIF files are allowed')) {
+                            langKey = 'fileTypeNotAllowed';
+                        } else if (result.message.includes('File size is too large')) {
+                            langKey = 'fileSizeTooLarge';
+                        } else if (result.message.includes('Failed to save merged profile picture')) {
+                            langKey = 'failedToSaveMergedImage';
+                        } else if (result.message.includes('Failed to load images for merging')) {
+                            langKey = 'failedToLoadImagesForMerging';
+                        } else if (result.message.includes('Background image not found')) {
+                            langKey = 'backgroundNotFoundUploadOriginal';
+                        } else if (result.message.includes('Failed to upload profile picture')) {
+                            langKey = 'failedToUploadProfilePicture';
+                        }
+                        showNotification(result.message, 'error', langKey);
+                    }
+                } catch (error) {
+                    console.error('Error uploading profile picture:', error);
+                    showNotification('An error occurred while uploading profile picture.', 'error', 'errorUploadingProfilePicture');
+                }
+            });
+
+            // Handle Delete Profile Picture
+            deleteProfilePictureBtn.addEventListener('click', async () => {
+                if (confirm(translations['deleteProfilePictureButtonConfirm'][currentLanguage] || 'Are you sure you want to delete your profile picture? This will revert to the default blank image.')) {
+                    const formData = new FormData();
+                    formData.append('delete_profile_picture', '1');
+                    try {
+                        const response = await fetch('profile.php', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        const result = await response.json();
+                        if (result.success) {
+                            showNotification(result.message, 'success', 'profilePictureDeletedSuccess');
+                            fetchProfileData(); // Refresh UI after successful deletion
+                        } else {
+                            let langKey = 'errorDeletingProfilePicture';
+                            if (result.message.includes('No custom profile picture to delete')) {
+                                langKey = 'noCustomProfilePicture';
+                            } else if (result.message.includes('Failed to update profile picture in database')) {
+                                langKey = 'failedToUpdateProfilePictureDB';
+                            } else if (result.message.includes('Failed to delete profile picture file')) {
+                                langKey = 'failedToDeleteProfilePictureFile';
+                            }
+                            showNotification(result.message, 'error', langKey);
+                        }
+                    } catch (error) {
+                        console.error('Error deleting profile picture:', error);
+                        showNotification('An error occurred while deleting profile picture.', 'error', 'errorDeletingProfilePicture');
+                    }
+                }
+            });
+
+            // Handle Add Email Form Submission via AJAX
+            addEmailForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                formData.append('add_email', '1'); // Explicitly set add_email flag
+                try {
+                    const response = await fetch('profile.php', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        showNotification(result.message, 'success', 'emailAddedSuccess');
+                        this.reset(); // Clear the input field
+                        fetchProfileData(); // Refresh UI to show new email
+                    } else {
+                        let langKey = 'errorAddingEmail';
+                        if (result.message.includes('Email cannot be empty')) {
+                            langKey = 'emailCannotBeEmpty';
+                        } else if (result.message.includes('Invalid email format')) {
+                            langKey = 'invalidEmailFormat';
+                        } else if (result.message.includes('This email is already your primary email')) {
+                            langKey = 'emailAlreadyPrimary';
+                        } else if (result.message.includes('This email is already registered as your additional email')) {
+                            langKey = 'emailAlreadyRegisteredUser';
+                        } else if (result.message.includes('This email is already used as a primary email by another account')) {
+                            langKey = 'emailUsedByOtherPrimary';
+                        } else if (result.message.includes('This email is already used as an additional email by another account')) {
+                            langKey = 'emailUsedByOtherAdditional';
+                        }
+                        showNotification(result.message, 'error', langKey);
+                    }
+                } catch (error) {
+                    console.error('Error adding email:', error);
+                    showNotification('An error occurred while adding email.', 'error', 'errorAddingEmail');
+                }
+            });
+
+            // Handle Delete Additional Email via Event Delegation
+            additionalEmailsList.addEventListener('submit', async function(e) {
+                if (e.target.classList.contains('delete-email-form')) {
+                    e.preventDefault();
+                    if (confirm(translations['deleteThisEmailConfirm'][currentLanguage] || 'Are you sure you want to delete this email?')) {
+                        const formData = new FormData(e.target);
+                        formData.append('delete_additional_email', '1'); // Explicitly set delete_additional_email flag
+                        try {
+                            const response = await fetch('profile.php', {
+                                method: 'POST',
+                                body: formData
+                            });
+                            const result = await response.json();
+                            if (result.success) {
+                                showNotification(result.message, 'success', 'emailDeletedSuccess');
+                                fetchProfileData(); // Refresh UI to remove deleted email
+                            } else {
+                                let langKey = 'errorDeletingEmail';
+                                if (result.message.includes('Email not found or not authorized to delete')) {
+                                    langKey = 'emailNotFoundOrUnauthorized';
+                                }
+                                showNotification(result.message, 'error', langKey);
+                            }
+                        } catch (error) {
+                            console.error('Error deleting email:', error);
+                            showNotification('An error occurred while deleting email.', 'error', 'errorDeletingEmail');
+                        }
+                    }
+                }
+            });
+
+            // Calendar filter function (client-side filtering)
+            window.filterActivityData = function() {
+                const startDateInput = document.getElementById('startDate');
+                const endDateInput = document.getElementById('endDate');
+                const filterResultDiv = document.getElementById('filterResult');
+                const activityListUl = document.getElementById('activityListUl');
+
+                const startDate = startDateInput.value;
+                const endDate = endDateInput.value;
+
+                if (!startDate || !endDate) {
+                    showNotification(translations['selectBothDates'][currentLanguage] || "Please select both dates!", "error", 'selectBothDates');
+                    return;
+                }
+
+                const startDateTime = new Date(startDate + 'T00:00:00');
+                const endDateTime = new Date(endDate + 'T23:59:59'); // End of the day
+
+                if (startDateTime > endDateTime) {
+                    showNotification(translations['startDateCannotBeLater'][currentLanguage] || "Start date cannot be later than end date.", "error", 'startDateCannotBeLater');
+                    return;
+                }
+
+                filterResultDiv.textContent = `${translations['showDataButton'][currentLanguage] || 'Showing data'} from ${startDate} to ${endDate}`;
+
+                const filteredLogs = window.allActivityLogs.filter(log => {
+                    const logTimestamp = new Date(log.timestamp);
+                    return logTimestamp >= startDateTime && logTimestamp <= endDateTime;
+                });
+
+                const filteredChartData = processLogsForChart(filteredLogs);
+                updateActivityChart(filteredChartData.labels, filteredChartData.data);
+
+                // Update detailed activity list
+                activityListUl.innerHTML = ''; // Clear existing list
+                if (filteredLogs.length === 0) {
+                    const li = document.createElement('li');
+                    li.setAttribute('data-lang-key', 'noActivityWithinRange');
+                    li.textContent = translations['noActivityWithinRange'][currentLanguage] || 'No activity within this date range.';
+                    activityListUl.appendChild(li);
+                } else {
+                    filteredLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); // Sort newest to oldest
+                    filteredLogs.forEach(log => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `
+                            <strong data-lang-activity-type="${log.activity_type}">${translations[log.activity_type]?.[currentLanguage] || log.activity_type}:</strong>
+                            <span data-lang-activity-desc="${log.description}">${log.description}</span>
+                            <span style="float: right; color: var(--secondary-text-color); font-size: 0.9em;">${new Date(log.timestamp).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                        `;
+                        activityListUl.appendChild(li);
+                    });
+                }
+            };
+
+            // Initial application of device class
+            applyDeviceClass();
+            window.addEventListener('resize', applyDeviceClass);
+            window.addEventListener('orientationchange', applyDeviceClass);
+
+            // --- Mobile Sidebar Toggle ---
+            sidebarToggleBtn.addEventListener('click', () => {
+                sidebar.classList.toggle('show-mobile-sidebar');
+                mobileOverlay.classList.toggle('show');
+            });
+
+            // --- Sidebar Menu Navigation with Fly Out Animation ---
+            const sidebarMenuItems = document.querySelectorAll('.sidebar-menu a');
+            sidebarMenuItems.forEach(item => {
+                item.addEventListener('click', function(event) {
+                    // Only apply animation if it's a navigation link and not the current active page
+                    if (this.getAttribute('href') && !this.classList.contains('active')) {
+                        event.preventDefault(); // Prevent default navigation immediately
+                        const targetUrl = this.getAttribute('href');
+
+                        mainContent.classList.add('fly-out'); // Start fly-out animation
+
+                        mainContent.addEventListener('animationend', function handler() {
+                            mainContent.removeEventListener('animationend', handler);
+                            window.location.href = targetUrl; // Navigate after animation
+                        });
+                    }
+                });
+            });
+
+            // Set active class for current page in sidebar
+            const currentPage = window.location.pathname.split('/').pop();
+            sidebarMenuItems.forEach(item => {
+                item.classList.remove('active');
+                const itemHref = item.getAttribute('href');
+                if (itemHref === currentPage || (currentPage === 'profile.php' && itemHref === 'profile.php')) {
+                    item.classList.add('active');
+                }
+            });
+
+            // Refresh data periodically (e.g., every 30 seconds)
+            setInterval(fetchProfileData, 30000);
+        });
     </script>
-    <script type="module" src="js/translation.js"></script>
-    <script type="module" src="js/profile.js"></script>
 </body>
 </html>
