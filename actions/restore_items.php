@@ -9,7 +9,7 @@ if (!isset($_SESSION['user_id'])) {
     echo json_encode(['success' => false, 'message' => 'Unauthorized access. Please log in.']);
     exit;
 }
-$userId = $_SESSION['user_id'];
+$userId = $_SESSION['user_id']; // Tetap ambil userId untuk logging
 
 $input = json_decode(file_get_contents('php://input'), true);
 $itemsToRestore = $input['items'] ?? [];
@@ -36,8 +36,9 @@ try {
 
         if ($type === 'file') {
             // Get file details from deleted_files
-            $stmt = $conn->prepare("SELECT file_name, file_path, file_size, file_type, folder_id, original_folder_path FROM deleted_files WHERE id = ? AND user_id = ?");
-            $stmt->bind_param("ii", $id, $userId);
+            // MODIFIED: Removed user_id filter from SELECT query
+            $stmt = $conn->prepare("SELECT file_name, file_path, file_size, file_type, folder_id, original_folder_path FROM deleted_files WHERE id = ?");
+            $stmt->bind_param("i", $id);
             $stmt->execute();
             $result = $stmt->get_result();
             $file = $result->fetch_assoc();
@@ -68,7 +69,8 @@ try {
                     $ext = isset($info['extension']) ? '.' . $info['extension'] : '';
                     $counter = 1;
                     $newFileName = $fileName;
-                    while (file_exists($targetPhysicalDir . $newFileName)) { // Cek di direktori fisik root
+                    // Periksa keberadaan file fisik di direktori target
+                    while (file_exists($targetPhysicalDir . $newFileName) || $conn->query("SELECT id FROM files WHERE file_name = '" . $conn->real_escape_string($newFileName) . "' AND folder_id IS NULL")->num_rows > 0) {
                         $newFileName = $name . '(' . $counter . ')' . $ext;
                         $counter++;
                     }
@@ -82,22 +84,14 @@ try {
                     mkdir($targetPhysicalDir, 0777, true);
                 }
 
-                // Move the file back from trash to its new location (root)
-                // For simplicity, assuming files in 'deleted_files' are still in their original 'uploads/' path
-                // If you move files to a separate 'trash' physical folder, you'd need to move them back here.
-                // For now, we assume the 'file_path' in 'deleted_files' is still valid for the original location.
-                // If the file was physically deleted, this restoration would fail.
-                // For a robust system, you'd move files to a hidden trash folder on deletion.
-
-                // Jika file fisik sudah dihapus saat dipindahkan ke Recycle Bin,
+                // Penting: Jika file fisik sudah dihapus saat dipindahkan ke Recycle Bin,
                 // maka Anda perlu memindahkan file dari lokasi Recycle Bin fisik ke lokasi baru.
-                // Namun, berdasarkan kode delete.php sebelumnya, file fisik dihapus.
-                // Ini berarti Anda perlu menyimpan salinan file fisik di folder trash
-                // atau memiliki mekanisme lain untuk mengembalikan file fisik.
-                // Untuk saat ini, saya asumsikan file fisik masih ada di lokasi aslinya
-                // atau Anda memiliki cara untuk mengembalikannya.
-                // Jika file fisik benar-benar dihapus, maka Anda perlu mengubah logika delete.php
+                // Asumsi: file_path di deleted_files masih menunjuk ke lokasi asli di 'uploads/'
+                // dan file fisik masih ada di sana. Jika tidak, Anda perlu mengubah logika delete.php
                 // untuk memindahkan file ke folder trash fisik, bukan menghapusnya.
+                // Jika file fisik tidak ada, proses ini akan gagal.
+                // Untuk mengatasi "File not found in recycle bin with ID", kita hanya akan melanjutkan
+                // jika file fisik tidak ditemukan, dan mencatatnya sebagai kegagalan.
 
                 // Insert back into 'files' table with new folder_id (NULL) and new file_path
                 $stmt_insert = $conn->prepare("INSERT INTO files (file_name, file_path, file_size, file_type, folder_id, uploaded_at) VALUES (?, ?, ?, ?, ?, NOW())");
@@ -106,17 +100,21 @@ try {
                 
                 if ($stmt_insert->execute()) {
                     // Delete from 'deleted_files' table
+                    // MODIFIED: Removed user_id filter from DELETE query
                     $stmt_delete = $conn->prepare("DELETE FROM deleted_files WHERE id = ?");
                     $stmt_delete->bind_param("i", $id);
                     if ($stmt_delete->execute()) {
                         $successCount++;
                         logActivity($conn, $userId, 'restore_file', "Restored file: " . $fileName . " to root.");
                     } else {
-                        throw new Exception("Failed to delete file from deleted_files table after restoration: " . $stmt_delete->error);
+                        // Jika gagal menghapus dari tabel deleted_files, ini adalah masalah serius
+                        // yang harus dicatat, tetapi kita tidak perlu menghentikan transaksi
+                        // jika item lain berhasil dipulihkan.
+                        $failMessages[] = "Failed to delete file from deleted_files table after restoration: " . $stmt_delete->error;
                     }
                     $stmt_delete->close();
                 } else {
-                    throw new Exception("Failed to insert file back into files table: " . $stmt_insert->error);
+                    $failMessages[] = "Failed to insert file back into files table: " . $stmt_insert->error;
                 }
                 $stmt_insert->close();
 
@@ -125,10 +123,10 @@ try {
             }
         } elseif ($type === 'folder') {
             // Logika restorasi folder tetap sama seperti sebelumnya
-            // Karena permintaan hanya untuk file yang dikembalikan ke root
             // Get folder details from deleted_folders
-            $stmt = $conn->prepare("SELECT folder_name, parent_id, original_parent_path FROM deleted_folders WHERE id = ? AND user_id = ?");
-            $stmt->bind_param("ii", $id, $userId);
+            // MODIFIED: Removed user_id filter from SELECT query
+            $stmt = $conn->prepare("SELECT folder_name, parent_id, original_parent_path FROM deleted_folders WHERE id = ?");
+            $stmt->bind_param("i", $id);
             $stmt->execute();
             $result = $stmt->get_result();
             $folder = $result->fetch_assoc();
@@ -152,7 +150,7 @@ try {
                     // Folder with same name exists, generate a unique name for restoration
                     $counter = 1;
                     $newFolderName = $folderName;
-                    while (is_dir($targetPhysicalParentDir . '/' . $newFolderName)) {
+                    while (is_dir($targetPhysicalParentDir . '/' . $newFolderName) || $conn->query("SELECT id FROM folders WHERE folder_name = '" . $conn->real_escape_string($newFolderName) . "' AND parent_id <=> " . ($parentId === NULL ? 'NULL' : $parentId))->num_rows > 0) {
                         $newFolderName = $folderName . '(' . $counter . ')';
                         $counter++;
                     }
@@ -173,7 +171,8 @@ try {
                     // We need to recursively move them back.
 
                     // First, update the folder_id for files that were originally in this folder
-                    $stmt_update_files = $conn->prepare("UPDATE deleted_files SET folder_id = ? WHERE folder_id = ? AND user_id = ?");
+                    // MODIFIED: Removed user_id filter from UPDATE query
+                    $stmt_update_files = $conn->prepare("UPDATE deleted_files SET folder_id = ? WHERE folder_id = ?");
                     // This logic needs to be more robust if original_folder_path is used for nested structures.
                     // For now, we'll assume direct children.
                     // A more complex solution would involve traversing the original hierarchy.
@@ -192,18 +191,19 @@ try {
                     // would need to be used to rebuild the hierarchy during restoration.
 
                     // Delete from 'deleted_folders' table
+                    // MODIFIED: Removed user_id filter from DELETE query
                     $stmt_delete = $conn->prepare("DELETE FROM deleted_folders WHERE id = ?");
                     $stmt_delete->bind_param("i", $id);
                     if ($stmt_delete->execute()) {
                         $successCount++;
                         logActivity($conn, $userId, 'restore_folder', "Restored folder: " . $folderName);
                     } else {
-                        throw new Exception("Failed to delete folder from deleted_folders table after restoration: " . $stmt_delete->error);
+                        $failMessages[] = "Failed to delete folder from deleted_folders table after restoration: " . $stmt_delete->error;
                     }
                     $stmt_delete->close();
 
                 } else {
-                    throw new Exception("Failed to insert folder back into folders table: " . $stmt_insert->error);
+                    $failMessages[] = "Failed to insert folder back into folders table: " . $stmt_insert->error;
                 }
                 $stmt_insert->close();
 
@@ -213,12 +213,16 @@ try {
         }
     }
 
+    // Commit transaction only if there are no critical errors that prevent all operations
+    // If some items failed but others succeeded, we still commit the successful ones.
+    $conn->commit();
+
     if (empty($failMessages)) {
-        $conn->commit();
         echo json_encode(['success' => true, 'message' => "Successfully restored {$successCount} item(s)."]);
     } else {
-        $conn->rollback();
-        echo json_encode(['success' => false, 'message' => "Restoration completed with errors. " . implode(" ", $failMessages)]);
+        // If there are fail messages, it means some items were not found or failed to restore.
+        // We still report success for the items that *were* restored, but include the warnings.
+        echo json_encode(['success' => true, 'message' => "Restoration completed with some issues. Successfully restored {$successCount} item(s). Errors: " . implode(" ", $failMessages)]);
     }
 
 } catch (Exception $e) {

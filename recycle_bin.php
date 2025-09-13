@@ -42,6 +42,9 @@ $archiveExt = ['zip','rar','7z','tar','gz','bz2','xz','iso','cab','arj'];
 $instExt = ['exe','msi','apk','ipa','sh','bat','jar','appimage','dmg','bin'];
 $ptpExt = ['torrent','nzb','ed2k','part','!ut'];
 
+// Combine all restricted extensions for easier checking
+$allRestrictedExt = array_merge($codeExt, $instExt, $ptpExt);
+
 // Map filter types to actual extensions
 $filterExtensions = [];
 switch ($fileTypeFilter) {
@@ -78,9 +81,10 @@ switch ($fileTypeFilter) {
 $deletedItems = [];
 
 // SQL for deleted files
-$sqlFiles = "SELECT id, file_name, file_path, file_size, file_type, deleted_at FROM deleted_files WHERE user_id = ?";
-$paramsFiles = [$userId];
-$typesFiles = "i";
+// MODIFIED: Removed user_id filter to show all deleted files
+$sqlFiles = "SELECT id, file_name, file_path, file_size, file_type, deleted_at FROM deleted_files WHERE 1=1";
+$paramsFiles = [];
+$typesFiles = "";
 
 if (!empty($searchQuery)) {
     $sqlFiles .= " AND file_name LIKE ?";
@@ -113,19 +117,29 @@ if ($sizeFilter === 'largest') {
 }
 
 $stmtFiles = $conn->prepare($sqlFiles);
-$stmtFiles->bind_param($typesFiles, ...$paramsFiles);
+if (!empty($paramsFiles)) {
+    $stmtFiles->bind_param($typesFiles, ...$paramsFiles);
+}
 $stmtFiles->execute();
 $resultFiles = $stmtFiles->get_result();
 while ($row = $resultFiles->fetch_assoc()) {
-    $row['item_type'] = 'file';
-    $deletedItems[] = $row;
+    $fileExtension = strtolower($row['file_type']);
+    $isRestricted = in_array($fileExtension, $allRestrictedExt);
+    
+    // Only add to deletedItems if not restricted OR if user is admin/moderator
+    if (!$isRestricted || ($currentUserRole === 'admin' || $currentUserRole === 'moderator')) {
+        $row['item_type'] = 'file';
+        $row['is_restricted'] = $isRestricted; // Add flag for JS to handle
+        $deletedItems[] = $row;
+    }
 }
 $stmtFiles->close();
 
 // SQL for deleted folders (folders don't have size, so only alphabetical sorting applies)
-$sqlFolders = "SELECT id, folder_name, deleted_at FROM deleted_folders WHERE user_id = ?";
-$paramsFolders = [$userId];
-$typesFolders = "i";
+// MODIFIED: Removed user_id filter to show all deleted folders
+$sqlFolders = "SELECT id, folder_name, deleted_at FROM deleted_folders WHERE 1=1";
+$paramsFolders = [];
+$typesFolders = "";
 
 if (!empty($searchQuery)) {
     $sqlFolders .= " AND folder_name LIKE ?";
@@ -142,11 +156,14 @@ if ($sortOrder === 'asc') {
 }
 
 $stmtFolders = $conn->prepare($sqlFolders);
-$stmtFolders->bind_param($typesFolders, ...$paramsFolders);
+if (!empty($paramsFolders)) {
+    $stmtFolders->bind_param($typesFolders, ...$paramsFolders);
+}
 $stmtFolders->execute();
 $resultFolders = $stmtFolders->get_result();
 while ($row = $resultFolders->fetch_assoc()) {
     $row['item_type'] = 'folder';
+    $row['is_restricted'] = false; // Folders are not restricted by type
     $deletedItems[] = $row;
 }
 $stmtFolders->close();
@@ -1902,8 +1919,9 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                                 $fileExt = $itemType === 'file' ? strtolower($item['file_type']) : 'folder';
                                 $iconClass = $itemType === 'file' ? getFontAwesomeIconClass($itemName) : 'fa-folder';
                                 $colorClass = $itemType === 'file' ? getFileColorClassPhp($itemName) : 'folder';
+                                $isRestrictedItem = isset($item['is_restricted']) && $item['is_restricted'];
                             ?>
-                            <tr class="file-item" data-id="<?php echo $itemId; ?>" data-type="<?php echo $itemType; ?>" data-name="<?php echo htmlspecialchars($itemName); ?>" data-file-type="<?php echo $fileExt; ?>" tabindex="0">
+                            <tr class="file-item" data-id="<?php echo $itemId; ?>" data-type="<?php echo $itemType; ?>" data-name="<?php echo htmlspecialchars($itemName); ?>" data-file-type="<?php echo $fileExt; ?>" data-is-restricted="<?php echo $isRestrictedItem ? 'true' : 'false'; ?>" tabindex="0">
                                 <td><input type="checkbox" class="file-checkbox" data-id="<?php echo $itemId; ?>" data-type="<?php echo $itemType; ?>"></td>
                                 <td class="file-name-cell">
                                     <i class="fas <?php echo $iconClass; ?> file-icon <?php echo $colorClass; ?>"></i>
@@ -1939,8 +1957,9 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                             $fileExt = $itemType === 'file' ? strtolower($item['file_type']) : 'folder';
                             $iconClass = $itemType === 'file' ? getFontAwesomeIconClass($itemName) : 'fa-folder';
                             $colorClass = $itemType === 'file' ? getFileColorClassPhp($itemName) : 'folder';
+                            $isRestrictedItem = isset($item['is_restricted']) && $item['is_restricted'];
                         ?>
-                        <div class="grid-item file-item" data-id="<?php echo $itemId; ?>" data-type="<?php echo $itemType; ?>" data-name="<?php echo htmlspecialchars($itemName); ?>" data-file-type="<?php echo $fileExt; ?>" tabindex="0">
+                        <div class="grid-item file-item" data-id="<?php echo $itemId; ?>" data-type="<?php echo $itemType; ?>" data-name="<?php echo htmlspecialchars($itemName); ?>" data-file-type="<?php echo $fileExt; ?>" data-is-restricted="<?php echo $isRestrictedItem ? 'true' : 'false'; ?>" tabindex="0">
                             <input type="checkbox" class="file-checkbox" data-id="<?php echo $itemId; ?>" data-type="<?php echo $itemType; ?>">
                             <div class="grid-thumbnail">
                                 <?php if ($itemType === 'file'): ?>
@@ -2139,6 +2158,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             let currentSizeFilter = <?php echo json_encode($sizeFilter); ?>;
             let currentSortOrder = <?php echo json_encode($sortOrder); ?>; // Keep for alphabetical if no size filter
             let currentFileTypeFilter = <?php echo json_encode($fileTypeFilter); ?>;
+            const currentUserRole = <?php echo json_encode($currentUserRole); ?>; // Pass PHP role to JS
 
             /*** Util helpers ****/
             function debounce(fn, ms=150){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
@@ -2357,7 +2377,13 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             function handleSelectAllChange() {
                 const fileCheckboxes = document.querySelectorAll('.file-checkbox');
                 fileCheckboxes.forEach(checkbox => {
-                    checkbox.checked = this.checked;
+                    // Only check/uncheck if the item is not restricted for the current user
+                    const itemElement = closestFileItem(checkbox);
+                    if (itemElement && itemElement.dataset.isRestricted === 'true' && !(currentUserRole === 'admin' || currentUserRole === 'moderator')) {
+                        // Do nothing, or visually indicate it's unselectable
+                    } else {
+                        checkbox.checked = this.checked;
+                    }
                 });
             }
 
@@ -2366,8 +2392,15 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 if (!this.checked) {
                     selectAllCheckbox.checked = false;
                 } else {
-                    const allChecked = Array.from(fileCheckboxes).every(cb => cb.checked);
-                    selectAllCheckbox.checked = allChecked;
+                    // Check if all *selectable* checkboxes are checked
+                    const allSelectableChecked = Array.from(fileCheckboxes).every(cb => {
+                        const itemElement = closestFileItem(cb);
+                        if (itemElement && itemElement.dataset.isRestricted === 'true' && !(currentUserRole === 'admin' || currentUserRole === 'moderator')) {
+                            return true; // Treat restricted but unselectable items as 'checked' for the purpose of 'all selected'
+                        }
+                        return cb.checked;
+                    });
+                    selectAllCheckbox.checked = allSelectableChecked;
                 }
             }
 
@@ -2542,6 +2575,17 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 contextMenu.dataset.targetType = fileEl.dataset.type;
                 contextMenu.dataset.targetName = fileEl.dataset.name;
                 contextMenu.dataset.targetFileType = fileEl.dataset.fileType || '';
+                contextMenu.dataset.isRestricted = fileEl.dataset.isRestricted || 'false';
+
+                // Hide/show context menu options based on restriction and user role
+                const isRestrictedItem = contextMenu.dataset.isRestricted === 'true';
+                const isAdminOrModerator = (currentUserRole === 'admin' || currentUserRole === 'moderator');
+
+                // Restore option is always available for visible items
+                contextRestore.style.display = 'flex'; 
+                
+                // Delete Forever option is always available for visible items
+                contextDeleteForever.style.display = 'flex';
 
                 // Position - keep inside viewport
                 const rect = contextMenu.getBoundingClientRect();
@@ -2572,6 +2616,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 contextMenu.dataset.targetType = '';
                 contextMenu.dataset.targetName = '';
                 contextMenu.dataset.targetFileType = '';
+                contextMenu.dataset.isRestricted = '';
             }
 
             let _suppressOpenUntil = 0;

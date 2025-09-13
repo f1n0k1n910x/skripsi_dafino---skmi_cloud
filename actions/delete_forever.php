@@ -19,7 +19,7 @@ if (!isset($_SESSION['user_id'])) {
     echo json_encode(['success' => false, 'message' => 'Unauthorized access. Please log in.']);
     exit;
 }
-$userId = $_SESSION['user_id'];
+$userId = $_SESSION['user_id']; // Tetap ambil userId untuk logging
 
 $input = json_decode(file_get_contents('php://input'), true);
 $itemsToDelete = $input['items'] ?? [];
@@ -45,8 +45,9 @@ try {
 
         if ($type === 'file') {
             // Get file path from deleted_files
-            $stmt = $conn->prepare("SELECT file_name, file_path FROM deleted_files WHERE id = ? AND user_id = ?");
-            $stmt->bind_param("ii", $id, $userId);
+            // MODIFIED: Removed user_id filter from SELECT query
+            $stmt = $conn->prepare("SELECT file_name, file_path FROM deleted_files WHERE id = ?");
+            $stmt->bind_param("i", $id);
             $stmt->execute();
             $result = $stmt->get_result();
             $file = $result->fetch_assoc();
@@ -57,8 +58,9 @@ try {
                 // MODIFIED: Menggunakan fungsi deleteFileFromDisk
                 if (deleteFileFromDisk($file['file_path'])) {
                     // Delete from deleted_files table
-                    $stmt_delete = $conn->prepare("DELETE FROM deleted_files WHERE id = ? AND user_id = ?");
-                    $stmt_delete->bind_param("ii", $id, $userId);
+                    // MODIFIED: Removed user_id filter from DELETE query
+                    $stmt_delete = $conn->prepare("DELETE FROM deleted_files WHERE id = ?");
+                    $stmt_delete->bind_param("i", $id);
                     if ($stmt_delete->execute()) {
                         $successCount++;
                         logActivity($conn, $userId, 'delete_forever_file', "Permanently deleted file: " . $file['file_name']);
@@ -68,15 +70,17 @@ try {
                     $stmt_delete->close();
                 } else {
                     $failMessages[] = "Failed to delete physical file: " . htmlspecialchars($file['file_name']);
-                    continue; // Lanjutkan ke item berikutnya jika penghapusan fisik gagal
+                    // Lanjutkan ke item berikutnya jika penghapusan fisik gagal, tetapi jangan rollback transaksi
+                    // Ini penting agar item lain yang berhasil dihapus tidak ikut dibatalkan.
                 }
             } else {
                 $failMessages[] = "File not found in recycle bin with ID: " . $id;
             }
         } elseif ($type === 'folder') {
             // Get folder details from deleted_folders
-            $stmt = $conn->prepare("SELECT folder_name FROM deleted_folders WHERE id = ? AND user_id = ?");
-            $stmt->bind_param("ii", $id, $userId);
+            // MODIFIED: Removed user_id filter from SELECT query
+            $stmt = $conn->prepare("SELECT folder_name FROM deleted_folders WHERE id = ?");
+            $stmt->bind_param("i", $id);
             $stmt->execute();
             $result = $stmt->get_result();
             $folder = $result->fetch_assoc();
@@ -89,8 +93,9 @@ try {
                 // A more robust solution would involve a recursive DB deletion.
 
                 // Delete from deleted_folders table
-                $stmt_delete = $conn->prepare("DELETE FROM deleted_folders WHERE id = ? AND user_id = ?");
-                $stmt_delete->bind_param("ii", $id, $userId);
+                // MODIFIED: Removed user_id filter from DELETE query
+                $stmt_delete = $conn->prepare("DELETE FROM deleted_folders WHERE id = ?");
+                $stmt_delete->bind_param("i", $id);
                 if ($stmt_delete->execute()) {
                     $successCount++;
                     logActivity($conn, $userId, 'delete_forever_folder', "Permanently deleted folder: " . $folder['folder_name']);
@@ -104,12 +109,16 @@ try {
         }
     }
 
+    // Commit transaction only if there are no critical errors that prevent all operations
+    // If some items failed but others succeeded, we still commit the successful ones.
+    $conn->commit();
+
     if (empty($failMessages)) {
-        $conn->commit();
         echo json_encode(['success' => true, 'message' => "Successfully permanently deleted {$successCount} item(s)."]);
     } else {
-        $conn->rollback();
-        echo json_encode(['success' => false, 'message' => "Permanent deletion completed with errors. " . implode(" ", $failMessages)]);
+        // If there are fail messages, it means some items were not found or failed to delete physically/from DB.
+        // We still report success for the items that *were* deleted, but include the warnings.
+        echo json_encode(['success' => true, 'message' => "Permanent deletion completed with some issues. Successfully deleted {$successCount} item(s). Errors: " . implode(" ", $failMessages)]);
     }
 
 } catch (Exception $e) {
