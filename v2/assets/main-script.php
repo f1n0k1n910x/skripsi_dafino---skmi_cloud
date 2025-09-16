@@ -22,12 +22,13 @@ $currentFolderPath = ''; // To build the full path for uploads and display
       const archiveSelectedBtn = document.getElementById('archiveSelectedBtn');
       const archiveDropdownContent = document.querySelector('.toolbar .archive-dropdown-content');
 
-      // REMOVED: releaseFilterDropdownContainer, releaseFilterBtn, releaseFilterDropdownContent
-      // REMOVED: sortOrderDropdownContainer, sortOrderBtn, sortOrderDropdownContent
-
       const sizeFilterDropdownContainer = document.querySelector('.toolbar .size-filter-dropdown-container');
       const sizeFilterBtn = document.getElementById('sizeFilterBtn');
       const sizeFilterDropdownContent = document.querySelector('.toolbar .size-filter-dropdown-content');
+
+      const actionDropdownContainer = document.querySelector('.toolbar .action-dropdown-container');
+      const actionBtn = document.getElementById('actionBtn');
+      const actionDropdownContent = document.querySelector('.toolbar .action-dropdown-content');
 
       const fileTypeFilterDropdownContainer = document.querySelector('.toolbar .file-type-filter-dropdown-container');
       const fileTypeFilterBtn = document.getElementById('fileTypeFilterBtn');
@@ -36,8 +37,6 @@ $currentFolderPath = ''; // To build the full path for uploads and display
       // Dropdown elements (header)
       const archiveSelectedBtnHeader = document.getElementById('archiveSelectedBtnHeader');
       const fileTypeFilterBtnHeader = document.getElementById('fileTypeFilterBtnHeader');
-      // REMOVED: releaseFilterBtnHeader
-      // REMOVED: sortOrderBtnHeader
       const sizeFilterBtnHeader = document.getElementById('sizeFilterBtnHeader'); // NEW
       const listViewBtnHeader = document.getElementById('listViewBtnHeader'); // NEW
       const gridViewBtnHeader = document.getElementById('gridViewBtnHeader'); // NEW
@@ -608,6 +607,7 @@ $currentFolderPath = ''; // To build the full path for uploads and display
       }
 
       setupSizeFilterDropdown('sizeFilterBtn', '.toolbar .size-filter-dropdown-content');
+      setupSizeFilterDropdown('actionBtn', '.toolbar .size-filter-dropdown-content');
       setupSizeFilterDropdown('sizeFilterBtnHeader', '.toolbar-filter-buttons .size-filter-dropdown-content');
 
 

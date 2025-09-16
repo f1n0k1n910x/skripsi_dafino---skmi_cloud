@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SKMI Cloud Storage</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="../../css/internal.css">
+    <link rel="stylesheet" href="css/internal.css">
     <style>
         /* Metro Design (Modern UI) & Windows 7 Animations */
         :root {
@@ -348,17 +348,28 @@
         }
 
         /* List View */
+        .file-table-wrapper {
+            border: 1px solid #dadce0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
         .file-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 0;
+            border: none; /* remove border from table itself */
         }
 
         .file-table th, .file-table td {
-            text-align: left;
-            padding: 15px 20px; /* More padding */
-            border-bottom: 1px solid var(--metro-light-gray);
-            font-size: 0.95em;
+            border: none; /* remove cell borders */
+        }
+
+        .file-table tr {
+            border-bottom: 1px solid #dadce0;
+        }
+
+        .file-table tbody tr:last-child {
+            border-bottom: none;
         }
 
         .file-table th {
@@ -1643,7 +1654,6 @@
 
         .file-table td {
             padding: 12px 24px; /* Consistent padding */
-            border-bottom: 1px solid #dadce0; /* Consistent border */
             font-size: 0.9375em; /* Slightly smaller body font */
             color: #3c4043; /* Darker text color */
         }

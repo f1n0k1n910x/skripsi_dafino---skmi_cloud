@@ -27,9 +27,9 @@ $currentFolderId = isset($_GET['folder']) ? (int)$_GET['folder'] : NULL;
         </div>
 
         <div class="toolbar">
-            <div class="dropdown-container size-filter-dropdown-container" >
-                <button id="sizeFilterBtn" class="filter-button">Action</button>
-                <div class="dropdown-content size-filter-dropdown-content" style="position: absolute; top: 100%; left: 3%; transform: translateX(-50%); margin-top: 8px; padding:5px 0; border-radius:4px;">
+            <div class="dropdown-container action-dropdown-container" >
+                <button id="actionBtn" class="filter-button">Action</button>
+                <div class="dropdown-content action-dropdown-content" style="position: absolute; top: 100%; left: 3%; transform: translateX(-50%); margin-top: 8px; padding:5px 0; border-radius:4px;">
                     <a id="uploadFileBtn" href="#" data-size="desc"><i class="fas fa-upload"></i> Upload File</a>
                     <a id="createFolderBtn" href="#" data-size="asc" ><i class="fas fa-folder-plus"> </i> Create Folder</a>
                     <a id="deleteSelectedBtn" href="#" data-size="none"><i class="fas fa-trash-alt"></i> Delete Selected</a>
