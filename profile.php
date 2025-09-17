@@ -1958,7 +1958,7 @@ $current_account_status = $initial_data['current_account_status'];
                     <div class="edit-profile-picture-overlay" id="editProfilePictureOverlay">
                         <i class="fas fa-camera"></i>
                     </div>
-                    <input type="file" id="profilePictureInput" name="profile_picture_upload" accept="image/*" style="display: none;">
+                    <input disabled type="file" id="profilePictureInput" name="profile_picture_upload" accept="image/*" style="display: none;">
                 </div>
                 <h3 id="profileCardFullName"><?php echo htmlspecialchars($user['full_name'] ?? 'Full Name'); ?></h3>
                 <p data-lang-key="welcomeMessage">Welcome to SKMI Cloud Storage</p>
