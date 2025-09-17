@@ -763,3 +763,14 @@ if (!function_exists('getDeletedFolders')) {
         return $deletedFolders;
     }
 }
+
+function base_url($path = '') {
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' 
+                 || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
+    $host = $_SERVER['HTTP_HOST'];
+
+    // ambil folder project di URL, misalnya "/skripsi_dafino---skmi_cloud"
+    $project = '/' . explode('/', trim($_SERVER['SCRIPT_NAME'], '/'))[0];
+
+    return $protocol . $host . $project . '/' . ltrim($path, '/');
+}
