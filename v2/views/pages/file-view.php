@@ -134,15 +134,15 @@ function readArchiveContent($filePath, $fileType) {
 
 <?php include '../partials/file-view-header.php'; ?>
 
-<header class="header-sticky">
-    <h1><i class="fas fa-file-alt"></i>File Preview</h1>
+<header class="header-main">
+    <h1><i class="fas fa-file-alt"></i> <span data-lang-key="filePreview">File Preview</span></h1>
     <div class="profile-container">
         <?php if ($user_id !== null): ?>
             <a href="profile.php" class="username" id="headerUsername">
                 <?php echo htmlspecialchars($user['full_name'] ?? $user['username'] ?? 'User'); ?>
             </a>
             <a href="profile.php">
-                <img src="<?php echo htmlspecialchars($user['profile_picture'] ?? 'img/default_avatar.png'); ?>" alt="Profile Picture" class="profile-image" id="headerProfilePicture">
+                <img src="<?php echo getBaseUrl() . '/' . htmlspecialchars($user['profile_picture'] ?? 'img/default_avatar.png'); ?>" alt="Profile Picture" class="profile-image" id="headerProfilePicture">
             </a>
         <?php else: ?>
             <span class="username" id="headerUsername">Guest</span>
@@ -168,7 +168,7 @@ function readArchiveContent($filePath, $fileType) {
         <a href="<?php echo $baseV2Url;?> <?php echo ($user_id !== null && $currentFolderId) ? '?folder=' . htmlspecialchars($currentFolderId) : ''; ?>" class="back-button" id="backButton">
             <i class="fas fa-arrow-left"></i> Back
         </a>
-        <div class="preview-content" id="previewContent">
+        <div class="preview-content" id="previewContent" alt="aa">
             <?php
             // NEW: Add 'cad' to zoomable categories
             $zoomableCategories = ['image', 'document', 'video', 'code', 'cad'];
@@ -184,7 +184,7 @@ function readArchiveContent($filePath, $fileType) {
             ?>
 
             <?php if ($fileCategory === 'image'): ?>
-                <img id="previewElement" src="<?php echo $baseUrl . htmlspecialchars($filePath); ?>" alt="<?php echo htmlspecialchars($fileName); ?>">
+                <img id="previewElement" src="<?php echo getBaseUrl() . '/uploads/' . htmlspecialchars($filePath); ?>" alt="<?php echo htmlspecialchars($fileName); ?>">
             <?php elseif ($fileCategory === 'audio'): ?>
                 <audio id="previewElement" controls autoplay>
                     <source src="<?php echo htmlspecialchars($filePath); ?>" type="audio/<?php echo htmlspecialchars($fileType); ?>">
@@ -279,6 +279,8 @@ function readArchiveContent($filePath, $fileType) {
         </a>
     </div>
 </div>
+
+<script src="../../js/translations.js"></script>
 
 <script>
 
@@ -391,7 +393,7 @@ function readArchiveContent($filePath, $fileType) {
         }
 
         if (data.fileCategory === 'image') {
-            previewHtml += `<img id="previewElement" src="${htmlspecialchars(data.filePath)}" alt="${htmlspecialchars(data.fileName)}">`;
+            previewHtml += `<img id="previewElement" src="/uploads/${htmlspecialchars(data.filePath)}" alt="${htmlspecialchars(data.fileName)}">`;
         } else if (data.fileCategory === 'audio') {
             previewHtml += `
                 <audio id="previewElement" controls autoplay>

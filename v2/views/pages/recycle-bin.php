@@ -72,9 +72,9 @@ $deletedItems = array_merge($deletedFiles, $deletedFolders);
 
         <div class="toolbar">
             <div class="toolbar-left">
-                <button id="restoreSelectedBtn" style="background-color: var(--metro-success);"><i class="fas fa-undo"></i> Restore Selected</button>
-                <button id="deleteForeverSelectedBtn" style="background-color: var(--metro-error);"><i class="fas fa-times-circle"></i> Delete Forever Selected</button>
-                <button id="emptyRecycleBinBtn" style="background-color: var(--metro-error);"><i class="fas fa-trash-alt"></i> Empty Recycle Bin</button>
+                <button id="restoreSelectedBtn" style="background-color: var(--success-color);"><i class="fas fa-undo"></i> <span data-lang-key="restoreSelected">Restore Selected</span></button>
+                <button id="deleteForeverSelectedBtn" style="background-color: var(--error-color);"><i class="fas fa-times-circle"></i> <span data-lang-key="deleteForeverSelected">Delete Forever Selected</span></button>
+                <button id="emptyRecycleBinBtn" style="background-color: var(--error-color);"><i class="fas fa-trash-alt"></i> <span data-lang-key="emptyRecycleBin">Empty Recycle Bin</span></button>
             </div>
             <div class="toolbar-right">
                 <!-- File Type Filter Button -->
@@ -308,6 +308,8 @@ $deletedItems = array_merge($deletedFiles, $deletedFolders);
     <div class="overlay" id="mobileOverlay"></div>
 
     <script>
+        const BASE_URL = '<?php echo getBaseUrl(); ?>';
+
         document.addEventListener('DOMContentLoaded', function() {
             const restoreSelectedBtn = document.getElementById('restoreSelectedBtn');
             const deleteForeverSelectedBtn = document.getElementById('deleteForeverSelectedBtn');
@@ -599,7 +601,7 @@ $deletedItems = array_merge($deletedFiles, $deletedFolders);
                 }
 
                 try {
-                    const response = await fetch('actions/restore_items.php', {
+                    const response = await fetch(`${BASE_URL}/v2/services/api/restore_items.php`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -1013,7 +1015,7 @@ $deletedItems = array_merge($deletedFiles, $deletedFolders);
                     params.set('file_type', currentFileTypeFilter);
                 }
 
-                const url = `recycle_bin.php?${params.toString()}&ajax=1`;
+                const url = `${BASE_URL}/v2/views/pages/recycle-bin.php?${params.toString()}&ajax=1`;
 
                 try {
                     const response = await fetch(url);

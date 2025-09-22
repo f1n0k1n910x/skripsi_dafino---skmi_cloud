@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>File Preview : <?php echo htmlspecialchars($fileName); ?></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <?php if ($fileCategory === 'code'): ?>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/vs2015.min.css">
@@ -11,55 +12,72 @@
     <script>hljs.highlightAll();</script>
     <?php endif; ?>
     <style>
+        /* Material Design Google + Admin LTE */
         :root {
-            --metro-blue: #0078D7;
-            --metro-dark-blue: #0056b3;
-            --metro-light-gray: #E1E1E1;
-            --metro-medium-gray: #C8C8C8;
-            --metro-dark-gray: #666666;
-            --metro-text-color: #333333;
-            --metro-bg-color: #F0F0F0;
-            --metro-success: #4CAF50;
-            --metro-error: #E81123;
-            --metro-warning: #FF8C00;
+            --primary-color: #3F51B5; /* Indigo 500 - Material Design */
+            --primary-dark-color: #303F9F; /* Indigo 700 */
+            --accent-color: #FF4081; /* Pink A200 */
+            --text-color: #212121; /* Grey 900 */
+            --secondary-text-color: #757575; /* Grey 600 */
+            --divider-color: #BDBDBD; /* Grey 400 */
+            --background-color: #F5F5F5; /* Grey 100 */
+            --surface-color: #FFFFFF; /* White */
+            --success-color: #4CAF50; /* Green 500 */
+            --error-color: #F44336; /* Red 500 */
+            --warning-color: #FFC107; /* Amber 500 */
+
+            /* AdminLTE specific colors */
+            --adminlte-sidebar-bg: #222d32;
+            --adminlte-sidebar-text: #b8c7ce;
+            --adminlte-sidebar-hover-bg: #1e282c;
+            --adminlte-sidebar-active-bg: #1e282c;
+            --adminlte-sidebar-active-text: #ffffff;
+            --adminlte-header-bg: #ffffff;
+            --adminlte-header-text: #333333;
+
+            /* --- LOKASI EDIT UKURAN FONT SIDEBAR --- */
+            --sidebar-font-size-desktop: 0.9em; /* Ukuran font default untuk desktop */
+            --sidebar-font-size-tablet-landscape: 1.0em; /* Ukuran font untuk tablet landscape */
+            --sidebar-font-size-tablet-portrait: 0.95em; /* Ukuran font untuk tablet portrait */
+            --sidebar-font-size-mobile: 0.9em; /* Ukuran font untuk mobile */
+            /* --- AKHIR LOKASI EDIT UKURAN FONT SIDEBAR --- */
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Roboto', sans-serif; /* Material Design font */
             margin: 0;
-            background-color: var(--metro-bg-color);
-            color: var(--metro-text-color);
-            padding: 0;
-            height: 100vh;
-            overflow: hidden;
             display: flex;
-            flex-direction: column;
+            height: 100vh;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            overflow: hidden; /* Prevent body scroll, main-content handles it */
+            flex-direction: column; /* Ensure body is column for header + main-container */
         }
 
-        .header-sticky {
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-            background-color: #fff;
-            padding: 15px 30px;
+        /* Header Main (Full-width, white, no background residue) */
+        .header-main {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            transition: transform 0.3s ease-in-out;
+            padding: 15px 20px; /* Padding for header */
+            border-bottom: 1px solid var(--divider-color);
+            background-color: var(--adminlte-header-bg); /* White header */
+            box-shadow: none; /* No box-shadow */
+            flex-shrink: 0; /* Prevent header from shrinking */
         }
 
-        .header-sticky h1 {
+        .header-main h1 {
             margin: 0;
-            font-size: 1.8em;
-            font-weight: 300;
-            color: var(--metro-text-color);
+            color: var(--adminlte-header-text);
+            font-size: 2em; /* Slightly smaller title */
+            font-weight: 400; /* Lighter font weight */
             display: flex;
             align-items: center;
         }
 
-        .header-sticky h1 i {
+        .header-main h1 i {
             margin-right: 15px;
-            color: var(--metro-blue);
+            color: var(--primary-color); /* Use primary color for icon */
         }
 
         .profile-container {
@@ -73,60 +91,60 @@
             border-radius: 50%;
             object-fit: cover;
             margin-left: 15px;
-            border: 2px solid var(--metro-light-gray);
+            border: 2px solid var(--divider-color);
             transition: border-color 0.3s ease-in-out;
         }
 
         .profile-container .profile-image:hover {
-            border-color: var(--metro-blue);
+            border-color: var(--primary-color);
         }
 
         .profile-container .username {
-            font-weight: 600;
-            color: var(--metro-text-color);
+            font-weight: 500;
+            color: var(--text-color);
             font-size: 1em;
             text-decoration: none;
             transition: color 0.3s ease-in-out;
         }
 
         .profile-container .username:hover {
-            color: var(--metro-blue);
+            color: var(--primary-color);
         }
 
-        /* Base Main Container Styles (Desktop) */
+        /* Main Content Container */
         .main-container {
             flex-grow: 1;
             overflow: hidden;
             padding: 20px;
             display: flex;
-            background-color: var(--metro-bg-color); /* Ensure background is consistent */
+            background-color: var(--background-color);
         }
 
         .preview-pane {
             flex: 3;
-            background-color: #fff;
+            background-color: var(--surface-color);
             margin-right: 20px;
-            border-radius: 8px;
+            border-radius: 0; /* Siku-siku */
             padding: 20px;
             overflow-y: auto;
             position: relative;
-            animation: fadeIn 0.5s ease-out;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Subtle shadow */
         }
 
         .file-info-pane {
             flex: 1;
-            background-color: #fff;
-            border-radius: 8px;
+            background-color: var(--surface-color);
+            border-radius: 0; /* Siku-siku */
             padding: 20px;
-            animation: slideInRight 0.5s ease-out;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Subtle shadow */
         }
 
         .file-info-pane h3 {
             margin-top: 0;
-            font-weight: 600;
+            font-weight: 500;
             font-size: 1.2em;
-            color: var(--metro-text-color);
-            border-bottom: 2px solid var(--metro-light-gray);
+            color: var(--text-color);
+            border-bottom: 1px solid var(--divider-color);
             padding-bottom: 10px;
             margin-bottom: 15px;
         }
@@ -139,14 +157,14 @@
         .file-info-item strong {
             display: block;
             font-size: 0.9em;
-            color: var(--metro-dark-gray);
+            color: var(--secondary-text-color);
             margin-bottom: 5px;
         }
 
         .file-info-item span {
             display: block;
             font-size: 1em;
-            color: var(--metro-text-color);
+            color: var(--text-color);
             word-wrap: break-word;
         }
 
@@ -156,7 +174,7 @@
             background: transparent;
             border: none;
             cursor: pointer;
-            color: var(--metro-text-color);
+            color: var(--secondary-text-color);
             text-decoration: none;
             font-size: 1.1em;
             font-weight: 400;
@@ -165,7 +183,7 @@
         }
 
         .back-button:hover {
-            color: var(--metro-blue);
+            color: var(--primary-color);
             transform: translateX(-5px);
         }
 
@@ -203,7 +221,7 @@
         }
 
         .preview-content pre {
-            background-color: var(--metro-bg-color);
+            background-color: var(--background-color);
             padding: 0px;
             border-radius: 5px;
             text-align: left;
@@ -223,17 +241,17 @@
         }
 
         .general-file-info {
-            background-color: var(--metro-light-gray);
-            color: var(--metro-dark-gray);
+            background-color: var(--background-color);
+            color: var(--secondary-text-color);
             padding: 30px;
             border-radius: 5px;
             text-align: center;
-            animation: fadeIn 0.5s ease-out;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
 
         .general-file-info .icon {
             font-size: 48px;
-            color: var(--metro-blue);
+            color: var(--primary-color);
             margin-bottom: 20px;
         }
 
@@ -246,17 +264,17 @@
             display: inline-flex;
             align-items: center;
             padding: 12px 24px;
-            background-color: var(--metro-blue);
+            background-color: var(--primary-color);
             color: #FFFFFF;
             text-decoration: none;
-            border-radius: 5px;
-            font-weight: 600;
+            border-radius: 0; /* Siku-siku */
+            font-weight: 500;
             transition: background-color 0.2s ease-out, transform 0.2s ease-out;
             margin-top: 20px;
         }
 
         .download-button:hover {
-            background-color: var(--metro-dark-blue);
+            background-color: var(--primary-dark-color);
             transform: translateY(-2px);
         }
 
@@ -272,33 +290,29 @@
             transition: transform 0.1s ease-out; /* Added for smooth zoom */
         }
 
-        /* Animations */
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes slideInRight {
-            from { transform: translateX(20px); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-
+        /* Breadcrumbs (Material Design style) */
         .breadcrumbs {
             margin-bottom: 20px;
             font-size: 0.9em;
+            color: var(--secondary-text-color);
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            padding: 0;
         }
         .breadcrumbs a {
-            color: var(--metro-dark-gray);
+            color: var(--primary-color);
             text-decoration: none;
-            transition: color 0.2s ease-in-out;
+            margin-right: 5px;
+            transition: color 0.2s ease-out;
         }
         .breadcrumbs a:hover {
-            color: var(--metro-blue);
             text-decoration: underline;
+            color: var(--primary-dark-color);
         }
         .breadcrumbs span {
-            color: var(--metro-dark-gray);
-            margin: 0 5px;
+            margin-right: 5px;
+            color: var(--divider-color);
         }
 
         /* Zoom Controls */
@@ -312,7 +326,7 @@
         }
 
         .zoom-button {
-            background-color: var(--metro-blue);
+            background-color: var(--primary-color);
             color: #fff;
             border: none;
             border-radius: 50%;
@@ -327,15 +341,15 @@
         }
 
         .zoom-button:hover {
-            background-color: var(--metro-dark-blue);
+            background-color: var(--primary-dark-color);
             transform: scale(1.05);
         }
 
         /* Styles from your provided code for text viewer */
         .viewer-container {
             padding: 1rem;
-            background: #fff;
-            border: 1px solid #ccc;
+            background: var(--background-color);
+            border: 1px solid var(--divider-color);
             overflow: auto;
             max-height: 70vh; /* Adjusted to fit preview-content height */
             width: 100%; /* Ensure it takes full width */
@@ -344,7 +358,7 @@
         .viewer-container pre {
             white-space: pre-wrap;
             word-wrap: break-word;
-            background: #eef;
+            background: var(--surface-color);
             padding: 1rem;
             text-align: left; /* Align text to left */
         }
@@ -354,9 +368,9 @@
             width: 100%;
             max-height: 70vh;
             overflow-y: auto;
-            background-color: #f9f9f9;
-            border: 1px solid var(--metro-light-gray);
-            border-radius: 5px;
+            background-color: var(--background-color);
+            border: 1px solid var(--divider-color);
+            border-radius: 0; /* Siku-siku */
             padding: 15px;
             text-align: left;
         }
@@ -364,9 +378,9 @@
         .archive-viewer h3 {
             margin-top: 0;
             margin-bottom: 15px;
-            color: var(--metro-text-color);
+            color: var(--text-color);
             font-size: 1.3em;
-            border-bottom: 1px solid var(--metro-medium-gray);
+            border-bottom: 1px solid var(--divider-color);
             padding-bottom: 10px;
         }
 
@@ -383,23 +397,23 @@
         }
 
         .archive-table th, .archive-table td {
-            border: 1px solid var(--metro-light-gray);
+            border: 1px solid var(--divider-color);
             padding: 8px 12px;
             text-align: left;
         }
 
         .archive-table th {
-            background-color: var(--metro-bg-color);
-            color: var(--metro-dark-gray);
+            background-color: var(--surface-color);
+            color: var(--secondary-text-color);
             font-weight: 600;
         }
 
         .archive-table tbody tr:nth-child(even) {
-            background-color: #f2f2f2;
+            background-color: var(--background-color);
         }
 
         .archive-table tbody tr:hover {
-            background-color: var(--metro-light-gray);
+            background-color: var(--divider-color);
         }
 
         /* Responsive table for small screens */
@@ -415,8 +429,8 @@
 
             .archive-table tr {
                 margin-bottom: 15px; /* Space between rows */
-                border: 1px solid var(--metro-light-gray);
-                border-radius: 5px;
+                border: 1px solid var(--divider-color);
+                border-radius: 0; /* Siku-siku */
                 overflow: hidden; /* Ensure border-radius applies */
             }
 
@@ -425,7 +439,7 @@
                 padding-left: 50%; /* Make space for the data-label */
                 position: relative;
                 border: none; /* Remove individual cell borders */
-                border-bottom: 1px solid var(--metro-light-gray); /* Add bottom border for separation */
+                border-bottom: 1px solid var(--divider-color); /* Add bottom border for separation */
             }
 
             .archive-table td:last-child {
@@ -442,7 +456,7 @@
                 overflow: hidden;
                 text-overflow: ellipsis;
                 font-weight: 600;
-                color: var(--metro-dark-gray);
+                color: var(--secondary-text-color);
                 text-align: left; /* Align label to the left */
             }
         }
@@ -478,8 +492,18 @@
                 padding: 15px;
                 display: block; /* Show info pane */
             }
-            body.tablet-landscape .header-sticky {
+            body.tablet-landscape .header-main {
                 padding: 10px 20px;
+            }
+            body.tablet-landscape .header-main h1 {
+                font-size: 1.8em;
+            }
+            body.tablet-landscape .profile-container .username {
+                font-size: 0.9em;
+            }
+            body.tablet-landscape .profile-container .profile-image {
+                width: 35px;
+                height: 35px;
             }
         }
 
@@ -502,8 +526,18 @@
                 width: auto; /* Auto width */
                 display: block; /* Show info pane */
             }
-            body.tablet-portrait .header-sticky {
+            body.tablet-portrait .header-main {
                 padding: 10px 20px;
+            }
+            body.tablet-portrait .header-main h1 {
+                font-size: 1.8em;
+            }
+            body.tablet-portrait .profile-container .username {
+                font-size: 0.9em;
+            }
+            body.tablet-portrait .profile-container .profile-image {
+                width: 35px;
+                height: 35px;
             }
         }
 
@@ -526,14 +560,14 @@
                 width: auto; /* Auto width */
                 display: block; /* Show info pane */
             }
-            body.mobile .header-sticky {
+            body.mobile .header-main {
                 padding: 10px 15px;
             }
-            body.mobile .header-sticky h1 {
+            body.mobile .header-main h1 {
                 margin-right: 5px; /* Reduce margin for icon */
                 font-size: 1.3em; /* Smaller font size for header */
             }
-            body.mobile .header-sticky h1 i {
+            body.mobile .header-main h1 i {
                 margin-right: 8px;
             }
             body.mobile .profile-container .username {
