@@ -148,7 +148,6 @@ function folderContainsFilteredFiles($conn, $folderId, $filterExtensions, $baseU
         // However, the main query already handles this by setting $filterExtensions to empty if restricted.
         // So, this part only needs to ensure that if a restricted type is in $filterExtensions,
         // it's only counted if the user is admin/moderator.
-        // This is implicitly handled by the $filterExtensions being empty for non-admins if they try to filter restricted types.
         // If $filterExtensions is NOT empty, it means the user is admin/moderator OR the filter is not restricted.
         // So, no additional WHERE clause needed here for $currentUserRole.
 
@@ -1277,6 +1276,9 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             margin-top: 8px;
             animation: fadeInScale 0.2s ease-out forwards;
             transform-origin: top left;
+            /* NEW: Adjust dropdown position to the left */
+            right: 0; /* Align right edge of dropdown with right edge of parent */
+            left: auto; /* Override default left alignment */
         }
 
         .dropdown-content a {
@@ -1510,6 +1512,10 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             body.tablet-landscape .modal-content {
                 max-width: 500px;
                 padding: 25px;
+            }
+            body.tablet-landscape .dropdown-content { /* NEW: Adjust dropdown position for tablet landscape */
+                right: 0;
+                left: auto;
             }
             body.tablet-landscape .sidebar-menu a {
                 font-size: var(--sidebar-font-size-tablet-landscape);

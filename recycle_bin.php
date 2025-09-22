@@ -1174,6 +1174,14 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             transform-origin: top left;
         }
 
+        /* MODIFIKASI: Geser dropdown ke kiri untuk desktop */
+        @media (min-width: 1025px) { /* Hanya berlaku untuk desktop */
+            .toolbar .dropdown-container .dropdown-content {
+                right: 0; /* Posisikan dropdown ke kanan dari parent */
+                left: auto; /* Batalkan posisi kiri */
+            }
+        }
+
         .dropdown-content a {
             color: var(--text-color);
             padding: 10px 15px;
@@ -2595,6 +2603,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 let finalLeft = x;
                 let finalTop = y;
 
+                // MODIFIKASI: Sesuaikan posisi dropdown agar tidak keluar layar
                 if (x + menuWidth > window.innerWidth) {
                     finalLeft = window.innerWidth - menuWidth - 10;
                 }

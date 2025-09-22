@@ -36,7 +36,8 @@ function getProfileData($conn, $user_id) {
     }
 
     // Ensure profile_picture is set, use default if empty or null
-    if (empty($user['profile_picture'])) {
+    // Perbaikan: Pastikan path default sudah benar dan konsisten
+    if (empty($user['profile_picture']) || !file_exists($user['profile_picture'])) {
         $user['profile_picture'] = 'img/photo_profile.png'; // Default blank profile image
     }
 
@@ -287,7 +288,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_profile_submit']
                         // Save the merged image
                         if (imagepng($merged_img, $target_file)) {
                             // Delete old profile picture if it's not the default one
-                            if ($profile_picture && $profile_picture !== 'img/photo_profile.png' && $profile_picture !== 'img/photo_profile.png' && file_exists($profile_picture)) {
+                            // Perbaikan: Pastikan perbandingan dengan path default yang benar
+                            if ($profile_picture && $profile_picture !== 'img/photo_profile.png' && file_exists($profile_picture)) {
                                 unlink($profile_picture);
                             }
                             $profile_picture = $target_file;
@@ -304,7 +306,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_profile_submit']
                     $response['message'] = 'Background image not found. Uploading original PNG.';
                     // Fallback to just uploading the original PNG if background not found
                     if (move_uploaded_file($temp_file_path, $target_file)) {
-                        if ($profile_picture && $profile_picture !== 'img/default_avatar.png' && $profile_picture !== 'img/photo_profile.png' && file_exists($profile_picture)) {
+                        // Perbaikan: Pastikan perbandingan dengan path default yang benar
+                        if ($profile_picture && $profile_picture !== 'img/photo_profile.png' && file_exists($profile_picture)) {
                             unlink($profile_picture);
                         }
                         $profile_picture = $target_file;
@@ -316,7 +319,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_profile_submit']
                 // If not a transparent PNG, just move the uploaded file
                 if (move_uploaded_file($temp_file_path, $target_file)) {
                     // Delete old profile picture if it's not the default one
-                    if ($profile_picture && $profile_picture !== 'img/default_avatar.png' && $profile_picture !== 'img/photo_profile.png' && file_exists($profile_picture)) {
+                    // Perbaikan: Pastikan perbandingan dengan path default yang benar
+                    if ($profile_picture && $profile_picture !== 'img/photo_profile.png' && file_exists($profile_picture)) {
                         unlink($profile_picture);
                     }
                     $profile_picture = $target_file;
@@ -356,7 +360,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_profile_pictur
     $profile_picture = $current_user_data['profile_picture'];
 
     // Check if there's a picture to delete and it's not the default blank/avatar
-    if ($profile_picture && $profile_picture !== 'img/photo_profile.png' && $profile_picture !== 'img/photo_profile.png' && file_exists($profile_picture)) {
+    // Perbaikan: Pastikan perbandingan dengan path default yang benar
+    if ($profile_picture && $profile_picture !== 'img/photo_profile.png' && file_exists($profile_picture)) {
         if (unlink($profile_picture)) {
             // Update database to set profile_picture to default blank image
             $new_profile_picture_path = 'img/photo_profile.png';
@@ -1945,6 +1950,7 @@ $current_account_status = $initial_data['current_account_status'];
             <h1 class="profile-title" data-lang-key="profileDashboardTitle">My Profile Dashboard</h1>
             <div class="user-info">
                 <span id="userInfoGreeting" data-lang-key="helloUserGreeting">Hello <?php echo htmlspecialchars($user['full_name'] ?? $user['username']); ?></span>
+                <!-- Perbaikan: Pastikan path default sudah benar dan konsisten -->
                 <img id="userInfoAvatar" src="<?php echo htmlspecialchars($user['profile_picture'] ?? 'img/photo_profile.png'); ?>" alt="User Avatar">
             </div>
         </div>
@@ -1954,6 +1960,7 @@ $current_account_status = $initial_data['current_account_status'];
             <div class="card profile-card">
                 <div class="profile-header-bg"></div>
                 <div class="profile-picture-container">
+                    <!-- Perbaikan: Pastikan path default sudah benar dan konsisten -->
                     <img id="profileCardPicture" src="<?php echo htmlspecialchars($user['profile_picture'] ?? 'img/photo_profile.png'); ?>" alt="Profile Picture">
                     <div class="edit-profile-picture-overlay" id="editProfilePictureOverlay">
                         <i class="fas fa-camera"></i>
@@ -2155,6 +2162,7 @@ $current_account_status = $initial_data['current_account_status'];
                 <div class="form-group">
                     <label for="edit_profile_picture" data-lang-key="profilePictureLabel">Profile Picture:</label>
                     <input type="file" id="edit_profile_picture" name="profile_picture" accept="image/*">
+                    <!-- Perbaikan: Pastikan path default sudah benar dan konsisten -->
                     <small data-lang-key="currentLabel">Current: <a id="currentProfilePicLink" href="<?php echo htmlspecialchars($user['profile_picture'] ?? 'img/photo_profile.png'); ?>" target="_blank"><?php echo basename($user['profile_picture'] ?? 'photo_profile.png'); ?></a></small>
                 </div>
                 <div class="button-group">
@@ -2286,6 +2294,7 @@ $current_account_status = $initial_data['current_account_status'];
 
             // Update Dashboard Header
             document.getElementById('userInfoGreeting').textContent = `Hello ${user.full_name || user.username}`;
+            // Perbaikan: Pastikan path default sudah benar dan konsisten
             document.getElementById('userInfoAvatar').src = user.profile_picture || 'img/photo_profile.png';
 
             // Update Sidebar Storage Info
@@ -2311,6 +2320,7 @@ $current_account_status = $initial_data['current_account_status'];
             }
 
             // Update Profile Card
+            // Perbaikan: Pastikan path default sudah benar dan konsisten
             document.getElementById('profileCardPicture').src = user.profile_picture || 'img/photo_profile.png';
             document.getElementById('profileCardFullName').textContent = user.full_name || 'Full Name';
             document.getElementById('profileInfoUsername').textContent = user.username;
@@ -2383,6 +2393,7 @@ $current_account_status = $initial_data['current_account_status'];
             document.getElementById('edit_full_name').value = user.full_name || '';
             document.getElementById('edit_phone_number').value = user.phone_number || '';
             document.getElementById('edit_date_of_birth').value = user.date_of_birth || '';
+            // Perbaikan: Pastikan path default sudah benar dan konsisten
             document.getElementById('currentProfilePicLink').href = user.profile_picture || 'img/photo_profile.png';
             document.getElementById('currentProfilePicLink').textContent = (user.profile_picture ? user.profile_picture.split('/').pop() : 'photo_profile.png');
 

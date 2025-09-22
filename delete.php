@@ -15,7 +15,8 @@ function deleteFileFromDisk($filePath) {
 }
 
 // Fungsi rekursif untuk menghapus folder fisik beserta isinya (tetap ada untuk delete_forever)
-// Fungsi ini hanya akan dipanggil jika folder benar-benar dihapus permanen,
+// FUNGSI INI TIDAK AKAN DIPANGGIL UNTUK PENGHAPUSAN KE RECYCLE BIN.
+// Fungsi ini hanya akan dipanggil jika folder benar-benar dihapus permanen (dari recycle bin),
 // atau setelah semua isinya dipindahkan ke recycle bin dan entri DB dihapus.
 function deleteFolderRecursive($dir) {
     if (!is_dir($dir)) {
@@ -31,17 +32,20 @@ function deleteFolderRecursive($dir) {
 
 // Fungsi baru: Menghapus folder secara logis (memindahkan file ke Recycle Bin)
 // dan menghapus entri folder dari tabel 'folders'.
+// CATATAN PENTING: FUNGSI INI TIDAK MENGHAPUS FOLDER FISIK DARI DISK.
+// HANYA FILE DI DALAMNYA YANG DIHAPUS FISIK SAAT DIPINDAHKAN KE RECYCLE BIN.
+// FOLDER FISIK AKAN TETAP ADA SAMPAI DIHAPUS PERMANEN DARI RECYCLE BIN.
 function deleteFolderAndMoveFilesToTrash($conn, $userId, $folderId, $baseUploadDir) {
     $filesMoved = [];
-    $foldersProcessed = []; // Mengganti foldersDeleted menjadi foldersProcessed
+    $foldersProcessed = [];
     $errors = [];
 
     // 1. Ambil semua file di dalam folder ini dan subfolder-nya
     // Menggunakan rekursif untuk mendapatkan semua file di dalam hierarki folder
     $allFiles = [];
-    function getAllFilesRecursive($conn, $currentFolderId, &$filesArray) { // Removed $currentUserId
+    function getAllFilesRecursive($conn, $currentFolderId, &$filesArray) {
         // Ambil file di folder saat ini
-        $stmt_files = $conn->prepare("SELECT id, file_name, file_path, file_size, file_type, folder_id FROM files WHERE folder_id = ?"); // Removed user_id filter
+        $stmt_files = $conn->prepare("SELECT id, file_name, file_path, file_size, file_type, folder_id FROM files WHERE folder_id = ?");
         $stmt_files->bind_param("i", $currentFolderId);
         $stmt_files->execute();
         $result_files = $stmt_files->get_result();
@@ -51,16 +55,16 @@ function deleteFolderAndMoveFilesToTrash($conn, $userId, $folderId, $baseUploadD
         $stmt_files->close();
 
         // Ambil subfolder dan panggil rekursif
-        $stmt_subfolders = $conn->prepare("SELECT id FROM folders WHERE parent_id = ?"); // Removed user_id filter
+        $stmt_subfolders = $conn->prepare("SELECT id FROM folders WHERE parent_id = ?");
         $stmt_subfolders->bind_param("i", $currentFolderId);
         $stmt_subfolders->execute();
         $result_subfolders = $stmt_subfolders->get_result();
         while ($subfolder = $result_subfolders->fetch_assoc()) {
-            getAllFilesRecursive($conn, $subfolder['id'], $filesArray); // Removed $currentUserId
+            getAllFilesRecursive($conn, $subfolder['id'], $filesArray);
         }
         $stmt_subfolders->close();
     }
-    getAllFilesRecursive($conn, $folderId, $allFiles); // Removed $userId
+    getAllFilesRecursive($conn, $folderId, $allFiles);
 
     foreach ($allFiles as $file) {
         $fileName = $file['file_name'];
@@ -80,7 +84,7 @@ function deleteFolderAndMoveFilesToTrash($conn, $userId, $folderId, $baseUploadD
             $stmt_delete_original_file->bind_param("i", $file['id']);
             if ($stmt_delete_original_file->execute()) {
                 $filesMoved[] = $fileName;
-                // Hapus file fisik
+                // Hapus file fisik dari disk saat dipindahkan ke recycle bin
                 deleteFileFromDisk($baseUploadDir . $filePath);
             } else {
                 $errors[] = "Failed to delete file '" . htmlspecialchars($fileName) . "' from original files table: " . $stmt_delete_original_file->error;
@@ -95,22 +99,22 @@ function deleteFolderAndMoveFilesToTrash($conn, $userId, $folderId, $baseUploadD
     // 2. Ambil semua subfolder (termasuk folder utama) dan hapus entri dari DB
     // Menggunakan rekursif untuk mendapatkan semua folder di dalam hierarki folder
     $allFoldersToDelete = [];
-    function getAllSubfoldersRecursive($conn, $currentFolderId, &$foldersArray) { // Removed $currentUserId
-        $stmt_subfolders = $conn->prepare("SELECT id, folder_name FROM folders WHERE parent_id = ?"); // Removed user_id filter
+    function getAllSubfoldersRecursive($conn, $currentFolderId, &$foldersArray) {
+        $stmt_subfolders = $conn->prepare("SELECT id, folder_name FROM folders WHERE parent_id = ?");
         $stmt_subfolders->bind_param("i", $currentFolderId);
         $stmt_subfolders->execute();
         $result_subfolders = $stmt_subfolders->get_result();
         while ($subfolder = $result_subfolders->fetch_assoc()) {
-            getAllSubfoldersRecursive($conn, $subfolder['id'], $foldersArray); // Removed $currentUserId
+            getAllSubfoldersRecursive($conn, $subfolder['id'], $foldersArray);
             $foldersArray[] = $subfolder; // Tambahkan subfolder setelah memproses isinya
         }
         $stmt_subfolders->close();
     }
     // Dapatkan semua subfolder terlebih dahulu, lalu tambahkan folder utama
-    getAllSubfoldersRecursive($conn, $folderId, $allFoldersToDelete); // Removed $userId
+    getAllSubfoldersRecursive($conn, $folderId, $allFoldersToDelete);
 
     // Tambahkan folder utama ke daftar untuk dihapus terakhir
-    $stmt_main_folder = $conn->prepare("SELECT id, folder_name FROM folders WHERE id = ?"); // Removed user_id filter
+    $stmt_main_folder = $conn->prepare("SELECT id, folder_name FROM folders WHERE id = ?");
     $stmt_main_folder->bind_param("i", $folderId);
     $stmt_main_folder->execute();
     $result_main_folder = $stmt_main_folder->get_result();
@@ -121,9 +125,10 @@ function deleteFolderAndMoveFilesToTrash($conn, $userId, $folderId, $baseUploadD
     }
 
     // Hapus folder dari DB (dari yang paling dalam ke luar)
-    foreach (array_reverse($allFoldersToDelete) as $folder) { // Hapus dari yang paling dalam
+    foreach (array_reverse($allFoldersToDelete) as $folder) {
         $folderName = $folder['folder_name'];
-        $folderPath = getFolderPath($conn, $folder['id']); // Dapatkan path fisik folder
+        // Tidak perlu mendapatkan path fisik folder di sini karena folder fisik tidak dihapus
+        // $folderPath = getFolderPath($conn, $folder['id']);
 
         // Pindahkan ke deleted_folders table
         $stmt_insert_deleted_folder = $conn->prepare("INSERT INTO deleted_folders (user_id, folder_name, deleted_at) VALUES (?, ?, NOW())");
@@ -133,8 +138,9 @@ function deleteFolderAndMoveFilesToTrash($conn, $userId, $folderId, $baseUploadD
             $stmt_delete_original_folder->bind_param("i", $folder['id']);
             if ($stmt_delete_original_folder->execute()) {
                 $foldersProcessed[] = $folderName;
-                // Hapus folder fisik setelah semua isinya dipindahkan/dihapus
-                deleteFolderRecursive($baseUploadDir . $folderPath);
+                // PENTING: deleteFolderRecursive TIDAK DIPANGGIL DI SINI.
+                // Folder fisik akan tetap ada di disk.
+                // deleteFolderRecursive($baseUploadDir . $folderPath); // BARIS INI DIHAPUS/DIKOMENTARI
             } else {
                 $errors[] = "Failed to delete folder '" . htmlspecialchars($folderName) . "' from folders table: " . $stmt_delete_original_folder->error;
             }
@@ -236,6 +242,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $folderName = $folder['folder_name'];
 
                         // Call function to delete folder and move files to Recycle Bin
+                        // Ini akan memindahkan entri DB folder dan file di dalamnya ke recycle bin,
+                        // tetapi folder fisik tidak akan dihapus.
                         $deleteResult = deleteFolderAndMoveFilesToTrash($conn, $userId, $id, $baseUploadDir);
 
                         $filesMovedCount = count($deleteResult['filesMoved']);
@@ -345,6 +353,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $folderName = $folder['folder_name'];
 
                     // Call function to delete folder and move files to Recycle Bin
+                    // Ini akan memindahkan entri DB folder dan file di dalamnya ke recycle bin,
+                    // tetapi folder fisik tidak akan dihapus.
                     $deleteResult = deleteFolderAndMoveFilesToTrash($conn, $userId, $id, $baseUploadDir);
 
                     $filesMovedCount = count($deleteResult['filesMoved']);

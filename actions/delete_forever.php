@@ -12,6 +12,20 @@ function deleteFileFromDisk($filePath) {
     return true; // Already gone
 }
 
+// Fungsi rekursif untuk menghapus folder fisik beserta isinya
+// Diambil dari kode yang sudah diberikan (delete.php)
+function deleteFolderRecursive($dir) {
+    if (!is_dir($dir)) {
+        return false;
+    }
+    $files = array_diff(scandir($dir), array('.', '..'));
+    foreach ($files as $file) {
+        $itemPath = "$dir/$file";
+        (is_dir($itemPath)) ? deleteFolderRecursive($itemPath) : unlink($itemPath);
+    }
+    return rmdir($dir);
+}
+
 header('Content-Type: application/json');
 session_start();
 
@@ -32,6 +46,7 @@ if (empty($itemsToDelete)) {
 $conn->begin_transaction();
 $successCount = 0;
 $failMessages = [];
+$baseUploadDir = '../uploads/'; // Sesuaikan dengan direktori upload Anda
 
 try {
     foreach ($itemsToDelete as $item) {
@@ -79,7 +94,8 @@ try {
         } elseif ($type === 'folder') {
             // Get folder details from deleted_folders
             // MODIFIED: Removed user_id filter from SELECT query
-            $stmt = $conn->prepare("SELECT folder_name FROM deleted_folders WHERE id = ?");
+            // Tambahkan kolom trash_path untuk menghapus folder fisik
+            $stmt = $conn->prepare("SELECT folder_name, trash_path FROM deleted_folders WHERE id = ?");
             $stmt->bind_param("i", $id);
             $stmt->execute();
             $result = $stmt->get_result();
@@ -87,10 +103,17 @@ try {
             $stmt->close();
 
             if ($folder) {
-                // Recursively delete all associated files and subfolders from 'deleted_files' and 'deleted_folders'
-                // This requires a recursive function to find all children of this deleted folder in the trash.
-                // For simplicity, we'll just delete the top-level folder entry.
-                // A more robust solution would involve a recursive DB deletion.
+                $folderName = $folder['folder_name'];
+                $trashPath = $folder['trash_path']; // Ambil jalur fisik folder dari database
+
+                // Hapus folder fisik jika ada
+                if (!empty($trashPath) && is_dir($trashPath)) {
+                    if (!deleteFolderRecursive($trashPath)) {
+                        $failMessages[] = "Failed to delete physical folder and its contents: " . htmlspecialchars($folderName);
+                        // Lanjutkan ke item berikutnya jika penghapusan fisik gagal
+                        continue;
+                    }
+                }
 
                 // Delete from deleted_folders table
                 // MODIFIED: Removed user_id filter from DELETE query

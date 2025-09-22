@@ -13,6 +13,7 @@ function deleteFileFromDisk($filePath) {
 }
 
 // Tambahkan fungsi ini
+// Diambil dari kode yang sudah diberikan (delete.php)
 function deleteFolderRecursive($dir) {
     if (!is_dir($dir)) {
         return false;
@@ -53,12 +54,8 @@ try {
     }
     $stmt_files->close();
 
-    // Catatan: Untuk menghapus folder fisik secara rekursif saat mengosongkan recycle bin,
-    // tabel `deleted_folders` harus menyimpan jalur fisik folder tersebut (misalnya, `trash_path`).
-    // Jika tidak ada kolom seperti itu, folder fisik tidak dapat dihapus dari sini.
-    // Asumsi saat ini: `deleted_folders` hanya mencatat entri database, bukan jalur fisik yang perlu dihapus.
-    // Jika Anda memiliki kolom `trash_path` di `deleted_folders`, Anda bisa menambahkan kode berikut:
-    /*
+    // Hapus folder fisik secara rekursif saat mengosongkan recycle bin
+    // Mengambil jalur fisik folder dari kolom `trash_path` di `deleted_folders`
     $stmt_folders_path = $conn->prepare("SELECT trash_path FROM deleted_folders WHERE user_id = ?");
     $stmt_folders_path->bind_param("i", $userId);
     $stmt_folders_path->execute();
@@ -69,7 +66,7 @@ try {
         }
     }
     $stmt_folders_path->close();
-    */
+    
 
     // Delete all entries from deleted_files for the user
     $stmt_delete_files = $conn->prepare("DELETE FROM deleted_files WHERE user_id = ?");
