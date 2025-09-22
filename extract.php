@@ -21,9 +21,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $input = json_decode(file_get_contents('php://input'), true);
 
 $fileId = $input['file_id'] ?? null;
-$filePath = $input['file_path'] ?? null; // Path relatif dari file ZIP
+// $filePath dari JS sekarang adalah file_path yang tersimpan di DB, yang relatif
+$filePathFromDb = $input['file_path'] ?? null; 
 
-if (!$fileId || !$filePath) {
+if (!$fileId || !$filePathFromDb) {
     echo json_encode(["success" => false, "message" => "Missing file ID or file path."]);
     exit();
 }
@@ -48,30 +49,33 @@ if (strtolower($file['file_type']) !== 'zip') {
 }
 
 // Pastikan path yang diberikan sesuai dengan yang ada di database
-if ($file['file_path'] !== $filePath) {
-    echo json_encode(["success" => false, "message" => "File path mismatch."]);
+// Ini penting untuk keamanan, mencegah ekstraksi file arbitrer
+if ($file['file_path'] !== $filePathFromDb) {
+    echo json_encode(["success" => false, "message" => "File path mismatch. Provided: " . $filePathFromDb . ", DB: " . $file['file_path']]);
     exit();
 }
 
 // Path absolut ke file ZIP
-$absoluteZipFilePath = __DIR__ . '/' . $filePath; // Asumsi file_path disimpan relatif dari root aplikasi
+// Menggunakan __DIR__ untuk mendapatkan direktori skrip saat ini, lalu menggabungkannya dengan $filePathFromDb
+$absoluteZipFilePath = __DIR__ . '/' . $filePathFromDb; 
 
 // Dapatkan folder path tempat file ZIP berada
 $baseUploadDir = 'uploads/'; // Sesuaikan dengan base upload directory Anda
 $zipFileFolderId = $file['folder_id']; // ID folder tempat file ZIP berada
 
-// Dapatkan path fisik folder tempat file ZIP berada
-$targetFolderPath = __DIR__ . '/' . $baseUploadDir; // Default ke root uploads
+// Dapatkan path fisik folder tujuan ekstraksi. Ini adalah folder tempat file ZIP berada.
+// Fungsi getFolderPath mengembalikan path relatif dari 'uploads/', jadi kita perlu menggabungkannya.
+$extractToPath = __DIR__ . '/' . $baseUploadDir;
 if ($zipFileFolderId !== NULL) {
     $folderPathFromDb = getFolderPath($conn, $zipFileFolderId);
     if (!empty($folderPathFromDb)) {
-        $targetFolderPath .= $folderPathFromDb . '/';
+        $extractToPath .= $folderPathFromDb . '/';
     }
 }
 
 // Panggil fungsi ekstrak
 // Fungsi extractZipFile sekarang akan menangani penamaan folder unik secara internal
-$extractionResult = extractZipFile($absoluteZipFilePath, $targetFolderPath, $conn, $zipFileFolderId);
+$extractionResult = extractZipFile($absoluteZipFilePath, $extractToPath, $conn, $zipFileFolderId);
 
 // Log aktivitas
 logActivity($conn, $_SESSION['user_id'], 'extract_file', "Extracted ZIP file: " . $file['file_name'] . ". Result: " . ($extractionResult['success'] ? "Success" : "Failed"));

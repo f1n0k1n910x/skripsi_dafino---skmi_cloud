@@ -2981,7 +2981,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                         // --- NEW: Check for restricted file types in selected items ---
                         const hasRestricted = selectedItems.some(item => {
                             if (item.type === 'file') {
-                                const fileElement = document.querySelector(`.file-item[data-id="${CSS.escape(item.id)}`);
+                                const fileElement = document.querySelector(`.file-item[data-id="${CSS.escape(item.id)}"]`);
                                 const fileType = fileElement ? fileElement.dataset.fileType : '';
                                 return restrictedFileTypes.includes(fileType);
                             }
@@ -3009,7 +3009,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                                 body: JSON.stringify({ 
                                     items: selectedItems, 
                                     format: format,
-                                    current_folder_id: currentFolderId
+                                    current_folder_id: currentFolderId // Pass current folder ID
                                 })
                             });
                             const data = await response.json();
@@ -3648,6 +3648,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 contextMenu.dataset.targetId = fileEl.dataset.id;
                 contextMenu.dataset.targetType = fileEl.dataset.type;
                 contextMenu.dataset.targetName = fileEl.dataset.name; // Pass item name to context menu
+                contextMenu.dataset.targetPath = fileEl.dataset.path; // Pass item path for extract
                 contextMenu.dataset.targetFileType = fileEl.dataset.fileType || ''; // For files
 
                 // Show/hide options based on item type and user role
@@ -3716,6 +3717,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 contextMenu.dataset.targetId = '';
                 contextMenu.dataset.targetType = '';
                 contextMenu.dataset.targetName = ''; // Clear item name
+                contextMenu.dataset.targetPath = ''; // Clear item path
                 contextMenu.dataset.targetFileType = '';
             }
 
@@ -3858,6 +3860,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 const targetId = contextMenu.dataset.targetId;
                 const targetType = contextMenu.dataset.targetType;
                 const targetName = contextMenu.dataset.targetName; // Get item name
+                const targetPath = contextMenu.dataset.targetPath; // Get item path
                 const targetFileType = contextMenu.dataset.targetFileType; // Get item file type
 
                 // --- NEW: Check for restricted file types before executing action ---
@@ -3874,7 +3877,8 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                 if (action === 'toggle-star') { // Handle toggle-star action
                     toggleStar(targetId, targetType, targetName);
                 } else {
-                    handleMenuAction(action, targetId);
+                    // Pass targetPath to handleMenuAction for extract function
+                    handleMenuAction(action, targetId, targetPath);
                 }
                 hideContextMenu();
             });
@@ -3888,12 +3892,12 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             window.addEventListener('blur', hideContextMenu);
 
             /*** Menu handlers (placeholders - ganti sesuai API/backend) */
-            function handleMenuAction(action, id){
+            function handleMenuAction(action, id, path = null){ // Added path parameter
                 switch(action){
                     case 'rename': renameFile(id); break;
                     case 'download': downloadFile(id); break;
                     case 'share': shareFileLink(id); break;
-                    case 'extract': extractZipFile(id); break; // Added extract
+                    case 'extract': extractZipFile(id); break; // Path is not directly used here, but passed to extractZipFile
                     case 'delete': deleteFile(id); break;
                     default: console.log('Unknown action', action);
                 }
