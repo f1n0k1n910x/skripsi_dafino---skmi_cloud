@@ -470,7 +470,7 @@ $currentFolderPath = ''; // To build the full path for uploads and display
           }
 
           try {
-              const response = await fetch(`${BASE_URL}/v2/services/api/deleteSelected.php`, {
+              const response = await fetch(`${BASE_URL}/services/api/deleteSelected.php`, {
                   method: 'POST',
                   headers: {
                       'Content-Type': 'application/json',

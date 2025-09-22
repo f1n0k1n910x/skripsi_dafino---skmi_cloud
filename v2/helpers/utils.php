@@ -2,6 +2,25 @@
 $baseUrl = '/skripsi_dafino---skmi_cloud/';
 $baseV2Url = '/skripsi_dafino---skmi_cloud/v2';
 
+function getBaseUrl() {
+    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
+    $host = $_SERVER['HTTP_HOST'];
+    
+    // Get the script directory and remove any subdirectories that might be causing issues
+    $script_dir = dirname($_SERVER['SCRIPT_NAME']);
+    
+    // If we're in a subdirectory like v2/views/pages, go up to project root
+    if (strpos($script_dir, '/v2/') !== false) {
+        $script_dir = dirname($script_dir); // Go up from pages
+        $script_dir = dirname($script_dir); // Go up from views  
+        $script_dir = dirname($script_dir); // Go up from v2
+    }
+    
+    $script_dir = rtrim($script_dir, '/');
+    
+    return "{$protocol}://{$host}{$script_dir}";
+}
+
 $filterExtensions = [];
 
 $docExt = ['doc','docx','pdf','ppt','pptx','xls','xlsx','txt','odt','odp','rtf','md','log','csv','tex'];
