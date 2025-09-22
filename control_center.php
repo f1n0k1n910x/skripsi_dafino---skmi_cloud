@@ -70,10 +70,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_member_account
     // exit();
 }
 
+// --- Pagination Logic ---
+$limit = 5; // Number of members per page
+$page = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
+$offset = ($page - 1) * $limit;
+
 // Get search query for members
 $searchMemberQuery = isset($_GET['search_member']) ? $_GET['search_member'] : '';
 
-// Fetch members based on search query
+// Fetch total number of members for pagination
+$totalMembers = 0;
+$sqlCount = "SELECT COUNT(id) AS total FROM users";
+$paramsCount = [];
+$typesCount = "";
+
+if (!empty($searchMemberQuery)) {
+    $sqlCount .= " WHERE username LIKE ? OR email LIKE ? OR full_name LIKE ?";
+    $searchTerm = '%' . $searchMemberQuery . '%';
+    $paramsCount[] = $searchTerm;
+    $paramsCount[] = $searchTerm;
+    $paramsCount[] = $searchTerm;
+    $typesCount .= "sss";
+}
+
+$stmtCount = $conn->prepare($sqlCount);
+if (!empty($paramsCount)) {
+    $stmtCount->bind_param($typesCount, ...$paramsCount);
+}
+$stmtCount->execute();
+$resultCount = $stmtCount->get_result();
+$rowCount = $resultCount->fetch_assoc();
+$totalMembers = $rowCount['total'];
+$stmtCount->close();
+
+$totalPages = ceil($totalMembers / $limit);
+
+// Fetch members based on search query and pagination
 $members = [];
 $sql = "SELECT id, username, email, full_name, role, last_active, last_login FROM users";
 $params = [];
@@ -87,7 +119,10 @@ if (!empty($searchMemberQuery)) {
     $params[] = $searchTerm;
     $types .= "sss";
 }
-$sql .= " ORDER BY username ASC";
+$sql .= " ORDER BY username ASC LIMIT ? OFFSET ?";
+$params[] = $limit;
+$params[] = $offset;
+$types .= "ii"; // Add types for LIMIT and OFFSET
 
 $stmt = $conn->prepare($sql);
 if (!empty($params)) {
@@ -102,7 +137,7 @@ while ($row = $result->fetch_assoc()) {
 }
 $stmt->close();
 
-// If this is an AJAX request for member list, only output the table body
+// If this is an AJAX request for member list, only output the table body and pagination
 if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
     ob_clean(); // Clean any previous output
     ?>
@@ -113,27 +148,48 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
                     <td><?php echo htmlspecialchars($member['id']); ?></td>
                     <td><?php echo htmlspecialchars($member['username']); ?></td>
                     <td><?php echo htmlspecialchars($member['full_name']); ?></td>
-                    <td><?php echo htmlspecialchars(ucfirst($member['role'])); ?></td>
+                    <td><span data-lang-key="<?php echo strtolower($member['role']); ?>Role"><?php echo htmlspecialchars(ucfirst($member['role'])); ?></span></td>
                     <td><?php echo htmlspecialchars($member['email']); ?></td>
-                    <td><?php echo !empty($member['last_login']) ? date('Y-m-d H:i', strtotime($member['last_login'])) : 'N/A'; ?></td>
+                    <td><?php echo !empty($member['last_login']) ? date('Y-m-d H:i', strtotime($member['last_login'])) : '<span data-lang-key="na">N/A</span>'; ?></td>
                     <td>
                         <span class="status-indicator <?php echo $member['is_online'] ? 'online' : 'offline'; ?>"></span>
-                        <?php echo $member['is_online'] ? 'Online' : 'Offline'; ?>
+                        <span data-lang-key="<?php echo $member['is_online'] ? 'onlineStatus' : 'offlineStatus'; ?>"><?php echo $member['is_online'] ? 'Online' : 'Offline'; ?></span>
                     </td>
                     <td class="action-buttons">
-                        <button onclick="viewMemberDetails(<?php echo $member['id']; ?>)">View Details</button>
+                        <button onclick="viewMemberDetails(<?php echo $member['id']; ?>)" data-lang-key="viewDetails">View Details</button>
                         <!-- Add more actions like Edit, Delete if needed -->
                     </td>
                 </tr>
             <?php endforeach; ?>
         <?php else: ?>
             <tr>
-                <td colspan="8" style="text-align: center;">No members found.</td>
+                <td colspan="8" style="text-align: center;" data-lang-key="noMembersFound">No members found.</td>
             </tr>
         <?php endif; ?>
     </tbody>
+    <tfoot class="pagination-footer">
+        <tr>
+            <td colspan="8">
+                <div class="pagination">
+                    <?php if ($totalPages > 1): ?>
+                        <?php if ($page > 1): ?>
+                            <button onclick="loadMembers(<?php echo $page - 1; ?>, '<?php echo htmlspecialchars($searchMemberQuery); ?>')" data-lang-key="previous">Previous</button>
+                        <?php endif; ?>
+
+                        <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                            <button class="<?php echo ($i == $page) ? 'active' : ''; ?>" onclick="loadMembers(<?php echo $i; ?>, '<?php echo htmlspecialchars($searchMemberQuery); ?>')"><?php echo $i; ?></button>
+                        <?php endfor; ?>
+
+                        <?php if ($page < $totalPages): ?>
+                            <button onclick="loadMembers(<?php echo $page + 1; ?>, '<?php echo htmlspecialchars($searchMemberQuery); ?>')" data-lang-key="next">Next</button>
+                        <?php endif; ?>
+                    <?php endif; ?>
+                </div>
+            </td>
+        </tr>
+    </tfoot>
     <?php
-    exit(); // Exit after sending the table body
+    exit(); // Exit after sending the table body and pagination
 }
 
 
@@ -1120,6 +1176,39 @@ if (isset($_SESSION['message'])) {
                 transform: translateY(-100%);
             }
         }
+
+        /* Pagination Styles */
+        .pagination-footer {
+            background-color: var(--surface-color);
+            border-top: 1px solid var(--divider-color);
+        }
+        .pagination {
+            display: flex;
+            justify-content: center;
+            padding: 15px 0;
+            gap: 8px;
+        }
+        .pagination button {
+            background-color: var(--background-color);
+            color: var(--text-color);
+            border: 1px solid var(--divider-color);
+            padding: 8px 12px;
+            border-radius: 0;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.2s ease-out, color 0.2s ease-out, border-color 0.2s ease-out;
+        }
+        .pagination button:hover {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        .pagination button.active {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -1241,7 +1330,7 @@ if (isset($_SESSION['message'])) {
                         <th data-lang-key="actions">Actions</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="memberTableBody">
                     <?php if (!empty($members)): ?>
                         <?php foreach ($members as $member): ?>
                             <tr>
@@ -1267,6 +1356,27 @@ if (isset($_SESSION['message'])) {
                         </tr>
                     <?php endif; ?>
                 </tbody>
+                <tfoot class="pagination-footer">
+                    <tr>
+                        <td colspan="8">
+                            <div class="pagination" id="memberPagination">
+                                <?php if ($totalPages > 1): ?>
+                                    <?php if ($page > 1): ?>
+                                        <button onclick="loadMembers(<?php echo $page - 1; ?>, '<?php echo htmlspecialchars($searchMemberQuery); ?>')" data-lang-key="previous">Previous</button>
+                                    <?php endif; ?>
+
+                                    <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                                        <button class="<?php echo ($i == $page) ? 'active' : ''; ?>" onclick="loadMembers(<?php echo $i; ?>, '<?php echo htmlspecialchars($searchMemberQuery); ?>')"><?php echo $i; ?></button>
+                                    <?php endfor; ?>
+
+                                    <?php if ($page < $totalPages): ?>
+                                        <button onclick="loadMembers(<?php echo $page + 1; ?>, '<?php echo htmlspecialchars($searchMemberQuery); ?>')" data-lang-key="next">Next</button>
+                                    <?php endif; ?>
+                                <?php endif; ?>
+                            </div>
+                        </td>
+                    </tr>
+                </tfoot>
             </table>
         </div>
 
@@ -1344,6 +1454,8 @@ if (isset($_SESSION['message'])) {
             'unknownError': { 'id': 'Terjadi kesalahan yang tidak diketahui.', 'en': 'An unknown error occurred.' },
             'memberDetailsNotFound': { 'id': 'Detail anggota tidak ditemukan.', 'en': 'Member details not found.' },
             'errorDuringCreation': { 'id': 'Terjadi kesalahan saat pembuatan akun.', 'en': 'An error occurred during account creation.' },
+            'previous': { 'id': 'Sebelumnya', 'en': 'Previous' },
+            'next': { 'id': 'Berikutnya', 'en': 'Next' },
         };
 
         let currentLanguage = localStorage.getItem('lang') || 'id'; // Default to 'id'
@@ -1399,6 +1511,8 @@ if (isset($_SESSION['message'])) {
             const customNotification = document.getElementById('customNotification');
             const createMemberForm = document.getElementById('createMemberForm');
             const mainContent = document.getElementById('mainContent'); // Get main-content for animations
+            const memberTableBody = document.getElementById('memberTableBody');
+            const memberPagination = document.getElementById('memberPagination');
 
             // Function to show custom notification
             function showNotification(message, type) {
@@ -1477,100 +1591,37 @@ if (isset($_SESSION['message'])) {
                 mobileOverlay.classList.remove('show');
             });
 
-            // --- Member Search Functionality (No Reload Page) ---
-            function updateMemberList(query) {
+            // --- Member Search and Pagination Functionality (No Reload Page) ---
+            window.loadMembers = function(page = 1, searchQuery = '') {
+                const currentSearchQuery = searchQuery || searchMemberInputDesktop.value || searchMemberInputMobile.value;
                 const xhr = new XMLHttpRequest();
-                xhr.open('GET', 'control_center.php?search_member=' + encodeURIComponent(query) + '&ajax=1', true);
+                xhr.open('GET', `control_center.php?search_member=${encodeURIComponent(currentSearchQuery)}&page=${page}&ajax=1`, true);
                 xhr.onload = function() {
                     if (this.status === 200) {
                         const parser = new DOMParser();
                         const doc = parser.parseFromString(this.responseText, 'text/html');
-                        const newTableBody = doc.querySelector('.member-table tbody');
-                        const currentTableBody = document.querySelector('.member-table tbody');
-                        if (newTableBody && currentTableBody) {
-                            currentTableBody.innerHTML = newTableBody.innerHTML;
-                            applyTranslation(currentLanguage); // Apply translation after updating list
+                        
+                        const newTableBody = doc.querySelector('tbody');
+                        if (newTableBody) {
+                            memberTableBody.innerHTML = newTableBody.innerHTML;
                         }
+
+                        const newPagination = doc.querySelector('.pagination');
+                        if (newPagination) {
+                            memberPagination.innerHTML = newPagination.innerHTML;
+                        }
+                        applyTranslation(currentLanguage); // Apply translation after updating list and pagination
                     }
                 };
                 xhr.send();
             }
 
-            function fetchMembers() {
-                fetch('v2/services/api/fetchMembers.php')
-                    .then(response => response.json())
-                    .then(data => {
-                        const tbody = document.querySelector(".member-table tbody");
-                        tbody.innerHTML = ""; // 🔥 Clear old rows
-
-                        data.forEach(member => {
-                            const tr = document.createElement("tr");
-                            tr.innerHTML = `
-                                <td>${member.id}</td>
-                                <td>${member.username}</td>
-                                <td>${member.full_name}</td>
-                                <td>
-                                    <span data-lang-key="${member.role ? member.role.toLowerCase() + 'Role' : ''}">
-                                        ${member.role ? capitalizeFirstLetter(member.role) : ''}
-                                    </span>
-                                </td>      
-                                <td>${escapeHtml(member.email)}</td>
-                                <td>${
-                                    member.last_login 
-                                        ? formatDate(member.last_login) 
-                                        : '<span data-lang-key="na">N/A</span>'
-                                }</td>
-                                <td>
-                                    <span class="status-indicator ${member.is_online ? 'online' : 'offline'}"></span>
-                                    <span data-lang-key="${member.is_online ? 'onlineStatus' : 'offlineStatus'}">
-                                        ${member.is_online ? 'Online' : 'Offline'}
-                                    </span>
-                                </td>
-                                <td class="action-buttons">
-                                    <button onclick="viewMemberDetails(${member.id})" data-lang-key="viewDetails">
-                                        View Details
-                                    </button>
-                                </td>
-                            `;
-                            tbody.appendChild(tr);
-                        });
-                    })
-                    .catch(error => console.error("Error fetching members:", error));
-            }
-
-            // Helpers (same as PHP version behavior)
-            function escapeHtml(text) {
-                if (typeof text !== "string" && typeof text !== "number") return "";
-                return text.toString().replace(/&/g, "&amp;")
-                                    .replace(/</g, "&lt;")
-                                    .replace(/>/g, "&gt;")
-                                    .replace(/"/g, "&quot;")
-                                    .replace(/'/g, "&#039;");
-            }
-
-            function capitalizeFirstLetter(str) {
-                return str ? str.charAt(0).toUpperCase() + str.slice(1) : "";
-            }
-
-            function formatDate(dateString) {
-                const date = new Date(dateString);
-                if (isNaN(date)) return '<span data-lang-key="na">N/A</span>';
-
-                const year = date.getFullYear();
-                const month = ("0" + (date.getMonth() + 1)).slice(-2);
-                const day = ("0" + date.getDate()).slice(-2);
-                const hours = ("0" + date.getHours()).slice(-2);
-                const minutes = ("0" + date.getMinutes()).slice(-2);
-
-                return `${year}-${month}-${day} ${hours}:${minutes}`;
-            }
-
             searchMemberInputDesktop.addEventListener('keyup', function() {
-                updateMemberList(this.value);
+                loadMembers(1, this.value); // Reset to page 1 on new search
             });
 
             searchMemberInputMobile.addEventListener('keyup', function() {
-                updateMemberList(this.value);
+                loadMembers(1, this.value); // Reset to page 1 on new search
             });
 
             // --- Create Member Account (No Reload Page) ---
@@ -1629,7 +1680,7 @@ if (isset($_SESSION['message'])) {
                     // If successful, clear form and update member list
                     if (messageType === 'success') {
                         createMemberForm.reset();
-                        fetchMembers(); // Refresh member list
+                        loadMembers(1); // Refresh member list, go to page 1
                     }
                 })
                 .catch(error => {
@@ -1669,21 +1720,30 @@ if (isset($_SESSION['message'])) {
             window.viewMemberDetails = function(memberId) {
                 // In a real application, you would fetch more details via AJAX
                 // For now, we'll just find the member in the current list
-                const member = <?php echo json_encode($members); ?>.find(m => m.id == memberId);
-
-                if (member) {
-                    document.getElementById('memberDetailsUsername').textContent = member.username;
-                    document.getElementById('detailId').textContent = member.id;
-                    document.getElementById('detailFullName').textContent = member.full_name;
-                    document.getElementById('detailEmail').textContent = member.email;
-                    document.getElementById('detailRole').textContent = translations[member.role.toLowerCase() + 'Role'][currentLanguage] || ucfirst(member.role);
-                    document.getElementById('detailLastLogin').textContent = member.last_login ? new Date(member.last_login.replace(/-/g, '/')).toLocaleString() : translations['na'][currentLanguage];
-                    document.getElementById('detailLastActive').textContent = member.last_active ? new Date(member.last_active.replace(/-/g, '/')).toLocaleString() : translations['na'][currentLanguage];
-                    document.getElementById('detailStatus').textContent = member.is_online ? translations['onlineStatus'][currentLanguage] : translations['offlineStatus'][currentLanguage];
-                    openModal(memberDetailsModal); // Use openModal function
-                } else {
-                    showNotification(translations['memberDetailsNotFound'][currentLanguage], 'error');
-                }
+                // This part needs to fetch from the *full* list of members, not just the paginated one.
+                // For simplicity, we'll assume the `members` array in PHP is available globally in JS
+                // or fetch it again. For a robust solution, a dedicated API endpoint for member details is better.
+                fetch(`v2/services/api/getMemberDetails.php?id=${memberId}`) // Assuming a new API endpoint
+                    .then(response => response.json())
+                    .then(member => {
+                        if (member) {
+                            document.getElementById('memberDetailsUsername').textContent = member.username;
+                            document.getElementById('detailId').textContent = member.id;
+                            document.getElementById('detailFullName').textContent = member.full_name;
+                            document.getElementById('detailEmail').textContent = member.email;
+                            document.getElementById('detailRole').textContent = translations[member.role.toLowerCase() + 'Role'][currentLanguage] || ucfirst(member.role);
+                            document.getElementById('detailLastLogin').textContent = member.last_login ? new Date(member.last_login.replace(/-/g, '/')).toLocaleString() : translations['na'][currentLanguage];
+                            document.getElementById('detailLastActive').textContent = member.last_active ? new Date(member.last_active.replace(/-/g, '/')).toLocaleString() : translations['na'][currentLanguage];
+                            document.getElementById('detailStatus').textContent = member.is_online ? translations['onlineStatus'][currentLanguage] : translations['offlineStatus'][currentLanguage];
+                            openModal(memberDetailsModal); // Use openModal function
+                        } else {
+                            showNotification(translations['memberDetailsNotFound'][currentLanguage], 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching member details:', error);
+                        showNotification(translations['memberDetailsNotFound'][currentLanguage], 'error');
+                    });
             };
 
             // Set active class for current page in sidebar
