@@ -2830,6 +2830,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                     fileListView.classList.remove('hidden');
                     fileGridView.classList.add('hidden');
                     localStorage.setItem('fileView', 'list');
+                    updateSelectAllCheckboxState(); // Update select all checkbox state when view changes
                 });
 
                 gridViewBtnElement.addEventListener('click', () => {
@@ -2838,6 +2839,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                     fileGridView.classList.remove('hidden');
                     fileListView.classList.add('hidden');
                     localStorage.setItem('fileView', 'grid');
+                    updateSelectAllCheckboxState(); // Update select all checkbox state when view changes
                 });
             }
 
@@ -2854,40 +2856,67 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             }
 
             // --- Select All Checkbox Logic ---
-            function updateSelectAllCheckboxListener() {
-                const fileCheckboxes = document.querySelectorAll('.file-checkbox');
-                selectAllCheckbox.checked = false;
-                selectAllCheckbox.removeEventListener('change', handleSelectAllChange);
-                selectAllCheckbox.addEventListener('change', handleSelectAllChange);
+            // Function to synchronize checkbox states across list and grid views
+            function synchronizeCheckboxes(sourceCheckbox) {
+                const id = sourceCheckbox.dataset.id;
+                const type = sourceCheckbox.dataset.type;
+                const isChecked = sourceCheckbox.checked;
 
-                fileCheckboxes.forEach(checkbox => {
-                    checkbox.removeEventListener('change', handleIndividualCheckboxChange);
-                    checkbox.addEventListener('change', handleIndividualCheckboxChange);
+                // Find corresponding checkboxes in both views
+                const checkboxesInBothViews = document.querySelectorAll(`.file-checkbox[data-id="${id}"][data-type="${type}"]`);
+                checkboxesInBothViews.forEach(cb => {
+                    if (cb !== sourceCheckbox) { // Avoid infinite loop
+                        cb.checked = isChecked;
+                    }
                 });
+                updateSelectAllCheckboxState();
             }
 
-            function handleSelectAllChange() {
-                const fileCheckboxes = document.querySelectorAll('.file-checkbox');
-                fileCheckboxes.forEach(checkbox => {
-                    checkbox.checked = this.checked;
-                });
-            }
+            // Function to update the state of the "Select All" checkbox
+            function updateSelectAllCheckboxState() {
+                const allIndividualCheckboxes = document.querySelectorAll('.file-checkbox:not(#selectAllCheckbox)');
+                const checkedIndividualCheckboxes = document.querySelectorAll('.file-checkbox:not(#selectAllCheckbox):checked');
 
-            function handleIndividualCheckboxChange() {
-                const fileCheckboxes = document.querySelectorAll('.file-checkbox');
-                if (!this.checked) {
+                if (allIndividualCheckboxes.length === 0) {
                     selectAllCheckbox.checked = false;
+                    selectAllCheckbox.indeterminate = false;
+                } else if (checkedIndividualCheckboxes.length === 0) {
+                    selectAllCheckbox.checked = false;
+                    selectAllCheckbox.indeterminate = false;
+                } else if (checkedIndividualCheckboxes.length === allIndividualCheckboxes.length) {
+                    selectAllCheckbox.checked = true;
+                    selectAllCheckbox.indeterminate = false;
                 } else {
-                    const allChecked = Array.from(fileCheckboxes).every(cb => cb.checked);
-                    selectAllCheckbox.checked = allChecked;
+                    selectAllCheckbox.checked = false;
+                    selectAllCheckbox.indeterminate = true;
                 }
             }
 
-            updateSelectAllCheckboxListener();
+            // Event listener for the "Select All" checkbox
+            selectAllCheckbox.addEventListener('change', function() {
+                const isChecked = this.checked;
+                document.querySelectorAll('.file-checkbox:not(#selectAllCheckbox)').forEach(checkbox => {
+                    checkbox.checked = isChecked;
+                });
+                updateSelectAllCheckboxState(); // Ensure indeterminate state is correctly handled
+            });
+
+            // Event listener for individual checkboxes
+            document.addEventListener('change', function(event) {
+                if (event.target.classList.contains('file-checkbox') && event.target.id !== 'selectAllCheckbox') {
+                    synchronizeCheckboxes(event.target);
+                }
+            });
+
+            // Initial update of checkbox states when the page loads or content is updated
+            function updateAllCheckboxListeners() {
+                updateSelectAllCheckboxState();
+            }
+            updateAllCheckboxListeners(); // Call initially
 
             // --- Delete Selected Files/Folders ---
             deleteSelectedBtn.addEventListener('click', async () => {
-                const checkboxes = document.querySelectorAll('.file-checkbox:checked');
+                const checkboxes = document.querySelectorAll('.file-checkbox:not(#selectAllCheckbox):checked');
                 const selectedItems = Array.from(checkboxes).map(cb => {
                     return { id: cb.dataset.id, type: cb.dataset.type };
                 });
@@ -2968,7 +2997,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                         dropdownContainer.classList.remove('show');
 
                         const format = event.target.dataset.format;
-                        const checkboxes = document.querySelectorAll('.file-checkbox:checked');
+                        const checkboxes = document.querySelectorAll('.file-checkbox:not(#selectAllCheckbox):checked');
                         const selectedItems = Array.from(checkboxes).map(cb => {
                             return { id: cb.dataset.id, type: cb.dataset.type };
                         });
@@ -3942,7 +3971,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                     document.querySelector('.storage-info').innerHTML = newStorageInfo;
 
                     // Re-attach event listeners to new elements
-                    updateSelectAllCheckboxListener(); // Re-attach select all listener
+                    updateAllCheckboxListeners(); // Re-attach select all listener and update states
 
                     // Update URL in browser history without reloading
                     history.pushState(null, '', `index.php?${params.toString()}`);
@@ -4016,7 +4045,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             });
 
             // Initial call to attach listeners
-            updateSelectAllCheckboxListener();
+            updateAllCheckboxListeners(); // Changed from updateSelectAllCheckboxListener
 
             // Check if the request is an AJAX request
             const urlParams = new URLSearchParams(window.location.search);

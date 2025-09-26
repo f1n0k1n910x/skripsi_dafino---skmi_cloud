@@ -2020,6 +2020,9 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             'logout': { 'id': 'Keluar', 'en': 'Logout' },
             'storage': { 'id': 'Penyimpanan', 'en': 'Storage' },
             'storageFull': { 'id': 'Penyimpanan Penuh!', 'en': 'Storage Full!' },
+            'ofUsed': { 'id': 'dari', 'en': 'of' }, // Added for storage text
+            'usedTextId': 'terpakai', // Added for storage text
+            'usedTextEn': 'used', // Added for storage text
 
             // Recycle Bin Page Specific
             'recycleBinTitle': { 'id': 'Tempat Sampah', 'en': 'Recycle Bin' },
@@ -2346,6 +2349,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                     fileListView.classList.remove('hidden');
                     fileGridView.classList.add('hidden');
                     localStorage.setItem('recycleBinView', 'list');
+                    updateSelectAllCheckboxState(); // Update select all checkbox state after view change
                 });
 
                 gridViewBtnElement.addEventListener('click', () => {
@@ -2354,6 +2358,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                     fileGridView.classList.remove('hidden');
                     fileListView.classList.add('hidden');
                     localStorage.setItem('recycleBinView', 'grid');
+                    updateSelectAllCheckboxState(); // Update select all checkbox state after view change
                 });
             }
 
@@ -2371,48 +2376,89 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
 
             // --- Select All Checkbox Logic ---
             function updateSelectAllCheckboxListener() {
-                const fileCheckboxes = document.querySelectorAll('.file-checkbox');
-                selectAllCheckbox.checked = false;
+                // Remove existing listeners to prevent duplicates
                 selectAllCheckbox.removeEventListener('change', handleSelectAllChange);
-                selectAllCheckbox.addEventListener('change', handleSelectAllChange);
-
-                fileCheckboxes.forEach(checkbox => {
+                document.querySelectorAll('.file-checkbox').forEach(checkbox => {
                     checkbox.removeEventListener('change', handleIndividualCheckboxChange);
+                });
+
+                // Add new listeners
+                selectAllCheckbox.addEventListener('change', handleSelectAllChange);
+                document.querySelectorAll('.file-checkbox').forEach(checkbox => {
                     checkbox.addEventListener('change', handleIndividualCheckboxChange);
                 });
+
+                updateSelectAllCheckboxState(); // Initial state check
             }
 
             function handleSelectAllChange() {
-                const fileCheckboxes = document.querySelectorAll('.file-checkbox');
-                fileCheckboxes.forEach(checkbox => {
-                    // Only check/uncheck if the item is not restricted for the current user
+                const isChecked = this.checked;
+                document.querySelectorAll('.file-checkbox').forEach(checkbox => {
                     const itemElement = closestFileItem(checkbox);
-                    if (itemElement && itemElement.dataset.isRestricted === 'true' && !(currentUserRole === 'admin' || currentUserRole === 'moderator')) {
-                        // Do nothing, or visually indicate it's unselectable
-                    } else {
-                        checkbox.checked = this.checked;
+                    // Only check/uncheck if the item is not restricted OR if user is admin/moderator
+                    if (!(itemElement && itemElement.dataset.isRestricted === 'true' && !(currentUserRole === 'admin' || currentUserRole === 'moderator'))) {
+                        checkbox.checked = isChecked;
+                        // Ensure corresponding checkbox in other view is also updated
+                        const otherViewCheckbox = document.querySelector(`#${fileListView.classList.contains('hidden') ? 'fileListView' : 'fileGridView'} .file-checkbox[data-id="${checkbox.dataset.id}"][data-type="${checkbox.dataset.type}"]`);
+                        if (otherViewCheckbox) {
+                            otherViewCheckbox.checked = isChecked;
+                        }
                     }
                 });
             }
 
             function handleIndividualCheckboxChange() {
-                const fileCheckboxes = document.querySelectorAll('.file-checkbox');
-                if (!this.checked) {
+                const currentCheckbox = this;
+                const isChecked = currentCheckbox.checked;
+                const itemId = currentCheckbox.dataset.id;
+                const itemType = currentCheckbox.dataset.type;
+
+                // Update corresponding checkbox in the other view
+                const otherViewCheckbox = document.querySelector(`#${fileListView.classList.contains('hidden') ? 'fileListView' : 'fileGridView'} .file-checkbox[data-id="${itemId}"][data-type="${itemType}"]`);
+                if (otherViewCheckbox) {
+                    otherViewCheckbox.checked = isChecked;
+                }
+                
+                updateSelectAllCheckboxState();
+            }
+
+            function updateSelectAllCheckboxState() {
+                const allCheckboxes = document.querySelectorAll('.file-checkbox');
+                if (allCheckboxes.length === 0) {
                     selectAllCheckbox.checked = false;
-                } else {
-                    // Check if all *selectable* checkboxes are checked
-                    const allSelectableChecked = Array.from(fileCheckboxes).every(cb => {
-                        const itemElement = closestFileItem(cb);
-                        if (itemElement && itemElement.dataset.isRestricted === 'true' && !(currentUserRole === 'admin' || currentUserRole === 'moderator')) {
-                            return true; // Treat restricted but unselectable items as 'checked' for the purpose of 'all selected'
+                    selectAllCheckbox.indeterminate = false;
+                    return;
+                }
+
+                let checkedCount = 0;
+                let selectableCount = 0;
+
+                allCheckboxes.forEach(checkbox => {
+                    const itemElement = closestFileItem(checkbox);
+                    // Consider an item "selectable" if it's not restricted OR if the user is admin/moderator
+                    const isSelectable = !(itemElement && itemElement.dataset.isRestricted === 'true' && !(currentUserRole === 'admin' || currentUserRole === 'moderator'));
+                    
+                    if (isSelectable) {
+                        selectableCount++;
+                        if (checkbox.checked) {
+                            checkedCount++;
                         }
-                        return cb.checked;
-                    });
-                    selectAllCheckbox.checked = allSelectableChecked;
+                    }
+                });
+
+                if (checkedCount === 0) {
+                    selectAllCheckbox.checked = false;
+                    selectAllCheckbox.indeterminate = false;
+                } else if (checkedCount === selectableCount) {
+                    selectAllCheckbox.checked = true;
+                    selectAllCheckbox.indeterminate = false;
+                } else {
+                    selectAllCheckbox.checked = false;
+                    selectAllCheckbox.indeterminate = true;
                 }
             }
 
-            updateSelectAllCheckboxListener();
+            updateSelectAllCheckboxListener(); // Initial setup
 
             // --- Restore Selected Files/Folders ---
             restoreSelectedBtn.addEventListener('click', async () => {
@@ -2828,7 +2874,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                     document.querySelector('.breadcrumbs').innerHTML = newBreadcrumbs;
 
 
-                    updateSelectAllCheckboxListener();
+                    updateSelectAllCheckboxListener(); // Re-attach listeners and update state
                     history.pushState(null, '', `recycle_bin.php?${params.toString()}`);
                     applyTranslation(currentLanguage); // Apply translation after content update
 
