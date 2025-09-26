@@ -46,6 +46,10 @@ function deleteFolderAndMoveFilesToTrash($conn, $userId, $folderId, $baseUploadD
     function getAllFilesRecursive($conn, $currentFolderId, &$filesArray) {
         // Ambil file di folder saat ini
         $stmt_files = $conn->prepare("SELECT id, file_name, file_path, file_size, file_type, folder_id FROM files WHERE folder_id = ?");
+        if ($stmt_files === false) {
+            error_log("Failed to prepare statement for getAllFilesRecursive: " . $conn->error);
+            return;
+        }
         $stmt_files->bind_param("i", $currentFolderId);
         $stmt_files->execute();
         $result_files = $stmt_files->get_result();
@@ -56,6 +60,10 @@ function deleteFolderAndMoveFilesToTrash($conn, $userId, $folderId, $baseUploadD
 
         // Ambil subfolder dan panggil rekursif
         $stmt_subfolders = $conn->prepare("SELECT id FROM folders WHERE parent_id = ?");
+        if ($stmt_subfolders === false) {
+            error_log("Failed to prepare statement for getAllSubfoldersRecursive (files): " . $conn->error);
+            return;
+        }
         $stmt_subfolders->bind_param("i", $currentFolderId);
         $stmt_subfolders->execute();
         $result_subfolders = $stmt_subfolders->get_result();
@@ -77,10 +85,19 @@ function deleteFolderAndMoveFilesToTrash($conn, $userId, $folderId, $baseUploadD
 
         // Pindahkan ke deleted_files table
         $stmt_insert_deleted = $conn->prepare("INSERT INTO deleted_files (user_id, file_name, file_path, file_size, file_type, folder_id, original_folder_path, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())");
+        if ($stmt_insert_deleted === false) {
+            $errors[] = "Failed to prepare statement for inserting deleted file '" . htmlspecialchars($fileName) . "': " . $conn->error;
+            continue;
+        }
         $stmt_insert_deleted->bind_param("issisis", $userId, $fileName, $filePath, $fileSize, $fileType, $originalFolderId, $originalFolderPath);
         if ($stmt_insert_deleted->execute()) {
             // Hapus dari tabel files asli
             $stmt_delete_original_file = $conn->prepare("DELETE FROM files WHERE id = ?");
+            if ($stmt_delete_original_file === false) {
+                $errors[] = "Failed to prepare statement for deleting original file '" . htmlspecialchars($fileName) . "': " . $conn->error;
+                $stmt_insert_deleted->close();
+                continue;
+            }
             $stmt_delete_original_file->bind_param("i", $file['id']);
             if ($stmt_delete_original_file->execute()) {
                 $filesMoved[] = $fileName;
@@ -93,7 +110,7 @@ function deleteFolderAndMoveFilesToTrash($conn, $userId, $folderId, $baseUploadD
         } else {
             $errors[] = "Failed to move file '" . htmlspecialchars($fileName) . "' to deleted_files table: " . $stmt_insert_deleted->error;
         }
-        $stmt_insert_deleted.close();
+        $stmt_insert_deleted->close(); // Pastikan statement ditutup
     }
 
     // 2. Ambil semua subfolder (termasuk folder utama) dan hapus entri dari DB
@@ -101,6 +118,10 @@ function deleteFolderAndMoveFilesToTrash($conn, $userId, $folderId, $baseUploadD
     $allFoldersToDelete = [];
     function getAllSubfoldersRecursive($conn, $currentFolderId, &$foldersArray) {
         $stmt_subfolders = $conn->prepare("SELECT id, folder_name FROM folders WHERE parent_id = ?");
+        if ($stmt_subfolders === false) {
+            error_log("Failed to prepare statement for getAllSubfoldersRecursive (folders): " . $conn->error);
+            return;
+        }
         $stmt_subfolders->bind_param("i", $currentFolderId);
         $stmt_subfolders->execute();
         $result_subfolders = $stmt_subfolders->get_result();
@@ -115,14 +136,20 @@ function deleteFolderAndMoveFilesToTrash($conn, $userId, $folderId, $baseUploadD
 
     // Tambahkan folder utama ke daftar untuk dihapus terakhir
     $stmt_main_folder = $conn->prepare("SELECT id, folder_name FROM folders WHERE id = ?");
-    $stmt_main_folder->bind_param("i", $folderId);
-    $stmt_main_folder->execute();
-    $result_main_folder = $stmt_main_folder->get_result();
-    $mainFolder = $result_main_folder->fetch_assoc();
-    $stmt_main_folder->close();
-    if ($mainFolder) {
-        $allFoldersToDelete[] = $mainFolder;
+    if ($stmt_main_folder === false) {
+        error_log("Failed to prepare statement for main folder: " . $conn->error);
+        // Handle error, perhaps add to $errors array
+    } else {
+        $stmt_main_folder->bind_param("i", $folderId);
+        $stmt_main_folder->execute();
+        $result_main_folder = $stmt_main_folder->get_result();
+        $mainFolder = $result_main_folder->fetch_assoc();
+        $stmt_main_folder->close();
+        if ($mainFolder) {
+            $allFoldersToDelete[] = $mainFolder;
+        }
     }
+
 
     // Hapus folder dari DB (dari yang paling dalam ke luar)
     foreach (array_reverse($allFoldersToDelete) as $folder) {
@@ -132,9 +159,18 @@ function deleteFolderAndMoveFilesToTrash($conn, $userId, $folderId, $baseUploadD
 
         // Pindahkan ke deleted_folders table
         $stmt_insert_deleted_folder = $conn->prepare("INSERT INTO deleted_folders (user_id, folder_name, deleted_at) VALUES (?, ?, NOW())");
+        if ($stmt_insert_deleted_folder === false) {
+            $errors[] = "Failed to prepare statement for inserting deleted folder '" . htmlspecialchars($folderName) . "': " . $conn->error;
+            continue;
+        }
         $stmt_insert_deleted_folder->bind_param("is", $userId, $folderName);
         if ($stmt_insert_deleted_folder->execute()) {
             $stmt_delete_original_folder = $conn->prepare("DELETE FROM folders WHERE id = ?");
+            if ($stmt_delete_original_folder === false) {
+                $errors[] = "Failed to prepare statement for deleting original folder '" . htmlspecialchars($folderName) . "': " . $conn->error;
+                $stmt_insert_deleted_folder->close();
+                continue;
+            }
             $stmt_delete_original_folder->bind_param("i", $folder['id']);
             if ($stmt_delete_original_folder->execute()) {
                 $foldersProcessed[] = $folderName;
@@ -148,7 +184,7 @@ function deleteFolderAndMoveFilesToTrash($conn, $userId, $folderId, $baseUploadD
         } else {
             $errors[] = "Failed to move folder '" . htmlspecialchars($folderName) . "' to deleted_folders table: " . $stmt_insert_deleted_folder->error;
         }
-        $stmt_insert_deleted_folder->close();
+        $stmt_insert_deleted_folder->close(); // Pastikan statement ditutup
     }
 
     return ['filesMoved' => $filesMoved, 'foldersProcessed' => $foldersProcessed, 'errors' => $errors];
@@ -187,7 +223,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         try {
             if ($type === 'file') {
-                $stmt = $conn->prepare("SELECT id, file_name, file_path, file_size, file_type, folder_id FROM files WHERE id = ?"); // Removed user_id filter
+                $stmt = $conn->prepare("SELECT id, file_name, file_path, file_size, file_type, folder_id FROM files WHERE id = ?");
+                if ($stmt === false) {
+                    $allErrors[] = "Failed to prepare statement for file ID " . $id . ": " . $conn->error;
+                    continue;
+                }
                 $stmt->bind_param("i", $id);
                 $stmt->execute();
                 $result = $stmt->get_result();
@@ -204,10 +244,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $originalFolderPath = getFolderPath($conn, $folderId);
 
                     $stmt_insert_deleted = $conn->prepare("INSERT INTO deleted_files (user_id, file_name, file_path, file_size, file_type, folder_id, original_folder_path, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())");
+                    if ($stmt_insert_deleted === false) {
+                        $allErrors[] = "Failed to prepare statement for inserting deleted file '" . htmlspecialchars($fileName) . "': " . $conn->error;
+                        continue;
+                    }
                     $stmt_insert_deleted->bind_param("issisis", $userId, $fileName, $filePath, $fileSize, $fileType, $folderId, $originalFolderPath);
 
                     if ($stmt_insert_deleted->execute()) {
-                        $stmt_delete_original = $conn->prepare("DELETE FROM files WHERE id = ?"); // Removed user_id filter
+                        $stmt_delete_original = $conn->prepare("DELETE FROM files WHERE id = ?");
+                        if ($stmt_delete_original === false) {
+                            $allErrors[] = "Failed to prepare statement for deleting original file '" . htmlspecialchars($fileName) . "': " . $conn->error;
+                            $stmt_insert_deleted->close();
+                            continue;
+                        }
                         $stmt_delete_original->bind_param("i", $id);
                         if ($stmt_delete_original->execute()) {
                             deleteFileFromDisk($baseUploadDir . $filePath);
@@ -227,7 +276,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $allErrors[] = "File not found with ID: " . $id;
                 }
             } elseif ($type === 'folder') {
-                $stmt = $conn->prepare("SELECT folder_name FROM folders WHERE id = ?"); // Removed user_id filter
+                $stmt = $conn->prepare("SELECT folder_name FROM folders WHERE id = ?");
+                if ($stmt === false) {
+                    $allErrors[] = "Failed to prepare statement for folder ID " . $id . ": " . $conn->error;
+                    continue;
+                }
                 $stmt->bind_param("i", $id);
                 $stmt->execute();
                 $result = $stmt->get_result();
@@ -272,7 +325,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo json_encode(['success' => true, 'message' => implode(" ", $allMessages)]);
     } else {
         $conn->rollback();
-        $finalMessage = "Operation completed with errors. " . implode(" ", $allErrors);
+        // Combine all messages and errors for a more comprehensive response
+        $finalMessage = "Operation completed with some issues. ";
+        if (!empty($allMessages)) {
+            $finalMessage .= implode(" ", $allMessages) . " ";
+        }
+        $finalMessage .= "Errors: " . implode(" ", $allErrors);
         echo json_encode(['success' => false, 'message' => $finalMessage, 'errors' => $allErrors]);
     }
 

@@ -121,6 +121,10 @@ function folderContainsFilteredFiles($conn, $folderId, $filterExtensions, $baseU
         }
         
         $stmt = $conn->prepare($sql);
+        if ($stmt === false) {
+            error_log("Failed to prepare statement for folderContainsFilteredFiles (no filter): " . $conn->error);
+            return false;
+        }
         $stmt->bind_param($types, ...$params);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -152,6 +156,10 @@ function folderContainsFilteredFiles($conn, $folderId, $filterExtensions, $baseU
         // So, no additional WHERE clause needed here for $currentUserRole.
 
         $stmt = $conn->prepare($sql);
+        if ($stmt === false) {
+            error_log("Failed to prepare statement for folderContainsFilteredFiles (with filter): " . $conn->error);
+            return false;
+        }
         $stmt->bind_param($types, ...$params);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -166,6 +174,10 @@ function folderContainsFilteredFiles($conn, $folderId, $filterExtensions, $baseU
     // Recursively check subfolders
     $subfolders = [];
     $stmt = $conn->prepare("SELECT id FROM folders WHERE parent_id = ?");
+    if ($stmt === false) {
+        error_log("Failed to prepare statement for subfolders in folderContainsFilteredFiles: " . $conn->error);
+        return false;
+    }
     $stmt->bind_param("i", $folderId);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -201,36 +213,41 @@ if (!empty($searchQuery)) {
 $sqlFolders .= " ORDER BY folder_name ASC";
 
 $stmt = $conn->prepare($sqlFolders);
-$stmt->bind_param($folderTypes, ...$folderParams);
-$stmt->execute();
-$result = $stmt->get_result();
-$tempFolders = [];
-while ($row = $result->fetch_assoc()) {
-    // Apply file type filter to folders, considering user role
-    if (empty($filterExtensions) || folderContainsFilteredFiles($conn, $row['id'], $filterExtensions, $baseUploadDir, $currentUserRole, $restrictedFileTypes)) {
-        $tempFolders[] = $row;
+if ($stmt === false) {
+    error_log("Failed to prepare statement for fetching folders: " . $conn->error);
+    // Handle error appropriately, e.g., display an empty list or an error message
+} else {
+    $stmt->bind_param($folderTypes, ...$folderParams);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $tempFolders = [];
+    while ($row = $result->fetch_assoc()) {
+        // Apply file type filter to folders, considering user role
+        if (empty($filterExtensions) || folderContainsFilteredFiles($conn, $row['id'], $filterExtensions, $baseUploadDir, $currentUserRole, $restrictedFileTypes)) {
+            $tempFolders[] = $row;
+        }
     }
-}
-$stmt->close();
+    $stmt->close();
 
-// Calculate folder sizes for sorting
-foreach ($tempFolders as &$folder) {
-    $folderPath = $baseUploadDir . getFolderPath($conn, $folder['id']);
-    $folder['calculated_size'] = getFolderSize($folderPath);
-}
-unset($folder); // Unset reference
+    // Calculate folder sizes for sorting
+    foreach ($tempFolders as &$folder) {
+        $folderPath = $baseUploadDir . getFolderPath($conn, $folder['id']);
+        $folder['calculated_size'] = getFolderSize($folderPath);
+    }
+    unset($folder); // Unset reference
 
-// Apply size sorting for folders
-if ($sizeFilter === 'asc') {
-    usort($tempFolders, function($a, $b) {
-        return $a['calculated_size'] <=> $b['calculated_size'];
-    });
-} elseif ($sizeFilter === 'desc') {
-    usort($tempFolders, function($a, $b) {
-        return $b['calculated_size'] <=> $a['calculated_size'];
-    });
+    // Apply size sorting for folders
+    if ($sizeFilter === 'asc') {
+        usort($tempFolders, function($a, $b) {
+            return $a['calculated_size'] <=> $b['calculated_size'];
+        });
+    } elseif ($sizeFilter === 'desc') {
+        usort($tempFolders, function($a, $b) {
+            return $b['calculated_size'] <=> $a['calculated_size'];
+        });
+    }
+    $folders = $tempFolders;
 }
-$folders = $tempFolders;
 
 
 // Fetch files in current directory
@@ -279,15 +296,20 @@ if ($sizeFilter === 'asc') {
 }
 
 $stmt = $conn->prepare($sqlFiles);
-// Dynamically bind parameters
-$stmt->bind_param($types, ...$params);
+if ($stmt === false) {
+    error_log("Failed to prepare statement for fetching files: " . $conn->error);
+    // Handle error appropriately
+} else {
+    // Dynamically bind parameters
+    $stmt->bind_param($types, ...$params);
 
-$stmt->execute();
-$result = $stmt->get_result();
-while ($row = $result->fetch_assoc()) {
-    $files[] = $row;
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $files[] = $row;
+    }
+    $stmt->close();
 }
-$stmt->close();
 
 
 // Simulated data for storage (Replace with actual data from your database/system)
@@ -298,13 +320,18 @@ $totalStorageBytes = $totalStorageGB * 1024 * 1024 * 1024; // Convert GB to Byte
 $usedStorageBytes = 0;
 // Calculate used storage from files table (sum of file_size)
 $stmt = $conn->prepare("SELECT SUM(file_size) as total_size FROM files");
-$stmt->execute();
-$result = $stmt->get_result();
-$row = $result->fetch_assoc();
-if ($row['total_size']) {
-    $usedStorageBytes = $row['total_size'];
+if ($stmt === false) {
+    error_log("Failed to prepare statement for total storage calculation: " . $conn->error);
+} else {
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+    if ($row['total_size']) {
+        $usedStorageBytes = $row['total_size'];
+    }
+    $stmt->close(); // Close the statement
 }
-$stmt->close(); // Close the statement
+
 
 $usedStorageGB = $usedStorageBytes / (1024 * 1024 * 1024); // Convert bytes to GB
 
@@ -2334,10 +2361,10 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
             // Notifications
             'pleaseSelectToDelete': { 'id': 'Pilih setidaknya satu file atau folder untuk dihapus!', 'en': 'Please select at least one file or folder to delete!' },
             'noPermissionRestrictedDelete': { 'id': 'Anda tidak memiliki izin untuk menghapus jenis file terbatas.', 'en': 'You do not have permission to delete restricted file types.' },
-            'confirmDelete': { 'id': 'Anda yakin ingin menghapus item yang dipilih? Ini akan menghapus semua file dan subfolder di dalamnya!', 'en': 'Are you sure you want to delete the selected items? This will delete all files and subfolders within them!' },
-            'itemsDeletedSuccess': { 'id': 'Item berhasil dihapus!', 'en': 'Items deleted successfully!' },
+            'confirmDelete': { 'id': 'Anda yakin ingin menghapus item yang dipilih? Ini akan memindahkan semua file dan subfolder di dalamnya ke Recycle Bin!', 'en': 'Are you sure you want to delete the selected items? This will move all files and subfolders within them to the Recycle Bin!' },
+            'itemsDeletedSuccess': { 'id': 'Item berhasil dipindahkan ke Recycle Bin!', 'en': 'Items successfully moved to Recycle Bin!' },
             'failedToDelete': { 'id': 'Gagal menghapus item:', 'en': 'Failed to delete items:' },
-            'errorDeleting': { 'id': 'Terjadi kesalahan saat menghapus item.', 'en': 'An error occurred while deleting items.' },
+            'errorDeleting': { 'id': 'Terjadi kesalahan saat memproses penghapusan item.', 'en': 'An error occurred while processing item deletion.' },
             'pleaseSelectToArchive': { 'id': 'Pilih setidaknya satu file atau folder untuk diarsipkan!', 'en': 'Please select at least one file or folder to archive!' },
             'noPermissionRestrictedArchive': { 'id': 'Anda tidak memiliki izin untuk mengarsipkan jenis file terbatas.', 'en': 'You do not have permission to archive restricted file types.' },
             'confirmArchive': { 'id': 'Anda yakin ingin mengarsipkan item yang dipilih ke format', 'en': 'Are you sure you want to archive the selected items to' },
@@ -2959,6 +2986,7 @@ $isStorageFull = isStorageFull($conn, $totalStorageBytes);
                         showNotification('itemsDeletedSuccess', 'success');
                         updateFileListAndFolders(); // Update content without full reload
                     } else {
+                        // Display the detailed error message from the backend
                         showNotification('failedToDelete', 'error', data.message);
                     }
                 } catch (error) {
