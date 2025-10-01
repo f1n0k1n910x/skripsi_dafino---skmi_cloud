@@ -73,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['file_id'])) {
         $baseUrl = getBaseUrl();
         // Jika aplikasi Anda di subdirektori, tambahkan path subdirektori di sini
         // Contoh: $baseUrl .= '/Dafino_Cloud_Storage';
-        $shortlink = $baseUrl . '/' . $original_file_path;
+        $shortlink = $baseUrl . '/v2/pdf-viewer.php?url=' . $baseUrl . '/' . $original_file_path;
 
         if (!str_contains($original_file_path, "pdf"))
             $shortlink = $baseUrl . '/s.php?c=' . $short_code;

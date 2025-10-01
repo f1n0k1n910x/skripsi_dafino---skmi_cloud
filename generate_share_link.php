@@ -1,5 +1,10 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 include 'config.php'; // Pastikan ini mengarah ke file config.php Anda
+require_once __DIR__ . '/v2/helpers/utils.php';
+
 
 // Fungsi untuk menghasilkan kode pendek acak
 function generateShortCode($length = 6) {
@@ -63,12 +68,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['file_id'])) {
             $stmt->close();
         }
 
-        // Base URL untuk shortlink (ganti dengan domain Anda)
+       // Base URL untuk shortlink (ganti dengan domain Anda)
         // Untuk localhost, mungkin http://localhost/Dafino_Cloud_Storage
-        $baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]";
+        // $baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]";
+        $baseUrl = getBaseUrl();
         // Jika aplikasi Anda di subdirektori, tambahkan path subdirektori di sini
         // Contoh: $baseUrl .= '/Dafino_Cloud_Storage';
-        $shortlink = $baseUrl . '/s.php?c=' . $short_code;
+        $shortlink = $baseUrl . '/v2/pdf-viewer.php?url=' . $baseUrl . '/' . $original_file_path;
 
         echo json_encode(['success' => true, 'shortlink' => $shortlink]);
     } else {
