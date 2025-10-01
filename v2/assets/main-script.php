@@ -982,7 +982,7 @@ $currentFolderPath = ''; // To build the full path for uploads and display
           showNotification('Generating share link...', 'info');
 
           try {
-              const response = await fetch('generate_share_link.php', {
+              const response = await fetch('services/api/generateShareLink.php', {
                   method: 'POST',
                   headers: {
                       'Content-Type': 'application/x-www-form-urlencoded', // Important for $_POST
