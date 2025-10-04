@@ -273,6 +273,39 @@ function readArchiveContent($filePath, $fileType) {
     return $output;
 }
 
+// Check if the request is specifically for PDF viewer
+if (isset($_GET['pdf_viewer']) && $_GET['pdf_viewer'] === 'true' && $fileType === 'pdf') {
+    // This is the "separate page" for PDF viewing
+    ?>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>PDF Viewer : <?php echo htmlspecialchars($fileName); ?></title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body, html {
+                margin: 0;
+                padding: 0;
+                width: 100%;
+                height: 100%;
+                overflow: hidden; /* Hide scrollbars from main page */
+            }
+            iframe {
+                width: 100%;
+                height: 100%;
+                border: none;
+            }
+        </style>
+    </head>
+    <body>
+        <iframe src="<?php echo htmlspecialchars($filePath); ?>"></iframe>
+    </body>
+    </html>
+    <?php
+    exit(); // Stop further execution for the PDF viewer page
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -993,7 +1026,15 @@ function readArchiveContent($filePath, $fileType) {
                     <span data-lang-key="videoNotSupported">Your browser does not support the video tag.</span>
                 </video>
             <?php elseif ($fileCategory === 'document' && $fileType === 'pdf'): ?>
-                <iframe id="previewElement" src="<?php echo htmlspecialchars($filePath); ?>" class="pdf-viewer"></iframe>
+                <!-- Redirect to the separate PDF viewer page within view.php -->
+                <script>
+                    window.location.replace("view.php?file_id=<?php echo $fileId; ?>&pdf_viewer=true<?php echo $is_shared_link ? '&shared=true' : ''; ?>");
+                </script>
+                <div class="general-file-info">
+                    <i class="fas fa-file-pdf icon"></i>
+                    <p><span data-lang-key="loadingPdf">Loading PDF viewer...</span></p>
+                    <p><span data-lang-key="ifNotRedirected">If you are not redirected, click</span> <a href="view.php?file_id=<?php echo $fileId; ?>&pdf_viewer=true<?php echo $is_shared_link ? '&shared=true' : ''; ?>"><span data-lang-key="here">here</span></a>.</p>
+                </div>
             <?php elseif ($fileCategory === 'code'): ?>
                 <pre id="previewElement"><code class="language-<?php echo htmlspecialchars($fileType); ?>"><?php echo htmlspecialchars($fileContent); ?></code></pre>
             <?php elseif ($fileCategory === 'archive'): ?>
@@ -1111,6 +1152,9 @@ function readArchiveContent($filePath, $fileType) {
             'previewNotSupported': { 'id': 'Pratinjau untuk tipe file', 'en': 'Preview for file type' },
             'downloadToOpen': { 'id': 'Silakan unduh file untuk membukanya.', 'en': 'Please download the file to open it.' },
             'cannotLoadTextContent': { 'id': 'Tidak dapat memuat konten teks. File tidak ditemukan atau tidak dapat diakses.', 'en': 'Cannot load text content. File not found or accessible.' }, // NEW translation
+            'loadingPdf': { 'id': 'Memuat penampil PDF...', 'en': 'Loading PDF viewer...' }, // NEW translation
+            'ifNotRedirected': { 'id': 'Jika Anda tidak dialihkan, klik', 'en': 'If you are not redirected, click' }, // NEW translation
+            'here': { 'id': 'di sini', 'en': 'here' }, // NEW translation
         };
     
         let currentLanguage = localStorage.getItem('lang') || 'id'; // Default to Indonesian
@@ -1260,7 +1304,16 @@ function readArchiveContent($filePath, $fileType) {
                     </video>
                 `;
             } else if (data.fileCategory === 'document' && data.fileType === 'pdf') {
-                previewHtml += `<iframe id="previewElement" src="${htmlspecialchars(data.filePath)}" class="pdf-viewer"></iframe>`;
+                // For PDF, we will redirect to the separate PDF viewer page
+                // This part will not be reached if the redirect happens immediately
+                // but it's good to have a fallback message.
+                previewHtml += `
+                    <div class="general-file-info">
+                        <i class="fas fa-file-pdf icon"></i>
+                        <p><span data-lang-key="loadingPdf">${translations['loadingPdf'][currentLanguage]}</span></p>
+                        <p><span data-lang-key="ifNotRedirected">${translations['ifNotRedirected'][currentLanguage]}</span> <a href="view.php?file_id=${data.file.id}&pdf_viewer=true${is_shared_link ? '&shared=true' : ''}"><span data-lang-key="here">${translations['here'][currentLanguage]}</span></a>.</p>
+                    </div>
+                `;
             } else if (data.fileCategory === 'code') {
                 // MODIFIED: Check if fileContent is null
                 const codeContent = data.fileContent !== null ? htmlspecialchars(data.fileContent) : translations['cannotLoadTextContent'][currentLanguage];

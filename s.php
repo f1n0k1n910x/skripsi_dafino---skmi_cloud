@@ -24,15 +24,19 @@ if (isset($_GET['c'])) {
         if ($fileData) {
             $fileId = $fileData['id'];
             // Redirect ke view.php dengan file_id dan parameter 'shared=true'
+            // Pastikan URL ini benar-benar mengarah ke view.php di root aplikasi Anda
             header("Location: view.php?file_id=$fileId&shared=true");
             exit();
         } else {
+            // Jika file asli tidak ditemukan di tabel 'files'
             echo "File asli tidak ditemukan di sistem.";
         }
     } else {
+        // Jika short code tidak ditemukan di tabel 'shared_links'
         echo "Link tidak valid.";
     }
 } else {
+    // Jika parameter 'c' tidak ada
     echo "Kode tidak ditemukan.";
 }
 ?>
