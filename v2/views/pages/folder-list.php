@@ -190,8 +190,11 @@ $currentFolderId = isset($_GET['folder']) ? (int)$_GET['folder'] : NULL;
                                     <td><input type="checkbox" class="file-checkbox" data-id="<?php echo $file['id']; ?>" data-type="file"></td>
                                     <td class="file-name-cell">
                                         <i class="fas <?php echo getFontAwesomeIconClass($file['file_name']); ?> file-icon <?php echo getFileColorClassPhp($file['file_name']); ?>"></i>
-                                        <a href="views/pages/file-view.php?file_id=<?php echo $file['id']; ?>" class="file-link-clickable" onclick="event.stopPropagation();"><?php echo htmlspecialchars($file['file_name']); ?></a>
-                                        </td>
+                                        <!-- Remove the href and use span instead of a tag -->
+                                        <span class="file-name-clickable" data-file-id="<?php echo $file['id']; ?>">
+                                            <?php echo htmlspecialchars($file['file_name']); ?>
+                                        </span>
+                                    </td>
                                     <td><?php echo strtoupper($file['file_type'] ?? ""); ?></td>
                                     <td><?php echo formatBytes($file['file_size'] ?? ""); ?></td>
                                     <td><?php echo !empty($file['uploaded_at']) ? date('Y-m-d H:i', strtotime($file['uploaded_at'])) : 'N/A'; ?></td>
@@ -273,7 +276,7 @@ $currentFolderId = isset($_GET['folder']) ? (int)$_GET['folder'] : NULL;
                                 <?php endif; ?>
                                 <span class="file-type-label"><?php echo strtoupper($fileExt); ?></span>
                             </div>
-                            <a href="views/pages/file-view.php?file_id=<?php echo $file['id']; ?>" class="file-name file-link-clickable" onclick="event.stopPropagation();"><?php echo $fileName; ?></a>
+                            <a class="file-name file-link-clickable" onclick="event.stopPropagation();"><?php echo $fileName; ?></a>
                             <span class="file-size"><?php echo formatBytes($file['file_size']); ?></span>
                             <button class="item-more" aria-haspopup="true" aria-label="More">⋮</button>
                         </div>

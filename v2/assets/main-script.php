@@ -968,42 +968,109 @@ $currentFolderPath = ''; // To build the full path for uploads and display
           }
       });
 
+
+        /**
+         * Calls a backend API endpoint using POST method with x-www-form-urlencoded body.
+         * Shows an initial 'Generating...' notification.
+         * * @param {string} url The API endpoint URL.
+         * @param {Object} bodyParams An object containing key-value pairs for the request body.
+         * @returns {Promise<Object|null>} A promise that resolves to the JSON response data 
+         * if the request is successful, or null on a fetch error.
+         */
+        async function callApi(url, bodyParams) {
+            showNotification('Generating share link...', 'info'); // Initial notification
+            
+            // Convert bodyParams object to x-www-form-urlencoded string
+            const body = Object.keys(bodyParams)
+                .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(bodyParams[key])}`)
+                .join('&');
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded', // Important for $_POST
+                    },
+                    body: body
+                });
+
+                // Check for HTTP errors (e.g., 404, 500)
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                return data;
+
+            } catch (error) {
+                console.error('API Call Error:', error);
+                showNotification('An error occurred. Please try again.', 'error');
+                return null;
+            }
+        }
+
+        // Assumes the reusable 'callApi' function is still defined and available.
+
+        /**
+         * Generates a share link and immediately redirects the browser to the shortlink.
+         * @param {string} id The ID of the file to open.
+         */
+        async function openFileInViewer(id) {
+            const item = document.querySelector(`.file-item[data-id="${CSS.escape(id)}"]`);
+            if (!item) return;
+            const itemType = item.dataset.type;
+
+            if (itemType !== 'file') {
+                showNotification('Only files can be opened in the viewer.', 'error');
+                return;
+            }
+
+            // Use the existing callApi function
+            const data = await callApi('services/api/generateShareLink.php', {
+                file_id: id
+            });
+
+            // Check if data exists and the backend reported success
+            if (data && data.success && data.shortlink) {
+                // SUCCESS: Redirect the user to the generated shortlink
+                window.location.href = data.shortlink;
+            } else if (data) {
+                // If data exists but success is false (backend-reported error)
+                showNotification('Failed to open file: ' + (data.message || 'Unknown error'), 'error');
+            } 
+            // If data is null, an error notification was already shown by callApi
+        }
+
       // --- Share Link Functionality ---
-      async function shareFileLink(id) {
-          const item = document.querySelector(`.file-item[data-id="${CSS.escape(id)}"]`);
-          if (!item) return;
-          const itemType = item.dataset.type; // Will always be 'file' for this button
+        /**
+         * Generates and displays a share link for a file.
+         * * @param {string} id The ID of the file to share.
+         */
+        async function shareFileLink(id) {
+            const item = document.querySelector(`.file-item[data-id="${CSS.escape(id)}"]`);
+            if (!item) return;
+            const itemType = item.dataset.type;
 
-          if (itemType !== 'file') {
-              showNotification('Only files can be shared via shortlink.', 'error');
-              return;
-          }
+            if (itemType !== 'file') {
+                showNotification('Only files can be shared via shortlink.', 'error');
+                return;
+            }
 
-          showNotification('Generating share link...', 'info');
+            const data = await callApi('services/api/generateShareLink.php', {
+                file_id: id
+            });
 
-          try {
-              const response = await fetch('services/api/generateShareLink.php', {
-                  method: 'POST',
-                  headers: {
-                      'Content-Type': 'application/x-www-form-urlencoded', // Important for $_POST
-                  },
-                  body: `file_id=${id}`
-              });
-
-              const data = await response.json();
-
-              if (data.success) {
-                  shortLinkOutput.value = data.shortlink;
-                  openModal(shareLinkModal);
-                  showNotification('Share link generated!', 'success');
-              } else {
-                  showNotification('Failed to generate share link: ' + data.message, 'error');
-              }
-          } catch (error) {
-              console.error('Error:', error);
-              showNotification('An error occurred while generating the share link.', 'error');
-          }
-      }
+            // Check if callApi returned data and if the backend reported success
+            if (data && data.success) {
+                shortLinkOutput.value = data.shortlink;
+                openModal(shareLinkModal);
+                showNotification('Share link generated!', 'success');
+            } else if (data) {
+                // If data exists but success is false (backend-reported error)
+                showNotification('Failed to generate share link: ' + (data.message || 'Unknown error'), 'error');
+            } 
+            // If data is null, an error notification was already shown by callApi
+        }
 
       copyShortLinkBtn.addEventListener('click', () => {
           shortLinkOutput.select();
@@ -1012,6 +1079,32 @@ $currentFolderPath = ''; // To build the full path for uploads and display
           showNotification('Link copied to clipboard!', 'success');
       });
 
+      // Handle clicks on the entire file row
+        document.querySelectorAll('.file-item').forEach(item => {
+            item.addEventListener('click', function(e) {
+                // Don't trigger if clicking on checkbox, menu button, or the file-name-clickable span
+                if (e.target.matches('input[type="checkbox"]') || 
+                    e.target.matches('.item-more') ||
+                    e.target.closest('.file-name-clickable')) {
+                    return;
+                }
+                
+                const fileId = this.getAttribute('data-id');
+                // *** MODIFIED: Call the new function ***
+                openFileInViewer(fileId); 
+            });
+        });
+        
+        // Handle clicks specifically on the file name (same functionality)
+        document.querySelectorAll('.file-name-clickable').forEach(item => {
+            item.addEventListener('click', function(e) {
+                e.stopPropagation(); // Prevent the row click from triggering
+                const fileId = this.getAttribute('data-file-id');
+                // *** MODIFIED: Call the new function ***
+                openFileInViewer(fileId);
+            });
+        });
+        
       /*** Context menu element ***/
       function showContextMenuFor(fileEl, x, y) {
           if (!fileEl) return;
@@ -1107,7 +1200,7 @@ $currentFolderPath = ''; // To build the full path for uploads and display
           const file = closestFileItem(e.target);
           // MODIFIED: Only open file/folder if the click is NOT on the checkbox
           if (file && !e.target.classList.contains('file-checkbox')) {
-              openFileById(file.dataset.id);
+            //   openFileById(file.dataset.id);
           } else {
               // click outside => close menu
               hideContextMenu();
